@@ -164,10 +164,14 @@
                 <h3 id="modal-title" class="text-white font-semibold ml-2">Game Title</h3>
                 <!-- Loading Indicator for Game -->
                 <span id="game-loading" class="hidden text-xs text-indigo-400 animate-pulse ml-2 flex items-center">
-                    <i class="fas fa-circle-notch fa-spin mr-1"></i> Bypassing blocks...
+                    <i class="fas fa-circle-notch fa-spin mr-1"></i> Loading content...
                 </span>
             </div>
             <div class="flex items-center gap-2">
+                <button id="fix-btn" onclick="toggleLoadMethod()" class="p-2 text-yellow-500 hover:text-yellow-400 hover:bg-gray-700 rounded-md transition-colors hidden" title="Fix Loading (Switch Mode)">
+                    <i class="fas fa-rocket"></i> <span class="text-xs font-bold ml-1">FIX LOAD</span>
+                </button>
+                <div class="h-6 w-px bg-gray-700 mx-1"></div>
                 <button onclick="toggleFullscreen()" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors" title="Fullscreen">
                     <i class="fas fa-expand"></i>
                 </button>
@@ -188,15 +192,21 @@
         const REPO_OWNER = 'JasenC4PlaysOfficial';
         const REPO_NAME = 'Html-Games';
         const TARGET_FOLDER = 'games'; 
-        // We use the recursive tree API to find files without guessing names
+        
+        // Github API for listing files
         const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/main?recursive=1`;
         
-        // Proxy to serve raw HTML with correct Content-Type
-        // We use this as the "Base" for relative assets (images, css)
-        const BASE_RAW_URL = `https://raw.githack.com/${REPO_OWNER}/${REPO_NAME}/main/`;
+        // 1. RAW GITHUB: Used to fetch the Code Text (Reliable, High Rate Limits)
+        const FETCH_SOURCE_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/`;
+        
+        // 2. GITHACK PROXY: Used for the <base> tag to load assets (Images/CSS) with correct MIME types
+        // Using rawcdn (production) for better caching and reliability
+        const ASSET_BASE_URL = `https://rawcdn.githack.com/${REPO_OWNER}/${REPO_NAME}/main/`;
 
         // State
         let allGames = [];
+        let currentGame = null;
+        let isDirectLoad = false;
 
         // DOM Elements
         const loader = document.getElementById('loader');
@@ -209,6 +219,7 @@
         const modalTitle = document.getElementById('modal-title');
         const gameLoadingIndicator = document.getElementById('game-loading');
         const iframeWrapper = document.getElementById('iframe-wrapper');
+        const fixBtn = document.getElementById('fix-btn');
 
         // --- Initialization ---
         window.addEventListener('DOMContentLoaded', fetchGames);
@@ -273,8 +284,11 @@
                 allGames = Array.from(gamesMap, ([folderName, fullPath]) => ({
                     name: formatGameName(folderName),
                     rawName: folderName,
-                    url: `${BASE_RAW_URL}${fullPath}`,
-                    fullPath: fullPath // Store path to calculate base directory later
+                    fullPath: fullPath,
+                    // URL used to fetch text content (GitHub Raw)
+                    fetchUrl: `${FETCH_SOURCE_BASE}${fullPath}`,
+                    // URL used for assets (Githack CDN)
+                    assetUrl: `${ASSET_BASE_URL}${fullPath}`
                 }));
 
                 // Sort alphabetically
@@ -328,7 +342,6 @@
                         <h3 class="text-white font-bold text-lg truncate" title="${game.name}">${game.name}</h3>
                         <div class="flex items-center mt-2 justify-between">
                             <span class="text-xs font-medium px-2 py-1 rounded bg-gray-700 text-gray-300">HTML5</span>
-                            <span class="text-xs text-gray-500 truncate max-w-[50%]">GitHub</span>
                         </div>
                     </div>
                 `;
@@ -345,15 +358,19 @@
                 .trim();
         }
 
-        // --- Modal & Anti-Block Game Logic ---
+        // --- Modal & Smart Game Logic ---
 
         async function openGame(game) {
+            currentGame = game;
+            isDirectLoad = false; // Default to anti-block mode
+            
             modalTitle.textContent = game.name;
             gameLoadingIndicator.classList.remove('hidden');
+            fixBtn.classList.remove('hidden'); // Show fix button
             
             // Clear previous content
             gameFrame.src = 'about:blank';
-            gameFrame.srcdoc = '';
+            gameFrame.removeAttribute('srcdoc');
 
             // Show modal
             modal.classList.remove('hidden');
@@ -362,38 +379,80 @@
             }, 10);
             document.body.style.overflow = 'hidden';
 
+            await loadGameContent(game);
+        }
+
+        async function loadGameContent(game) {
             try {
-                // 1. Fetch the raw HTML code directly
-                const response = await fetch(game.url);
+                // 1. Fetch the raw HTML code directly from GitHub
+                const response = await fetch(game.fetchUrl);
                 if (!response.ok) throw new Error("Failed to fetch game code");
                 let htmlCode = await response.text();
 
-                // 2. Determine the Base URL for assets
-                // If url is .../games/Pacman/index.html, base is .../games/Pacman/
-                const baseUrl = game.url.substring(0, game.url.lastIndexOf('/') + 1);
-
-                // 3. Inject <base> tag into the HTML
-                // This forces all relative links (img src="player.png") to load from the correct remote server
-                // instead of failing locally.
-                if (htmlCode.includes('<head>')) {
-                    htmlCode = htmlCode.replace('<head>', `<head><base href="${baseUrl}">`);
-                } else if (htmlCode.includes('<html>')) {
-                    htmlCode = htmlCode.replace('<html>', `<html><head><base href="${baseUrl}"></head>`);
+                // 2. SMART BASE INJECTION
+                // Check if the game ALREADY has a base tag (like FNF). 
+                // If it does, we MUST NOT inject our own, or the game will break.
+                const hasExistingBase = /<base\s+href=/i.test(htmlCode);
+                
+                if (!hasExistingBase) {
+                    // Only inject if missing.
+                    // Calculate CDN directory
+                    const baseAssetUrl = game.assetUrl.substring(0, game.assetUrl.lastIndexOf('/') + 1);
+                    
+                    if (htmlCode.includes('<head>')) {
+                        htmlCode = htmlCode.replace('<head>', `<head><base href="${baseAssetUrl}">`);
+                    } else if (htmlCode.includes('<html>')) {
+                        htmlCode = htmlCode.replace('<html>', `<html><head><base href="${baseAssetUrl}"></head>`);
+                    } else {
+                        htmlCode = `<head><base href="${baseAssetUrl}"></head>` + htmlCode;
+                    }
                 } else {
-                    htmlCode = `<head><base href="${baseUrl}"></head>` + htmlCode;
+                    console.log("Existing <base> tag detected. Skipping injection.");
                 }
 
-                // 4. Inject the modified HTML into the iframe using srcdoc
-                // This bypasses URL blocking because the browser sees "about:srcdoc" or the launcher's URL
+                // 3. Inject the modified HTML into the iframe
                 gameFrame.srcdoc = htmlCode;
 
             } catch (err) {
                 console.error("Anti-block load failed:", err);
-                // Fallback to direct URL if injection fails
-                gameFrame.src = game.url;
+                // Fallback to direct URL if injection completely fails
+                gameFrame.removeAttribute('srcdoc');
+                gameFrame.src = game.assetUrl;
+                isDirectLoad = true;
             } finally {
-                gameLoadingIndicator.classList.add('hidden');
+                setTimeout(() => {
+                    gameLoadingIndicator.classList.add('hidden');
+                }, 1000);
             }
+        }
+
+        function toggleLoadMethod() {
+            if (!currentGame) return;
+
+            gameLoadingIndicator.classList.remove('hidden');
+            isDirectLoad = !isDirectLoad;
+
+            if (isDirectLoad) {
+                // Switch to Direct Mode (Good for Unity/Heavy Games)
+                console.log("Switching to Direct Load Mode");
+                gameFrame.removeAttribute('srcdoc');
+                gameFrame.src = currentGame.assetUrl;
+                // Visual feedback
+                fixBtn.innerHTML = '<i class="fas fa-check"></i> <span class="text-xs font-bold ml-1">DIRECT MODE</span>';
+                fixBtn.classList.remove('text-yellow-500');
+                fixBtn.classList.add('text-green-500');
+            } else {
+                // Switch back to Anti-block Mode (Good for privacy/extensions)
+                console.log("Switching to Anti-block Mode");
+                fixBtn.innerHTML = '<i class="fas fa-rocket"></i> <span class="text-xs font-bold ml-1">FIX LOAD</span>';
+                fixBtn.classList.add('text-yellow-500');
+                fixBtn.classList.remove('text-green-500');
+                loadGameContent(currentGame);
+            }
+            
+            setTimeout(() => {
+                gameLoadingIndicator.classList.add('hidden');
+            }, 1000);
         }
 
         function closeGame() {
@@ -410,7 +469,6 @@
                 modal.classList.add('hidden');
                 
                 // 2. Nuclear Option: Destroy and recreate the iframe
-                // This ensures no audio/scripts linger and bypasses complex unload blockers
                 const newFrame = document.createElement('iframe');
                 newFrame.id = 'game-frame';
                 newFrame.className = 'w-full h-full border-0';
@@ -420,8 +478,13 @@
                     gameFrame.parentNode.replaceChild(newFrame, gameFrame);
                 }
                 
-                // Update global reference so openGame() uses the new one next time
                 gameFrame = newFrame;
+                currentGame = null;
+
+                // Reset Fix Button
+                fixBtn.innerHTML = '<i class="fas fa-rocket"></i> <span class="text-xs font-bold ml-1">FIX LOAD</span>';
+                fixBtn.classList.add('text-yellow-500');
+                fixBtn.classList.remove('text-green-500');
 
                 exitFullscreen();
             }, 300);
