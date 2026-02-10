@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Library</title>
+    <title>Math Games</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script>
@@ -100,9 +100,12 @@
                     <div class="bg-indigo-600 p-2 rounded-lg">
                         <i class="fas fa-gamepad text-white text-lg"></i>
                     </div>
-                    <span class="text-xl font-bold tracking-tight text-white">G-Launcher</span>
+                    <span class="text-xl font-bold tracking-tight text-white">Math Games</span>
                 </div>
                 <div class="flex items-center gap-4">
+                    <button onclick="fetchGames()" class="p-2 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700" title="Refresh Library">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                     <div class="relative">
                         <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
                         <input type="text" id="search-bar" placeholder="Search games..." 
@@ -119,7 +122,7 @@
         <!-- Header Section -->
         <div class="mb-8">
             <h1 class="text-3xl font-bold text-white mb-2">All Games</h1>
-            <p class="text-gray-400">Library sourced from GitHub Repository</p>
+            <p class="text-gray-400">Select a game to play</p>
         </div>
 
         <!-- Loading State -->
@@ -148,7 +151,7 @@
     <!-- Footer -->
     <footer class="bg-gray-900 border-t border-gray-800 py-6 mt-auto">
         <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
-            <p>&copy; 2026 Game Launcher. Content sourced from JasenC4PlaysOfficial/Html-Games.</p>
+            <p>&copy; 2026 Math Games.</p>
         </div>
     </footer>
 
@@ -159,6 +162,10 @@
         <div class="bg-gray-900 border-b border-gray-700 p-3 flex justify-between items-center shadow-md">
             <div class="flex items-center gap-3">
                 <h3 id="modal-title" class="text-white font-semibold ml-2">Game Title</h3>
+                <!-- Loading Indicator for Game -->
+                <span id="game-loading" class="hidden text-xs text-indigo-400 animate-pulse ml-2 flex items-center">
+                    <i class="fas fa-circle-notch fa-spin mr-1"></i> Bypassing blocks...
+                </span>
             </div>
             <div class="flex items-center gap-2">
                 <button onclick="toggleFullscreen()" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors" title="Fullscreen">
@@ -172,7 +179,7 @@
 
         <!-- Iframe Container -->
         <div id="iframe-wrapper" class="flex-grow relative bg-black w-full h-full">
-            <iframe id="game-frame" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms"></iframe>
+            <iframe id="game-frame" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-modals"></iframe>
         </div>
     </div>
 
@@ -185,6 +192,7 @@
         const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/main?recursive=1`;
         
         // Proxy to serve raw HTML with correct Content-Type
+        // We use this as the "Base" for relative assets (images, css)
         const BASE_RAW_URL = `https://raw.githack.com/${REPO_OWNER}/${REPO_NAME}/main/`;
 
         // State
@@ -197,8 +205,9 @@
         const gamesGrid = document.getElementById('games-grid');
         const searchBar = document.getElementById('search-bar');
         const modal = document.getElementById('game-modal');
-        const gameFrame = document.getElementById('game-frame');
+        let gameFrame = document.getElementById('game-frame');
         const modalTitle = document.getElementById('modal-title');
+        const gameLoadingIndicator = document.getElementById('game-loading');
         const iframeWrapper = document.getElementById('iframe-wrapper');
 
         // --- Initialization ---
@@ -236,28 +245,21 @@
                 const data = await response.json();
                 
                 // Parse the Git Tree to find games
-                // We look for any file path that starts with "games/" and ends with ".html"
                 const gamesMap = new Map();
 
                 data.tree.forEach(item => {
-                    // path example: "games/Pacman/index.html" or "games/Tetris/game.html"
                     if (item.path.startsWith(`${TARGET_FOLDER}/`) && item.path.endsWith('.html')) {
-                        
                         const parts = item.path.split('/');
-                        // We expect at least games/{Folder}/{File.html} -> 3 parts
                         if (parts.length >= 3) {
-                            const gameFolder = parts[1]; // The folder name (e.g., "Pacman")
-                            const fileName = parts.slice(2).join('/'); // The file name (e.g., "index.html")
+                            const gameFolder = parts[1];
+                            const fileName = parts.slice(2).join('/'); 
 
-                            // Check if we already found an HTML file for this game
                             if (gamesMap.has(gameFolder)) {
                                 const existingPath = gamesMap.get(gameFolder);
-                                // If the current file is 'index.html', it takes priority over whatever we found before
                                 if (fileName.toLowerCase() === 'index.html') {
                                     gamesMap.set(gameFolder, item.path);
                                 }
                             } else {
-                                // First HTML file found for this folder, save it
                                 gamesMap.set(gameFolder, item.path);
                             }
                         }
@@ -268,11 +270,11 @@
                     throw new Error("No HTML games found in the 'games' folder.");
                 }
 
-                // Convert Map to Array for rendering
                 allGames = Array.from(gamesMap, ([folderName, fullPath]) => ({
                     name: formatGameName(folderName),
                     rawName: folderName,
-                    url: `${BASE_RAW_URL}${fullPath}`
+                    url: `${BASE_RAW_URL}${fullPath}`,
+                    fullPath: fullPath // Store path to calculate base directory later
                 }));
 
                 // Sort alphabetically
@@ -304,22 +306,18 @@
             }
 
             games.forEach((game, index) => {
-                // Generate a consistent color based on the name length for the placeholder
                 const hue = (game.name.length * 25) % 360;
                 const initials = game.name.substring(0, 2).toUpperCase();
 
                 const card = document.createElement('div');
                 card.className = 'game-card bg-gray-800 rounded-xl overflow-hidden border border-gray-700 cursor-pointer animate-slide-up';
-                card.style.animationDelay = `${Math.min(index * 0.05, 1.0)}s`; // Cap delay so large lists don't take forever
+                card.style.animationDelay = `${Math.min(index * 0.05, 1.0)}s`;
                 
                 card.innerHTML = `
                     <div class="h-40 w-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-900 relative group">
-                        <!-- Placeholder Art -->
                         <div class="absolute inset-0 bg-opacity-20 flex items-center justify-center" style="background-color: hsla(${hue}, 60%, 50%, 0.2);">
                             <span class="text-4xl font-black text-white opacity-20 select-none group-hover:scale-110 transition-transform duration-300">${initials}</span>
                         </div>
-                        
-                        <!-- Play Icon Overlay -->
                         <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
                             <div class="bg-indigo-600 rounded-full p-4 transform scale-0 group-hover:scale-100 transition-transform duration-300 shadow-lg">
                                 <i class="fas fa-play text-white ml-1"></i>
@@ -340,42 +338,92 @@
             });
         }
 
-        // --- Helpers ---
-
         function formatGameName(folderName) {
-            // Converts "some-game-name" or "SomeGameName" to "Some Game Name"
             return folderName
                 .replace(/-/g, ' ')
-                .replace(/([A-Z])/g, ' $1') // Space before capital letters
+                .replace(/([A-Z])/g, ' $1')
                 .trim();
         }
 
-        // --- Modal & Game Logic ---
+        // --- Modal & Anti-Block Game Logic ---
 
-        function openGame(game) {
+        async function openGame(game) {
             modalTitle.textContent = game.name;
-            gameFrame.src = game.url;
+            gameLoadingIndicator.classList.remove('hidden');
             
+            // Clear previous content
+            gameFrame.src = 'about:blank';
+            gameFrame.srcdoc = '';
+
             // Show modal
             modal.classList.remove('hidden');
-            // Small timeout to allow display:block to apply before changing opacity for transition
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
             }, 10);
-
-            // Prevent body scrolling
             document.body.style.overflow = 'hidden';
+
+            try {
+                // 1. Fetch the raw HTML code directly
+                const response = await fetch(game.url);
+                if (!response.ok) throw new Error("Failed to fetch game code");
+                let htmlCode = await response.text();
+
+                // 2. Determine the Base URL for assets
+                // If url is .../games/Pacman/index.html, base is .../games/Pacman/
+                const baseUrl = game.url.substring(0, game.url.lastIndexOf('/') + 1);
+
+                // 3. Inject <base> tag into the HTML
+                // This forces all relative links (img src="player.png") to load from the correct remote server
+                // instead of failing locally.
+                if (htmlCode.includes('<head>')) {
+                    htmlCode = htmlCode.replace('<head>', `<head><base href="${baseUrl}">`);
+                } else if (htmlCode.includes('<html>')) {
+                    htmlCode = htmlCode.replace('<html>', `<html><head><base href="${baseUrl}"></head>`);
+                } else {
+                    htmlCode = `<head><base href="${baseUrl}"></head>` + htmlCode;
+                }
+
+                // 4. Inject the modified HTML into the iframe using srcdoc
+                // This bypasses URL blocking because the browser sees "about:srcdoc" or the launcher's URL
+                gameFrame.srcdoc = htmlCode;
+
+            } catch (err) {
+                console.error("Anti-block load failed:", err);
+                // Fallback to direct URL if injection fails
+                gameFrame.src = game.url;
+            } finally {
+                gameLoadingIndicator.classList.add('hidden');
+            }
         }
 
         function closeGame() {
-            // Hide modal visually first
+            // 1. Attempt to suppress game-specific "Leave Site?" alerts
+            try {
+                if (gameFrame.contentWindow) {
+                    gameFrame.contentWindow.onbeforeunload = null;
+                }
+            } catch (e) { /* Ignore cross-origin issues */ }
+
             modal.classList.add('opacity-0');
             
-            // Wait for transition to finish
             setTimeout(() => {
                 modal.classList.add('hidden');
-                gameFrame.src = 'about:blank'; // Stop game execution
-                exitFullscreen(); // Ensure we exit fullscreen if active
+                
+                // 2. Nuclear Option: Destroy and recreate the iframe
+                // This ensures no audio/scripts linger and bypasses complex unload blockers
+                const newFrame = document.createElement('iframe');
+                newFrame.id = 'game-frame';
+                newFrame.className = 'w-full h-full border-0';
+                newFrame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-modals');
+                
+                if (gameFrame.parentNode) {
+                    gameFrame.parentNode.replaceChild(newFrame, gameFrame);
+                }
+                
+                // Update global reference so openGame() uses the new one next time
+                gameFrame = newFrame;
+
+                exitFullscreen();
             }, 300);
 
             document.body.style.overflow = '';
@@ -383,15 +431,10 @@
 
         function toggleFullscreen() {
             const elem = iframeWrapper;
-
             if (!document.fullscreenElement) {
-                if (elem.requestFullscreen) {
-                    elem.requestFullscreen();
-                } else if (elem.webkitRequestFullscreen) { /* Safari */
-                    elem.webkitRequestFullscreen();
-                } else if (elem.msRequestFullscreen) { /* IE11 */
-                    elem.msRequestFullscreen();
-                }
+                if (elem.requestFullscreen) elem.requestFullscreen();
+                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+                else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
             } else {
                 exitFullscreen();
             }
@@ -399,21 +442,21 @@
 
         function exitFullscreen() {
             if (document.fullscreenElement) {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) { /* Safari */
-                    document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) { /* IE11 */
-                    document.msExitFullscreen();
-                }
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
             }
         }
 
-        // Close modal on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !document.fullscreenElement && !modal.classList.contains('hidden')) {
                 closeGame();
             }
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            e.preventDefault();
+            e.returnValue = ''; 
         });
     </script>
 </body>
