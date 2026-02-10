@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIG O - The Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial Black', sans-serif;
+            background-color: #111;
+            user-select: none;
+        }
+
+        /* --- UI OVERLAYS --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to canvas when playing */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* HUD */
+        #hud {
+            padding: 20px;
+            display: none; /* Hidden on title screen */
+        }
+
+        #progress-container {
+            width: 50%;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #fff;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ff8c00, #ff0000);
+            transition: width 0.2s;
+        }
+
+        #progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 2px;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            font-size: 18px;
+        }
+
+        #stats {
+            color: #fff;
+            margin-top: 10px;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        #rebirth-notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border: 4px solid gold;
+            text-align: center;
+            color: gold;
+            display: none;
+            pointer-events: auto;
+            border-radius: 20px;
+        }
+
+        #rebirth-btn {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 24px;
+            background: gold;
+            color: black;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #rebirth-btn:hover { background: #fff; }
+
+        /* MENUS */
+        .menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #330000, #000000);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { font-size: 100px; color: #ff4400; text-shadow: 5px 5px 0px #000; margin: 0; }
+        h2 { color: #fff; }
+
+        button {
+            background: #fff;
+            border: 4px solid #000;
+            padding: 15px 40px;
+            margin: 10px;
+            font-size: 24px;
+            font-family: 'Arial Black', sans-serif;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        button:hover { transform: scale(1.1); background: #ffcc00; }
+
+        .settings-row {
+            margin: 20px;
+            color: white;
+            font-size: 20px;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid black;
+            display: none;
+        }
+
+    </style>
+    <!-- Load Three.js from CDN -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- TITLE SCREEN -->
+    <div id="title-screen" class="menu-screen">
+        <h1>BIG O</h1>
+        <p style="color: #aaa; font-size: 18px;">EAT. GROW. DESTROY.</p>
+        <button id="btn-play">PLAY</button>
+        <button id="btn-settings">SETTINGS</button>
+    </div>
+
+    <!-- SETTINGS MENU -->
+    <div id="settings-menu" class="menu-screen hidden">
+        <h1>SETTINGS</h1>
+        
+        <div class="settings-row">
+            <label for="res-select">Resolution Scale:</label>
+            <select id="res-select" style="padding: 5px; font-size: 18px;">
+                <option value="0.5">Low (Fast)</option>
+                <option value="1" selected>Normal</option>
+                <option value="1.5">High (Clear)</option>
+            </select>
+        </div>
+
+        <div class="settings-row">
+            <label>Fullscreen Mode:</label>
+            <input type="checkbox" id="fullscreen-check" style="width: 20px; height: 20px;">
+        </div>
+
+        <button id="btn-back">BACK</button>
+    </div>
+
+    <!-- PAUSE MENU -->
+    <div id="pause-menu" class="menu-screen hidden" style="background: rgba(0,0,0,0.8);">
+        <h1>PAUSED</h1>
+        <button id="btn-resume">RESUME</button>
+        <button id="btn-quit">MAIN MENU</button>
+    </div>
+
+    <!-- IN-GAME HUD -->
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <div id="hud">
+            <div id="progress-container">
+                <div id="progress-bar"></div>
+                <div id="progress-text">Food: 0 / 100</div>
+            </div>
+            <div id="stats">
+                <div id="size-stat">Size: Normal Fat Man</div>
+                <div id="ability-stat">Ability: None</div>
+                <div id="rebirth-stat">Rebirths: 0</div>
+            </div>
+        </div>
+        
+        <!-- REBIRTH MODAL -->
+        <div id="rebirth-notification">
+            <h2 id="rebirth-title">MAXIMUM MASS REACHED!</h2>
+            <p id="rebirth-desc">You have eaten enough to evolve.</p>
+            <p id="rebirth-reward" style="color: #00ff00; font-size: 20px;"></p>
+            <button id="rebirth-btn">REBIRTH</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- GAME STATE ---
+        const state = {
+            food: 0,
+            goal: 100,
+            rebirths: 0,
+            size: 1, // Player scale base
+            height: 1.7, // Player eye height
+            multiplier: 1,
+            speed: 5, // Reduced start speed (was 10)
+            inCart: false,
+            resolution: 1,
+            isPaused: false,
+            isPlaying: false
+        };
+
+        // --- DOM ELEMENTS ---
+        const titleScreen = document.getElementById('title-screen');
+        const settingsMenu = document.getElementById('settings-menu');
+        const pauseMenu = document.getElementById('pause-menu');
+        const hud = document.getElementById('hud');
+        const crosshair = document.getElementById('crosshair');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const rebirthModal = document.getElementById('rebirth-notification');
+        const rebirthReward = document.getElementById('rebirth-reward');
+        
+        // --- THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 200);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.y = state.height;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true; // Enable shadows
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        // Shadow optimization
+        dirLight.shadow.camera.left = -100;
+        dirLight.shadow.camera.right = 100;
+        dirLight.shadow.camera.top = 100;
+        dirLight.shadow.camera.bottom = -100;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // Controls
+        const controls = new PointerLockControls(camera, document.body);
+
+        // --- ASSETS & HELPERS ---
+        const colliders = []; // Walls and large objects
+        const foods = [];
+        
+        // Simple texture generator function
+        function createTexture(color, noiseAmount = 20) {
+            const size = 64;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+            ctx.fillRect(0,0,size,size);
+            
+            // Add noise
+            const imgData = ctx.getImageData(0,0,size,size);
+            for(let i=0; i<imgData.data.length; i+=4) {
+                const noise = (Math.random() - 0.5) * noiseAmount;
+                imgData.data[i] = Math.max(0, Math.min(255, imgData.data[i] + noise));
+                imgData.data[i+1] = Math.max(0, Math.min(255, imgData.data[i+1] + noise));
+                imgData.data[i+2] = Math.max(0, Math.min(255, imgData.data[i+2] + noise));
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        // Materials
+        const grassTex = createTexture(0x2d5a27, 40); grassTex.repeat.set(50,50);
+        const floorTex = createTexture(0xaaaaaa, 30); floorTex.repeat.set(4,4);
+        const wallTex = createTexture(0xeeeeee, 20);
+        const brickTex = createTexture(0x8b4513, 50); brickTex.repeat.set(2,1);
+        const asphaltTex = createTexture(0x333333, 40); asphaltTex.repeat.set(10,10);
+        
+        const grassMat = new THREE.MeshStandardMaterial({ map: grassTex });
+        const floorMat = new THREE.MeshStandardMaterial({ map: floorTex });
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex });
+        const brickMat = new THREE.MeshStandardMaterial({ map: brickTex });
+        const foodMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x330000 }); // Burger/Apple
+        const asphaltMat = new THREE.MeshStandardMaterial({ map: asphaltTex });
+        
+        // World Groups
+        const worldGroup = new THREE.Group();
+        scene.add(worldGroup);
+
+        // Helper to make boxes
+        function createBox(w, h, d, x, y, z, mat, parent = worldGroup, isCollider = true) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // Re-calc bounding box for collision
+            mesh.geometry.computeBoundingBox();
+            
+            parent.add(mesh);
+            if(isCollider) colliders.push(mesh);
+            return mesh;
+        }
+
+        // 1. School Interior
+        function buildSchool() {
+            const schoolGroup = new THREE.Group();
+            worldGroup.add(schoolGroup);
+
+            // Band Room Floor
+            createBox(30, 0.2, 30, 0, -0.1, 0, floorMat, schoolGroup, false);
+            
+            // Band Room Walls
+            // Back Wall
+            createBox(30, 10, 1, 0, 5, -15, wallMat, schoolGroup);
+            // Front Wall with Door gap
+            createBox(12, 10, 1, -9, 5, 15, wallMat, schoolGroup);
+            createBox(12, 10, 1, 9, 5, 15, wallMat, schoolGroup);
+            createBox(6, 2, 1, 0, 9, 15, wallMat, schoolGroup); // Door header
+            
+            // Left Wall
+            createBox(1, 10, 30, -15, 5, 0, wallMat, schoolGroup);
+            // Right Wall
+            createBox(1, 10, 30, 15, 5, 0, wallMat, schoolGroup);
+
+            // Band Room Props (Chairs/Stands)
+            for(let i=0; i<3; i++) { // Rows
+                for(let j=0; j<5; j++) { // Cols
+                    const cx = (j * 4) - 8;
+                    const cz = (i * 4) - 8;
+                    // Chair
+                    // Stand
+                    createBox(0.1, 2, 0.1, cx, 1, cz - 1, new THREE.MeshStandardMaterial({color: 0x555555}), schoolGroup, false);
+                    createBox(1, 0.8, 0.1, cx, 2, cz - 1, new THREE.MeshStandardMaterial({color: 0x111111}), schoolGroup, false);
+                }
+            }
+
+            // Hallway
+            createBox(15, 0.2, 50, 0, -0.1, 40, floorMat, schoolGroup, false); // Floor
+            createBox(1, 10, 50, -7.5, 5, 40, wallMat, schoolGroup); // Left Hall Wall
+            createBox(1, 10, 50, 7.5, 5, 40, wallMat, schoolGroup);  // Right Hall Wall
+            
+            // Main School Building Shell
+            createBox(50, 15, 60, 0, 7.5, 30, brickMat, schoolGroup, false); // Just for show from outside usually, but simplistic here
+        }
+
+        // 2. Outside (Football field & Parking)
+        function buildOutside() {
+            // Grass Base
+            createBox(1000, 0.2, 1000, 0, -0.2, 0, grassMat, worldGroup, false);
+
+            // Parking Lot (Asphalt)
+            const parkGroup = new THREE.Group();
+            createBox(80, 0.3, 60, 60, -0.1, 30, asphaltMat, parkGroup, false);
+            // Parking Lines
+            for(let i=0; i<6; i++) {
+                createBox(0.5, 0.35, 10, 30 + (i*10), -0.1, 20, new THREE.MeshBasicMaterial({color: 0xffffff}), parkGroup, false);
+                createBox(0.5, 0.35, 10, 30 + (i*10), -0.1, 40, new THREE.MeshBasicMaterial({color: 0xffffff}), parkGroup, false);
+            }
+            worldGroup.add(parkGroup);
+
+            // Football Field
+            const fieldGroup = new THREE.Group();
+            const turf = createBox(60, 0.3, 100, 0, -0.1, -80, new THREE.MeshStandardMaterial({color: 0x4CBB17}), fieldGroup, false);
+            // Goal Posts
+            const postMat = new THREE.MeshBasicMaterial({color:0xffff00});
+            // Goal 1
+            createBox(0.5, 5, 0.5, -5, 2.5, -130, postMat, fieldGroup);
+            createBox(0.5, 5, 0.5, 5, 2.5, -130, postMat, fieldGroup);
+            createBox(10.5, 0.5, 0.5, 0, 5, -130, postMat, fieldGroup);
+            // Goal 2
+            createBox(0.5, 5, 0.5, -5, 2.5, -30, postMat, fieldGroup);
+            createBox(0.5, 5, 0.5, 5, 2.5, -30, postMat, fieldGroup);
+            createBox(10.5, 0.5, 0.5, 0, 5, -30, postMat, fieldGroup);
+            
+            // Bleachers (Steps)
+            const bleachMat = new THREE.MeshStandardMaterial({color: 0xaaaaaa});
+            for(let i=0; i<5; i++) {
+                createBox(5, i+1, 80, -40 - (i*2), (i+1)/2, -80, bleachMat, fieldGroup);
+            }
+
+            worldGroup.add(fieldGroup);
+
+            // Trees
+            const treeGeo = new THREE.CylinderGeometry(0.5, 0.8, 4);
+            const treeMat = new THREE.MeshStandardMaterial({color: 0x5c4033});
+            const leafGeo = new THREE.ConeGeometry(3, 6, 8);
+            const leafMat = new THREE.MeshStandardMaterial({color: 0x228b22});
+
+            for(let i=0; i<40; i++) {
+                const x = (Math.random() * 400) - 200;
+                const z = (Math.random() * 400) - 200;
+                if (Math.abs(x) < 50 && Math.abs(z) < 80) continue; // Don't spawn in school/field
+                
+                const trunk = new THREE.Mesh(treeGeo, treeMat);
+                trunk.position.set(x, 2, z);
+                trunk.castShadow = true;
+                const leaves = new THREE.Mesh(leafGeo, leafMat);
+                leaves.position.set(x, 6, z);
+                leaves.castShadow = true;
+                
+                worldGroup.add(trunk);
+                worldGroup.add(leaves);
+                colliders.push(trunk); // Trees block path
+            }
+
+            // Cars
+            const carMat = new THREE.MeshStandardMaterial({color: 0x3366cc});
+            for(let i=0; i<8; i++) {
+                const col = new THREE.Color().setHSL(Math.random(), 0.8, 0.5);
+                const mat = new THREE.MeshStandardMaterial({color: col});
+                const x = 35 + (i * 8); // Parking spots
+                const z = (i % 2 === 0) ? 20 : 40;
+                
+                // Car Body
+                createBox(4, 2, 7, x, 1.5, z, mat);
+                // Wheels (Visual only)
+                createBox(4.2, 0.8, 4, x, 0.4, z, new THREE.MeshStandardMaterial({color:0x000000}), worldGroup, false);
+            }
+        }
+
+        // 3. Shopping Center (Unlockable)
+        const mallGroup = new THREE.Group();
+        function buildMall() {
+            // Mall Building
+            createBox(120, 20, 80, 150, 10, 100, new THREE.MeshStandardMaterial({color: 0xdedede, map: wallTex}), mallGroup);
+            // Windows/Doors visual
+            createBox(40, 8, 1, 150, 4, 60, new THREE.MeshBasicMaterial({color: 0x00aaff}), mallGroup);
+            // Sign
+            createBox(60, 5, 2, 150, 22, 60, new THREE.MeshBasicMaterial({color: 0xff00ff}), mallGroup);
+            
+            // Barrier (Initially visible)
+            const barrierGeo = new THREE.BoxGeometry(10, 10, 200);
+            const barrierMat = new THREE.MeshBasicMaterial({color: 0xff0000, transparent: true, opacity: 0.3});
+            const barrier = new THREE.Mesh(barrierGeo, barrierMat);
+            barrier.position.set(80, 5, 100);
+            barrier.name = "MallBarrier";
+            colliders.push(barrier); // Barrier is physical
+            worldGroup.add(barrier);
+
+            scene.add(mallGroup);
+            mallGroup.visible = false; // Hidden until rebirth
+        }
+
+        // --- FOOD SYSTEM ---
+        const foodGeo = new THREE.SphereGeometry(0.5, 16, 16);
+        const foodsGroup = new THREE.Group();
+        scene.add(foodsGroup);
+        
+        function spawnFood() {
+            // Define Zones based on progress
+            let x, z;
+            let valid = false;
+            let attempts = 0;
+
+            // Simple loop to find non-colliding spot roughly
+            while(!valid && attempts < 10) {
+                attempts++;
+                if (state.rebirths < 2) {
+                    // School Area limits
+                    x = (Math.random() * 200) - 100;
+                    z = (Math.random() * 200) - 100;
+                } else {
+                    // Include Mall Area
+                    x = (Math.random() * 400) - 100;
+                    z = (Math.random() * 400) - 100;
+                }
+                valid = true;
+            }
+
+            const food = new THREE.Mesh(foodGeo, foodMat);
+            food.position.set(x, 1, z); // Floating slightly
+            food.castShadow = true;
+            
+            // Random food scale variation based on player size?
+            // Just variation for fun
+            const s = 0.5 + Math.random() * 0.5;
+            food.scale.set(s,s,s);
+            
+            foodsGroup.add(food);
+            foods.push(food);
+        }
+
+        // Fill map with food
+        function populateFood(amount) {
+            for(let i=0; i<amount; i++) spawnFood();
+        }
+
+        // --- INPUT HANDLING ---
+        const moveState = { forward: false, backward: false, left: false, right: false };
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+
+        document.addEventListener('keydown', (event) => {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW': moveState.forward = true; break;
+                case 'ArrowLeft':
+                case 'KeyA': moveState.left = true; break;
+                case 'ArrowDown':
+                case 'KeyS': moveState.backward = true; break;
+                case 'ArrowRight':
+                case 'KeyD': moveState.right = true; break;
+                case 'KeyP': togglePause(); break;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW': moveState.forward = false; break;
+                case 'ArrowLeft':
+                case 'KeyA': moveState.left = false; break;
+                case 'ArrowDown':
+                case 'KeyS': moveState.backward = false; break;
+                case 'ArrowRight':
+                case 'KeyD': moveState.right = false; break;
+            }
+        });
+
+        // --- PHYSICS & COLLISION ---
+        const playerBox = new THREE.Box3();
+        const wallBox = new THREE.Box3();
+        const dummyVec = new THREE.Vector3();
+
+        function checkCollision(nextPos) {
+            // Define player bounds based on size
+            const radius = 0.5 * state.size; 
+            const height = 1.0 * state.size; // simpler check
+            
+            // Create a box for the player at nextPos
+            playerBox.min.set(nextPos.x - radius, nextPos.y - 1, nextPos.z - radius);
+            playerBox.max.set(nextPos.x + radius, nextPos.y + height, nextPos.z + radius);
+
+            for (const wall of colliders) {
+                // If barrier is hidden (unlocked), skip it
+                if (wall.name === "MallBarrier" && !wall.visible) continue;
+
+                // Update wall box
+                // Since walls are static, we could cache this, but setFromObject is safe
+                wallBox.setFromObject(wall);
+
+                if (playerBox.intersectsBox(wallBox)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // --- GAME LOGIC ---
+
+        function initGame() {
+            buildSchool();
+            buildOutside();
+            buildMall();
+            populateFood(200);
+            updateHUD();
+        }
+
+        function togglePause() {
+            if (!state.isPlaying) return;
+            
+            if (state.isPaused) {
+                // Resume
+                state.isPaused = false;
+                controls.lock();
+                pauseMenu.classList.add('hidden');
+            } else {
+                // Pause
+                state.isPaused = true;
+                controls.unlock();
+                pauseMenu.classList.remove('hidden');
+            }
+        }
+
+        function checkRebirth() {
+            if (state.food >= state.goal) {
+                controls.unlock();
+                state.isPaused = true; // Pause input
+                
+                // Set Reward Text
+                let reward = "";
+                if (state.rebirths === 0) reward = "NEXT: 2x Food Multiplier!";
+                else if (state.rebirths === 1) reward = "NEXT: Motorized Cart (Speed Boost)!";
+                else if (state.rebirths === 2) reward = "NEXT: Unlock Shopping Center!";
+                else reward = "NEXT: Become Infinite!";
+
+                rebirthReward.innerText = reward;
+                rebirthModal.style.display = 'block';
+            }
+        }
+
+        function performRebirth() {
+            state.rebirths++;
+            state.food = 0;
+            state.size = 1; // Reset visual size
+            camera.position.y = state.height; // Reset View Height
+            
+            // Apply Upgrades
+            if (state.rebirths === 1) {
+                state.multiplier = 2;
+                state.goal = 150;
+            } else if (state.rebirths === 2) {
+                state.inCart = true;
+                state.speed = 15; // Speed Boost (was 25, 5 -> 15)
+                state.goal = 200;
+                document.getElementById('size-stat').innerText = "Size: Cart Rider";
+            } else if (state.rebirths === 3) {
+                state.goal = 300;
+                // Unlock Mall
+                mallGroup.visible = true;
+                const barrier = worldGroup.getObjectByName("MallBarrier");
+                if(barrier) barrier.visible = false;
+                // Add more food
+                populateFood(100);
+            } else {
+                state.goal += 100;
+            }
+
+            rebirthModal.style.display = 'none';
+            state.isPaused = false;
+            controls.lock();
+            updateHUD();
+        }
+
+        function updateHUD() {
+            const percentage = Math.min((state.food / state.goal) * 100, 100);
+            progressBar.style.width = percentage + '%';
+            progressText.innerText = `Food: ${state.food} / ${state.goal}`;
+            
+            document.getElementById('rebirth-stat').innerText = `Rebirths: ${state.rebirths}`;
+            
+            if (state.inCart) {
+                document.getElementById('ability-stat').innerText = "Ability: Motorized Cart";
+            } else if (state.multiplier > 1) {
+                document.getElementById('ability-stat').innerText = "Ability: Double Eating";
+            }
+        }
+
+        // --- ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // RENDER THE SCENE - Fixed issue where nothing was visible
+            renderer.render(scene, camera);
+
+            // Always call getDelta so time doesn't pile up when paused
+            const delta = clock.getDelta();
+
+            if (!state.isPlaying || state.isPaused) return;
+
+            // 1. Friction & Velocity
+            velocity.x -= velocity.x * 10.0 * delta;
+            velocity.z -= velocity.z * 10.0 * delta;
+
+            direction.z = Number(moveState.forward) - Number(moveState.backward);
+            direction.x = Number(moveState.right) - Number(moveState.left);
+            direction.normalize(); 
+
+            // Move speed scaling
+            const currentSpeed = state.speed * (state.inCart ? 1.5 : 1.0);
+
+            if (moveState.forward || moveState.backward) velocity.z -= direction.z * 400.0 * delta * (currentSpeed / 10);
+            if (moveState.left || moveState.right) velocity.x -= direction.x * 400.0 * delta * (currentSpeed / 10);
+
+            // 2. Collision & Movement Application
+            // We calculate attempted movement separately for X and Z to allow sliding along walls
+            
+            const currentPos = camera.position.clone();
+            
+            // Try X movement
+            const moveX = -velocity.x * delta;
+            controls.moveRight(moveX);
+            if (checkCollision(camera.position)) {
+                // Hit wall, revert X
+                controls.moveRight(-moveX);
+                velocity.x = 0;
+            }
+
+            // Try Z movement
+            const moveZ = -velocity.z * delta;
+            controls.moveForward(moveZ);
+            if (checkCollision(camera.position)) {
+                // Hit wall, revert Z
+                controls.moveForward(-moveZ);
+                velocity.z = 0;
+            }
+
+            // 3. Food Logic
+            const playerPos = camera.position;
+            const eatRadius = 2.0 * state.size; 
+
+            for (let i = foods.length - 1; i >= 0; i--) {
+                const food = foods[i];
+                food.rotation.y += delta; 
+
+                if (playerPos.distanceTo(food.position) < eatRadius) {
+                    // EAT EVENT
+                    foodsGroup.remove(food); // Remove from group not scene directly if grouped
+                    if(food.parent) food.parent.remove(food);
+                    foods.splice(i, 1);
+                    
+                    state.food += 1 * state.multiplier;
+                    
+                    // Grow Player - MORE NOTICEABLE
+                    // Increase size by 0.05 (was 0.01)
+                    state.size += 0.05;
+                    
+                    // Smoothly increase camera height based on size
+                    // Base height (1.7) * size
+                    const targetHeight = 1.7 * state.size;
+                    
+                    // simple interpolation or direct set
+                    camera.position.y = targetHeight;
+                    
+                    // Spawn replacement food
+                    spawnFood();
+                    updateHUD();
+                    checkRebirth();
+                }
+            }
+        }
+
+        // --- MENU EVENT LISTENERS ---
+
+        document.getElementById('btn-play').addEventListener('click', () => {
+            titleScreen.classList.add('hidden');
+            hud.style.display = 'block';
+            crosshair.style.display = 'block';
+            state.isPlaying = true;
+            controls.lock();
+        });
+
+        document.getElementById('btn-settings').addEventListener('click', () => {
+            titleScreen.classList.add('hidden');
+            settingsMenu.classList.remove('hidden');
+        });
+
+        document.getElementById('btn-back').addEventListener('click', () => {
+            settingsMenu.classList.add('hidden');
+            titleScreen.classList.remove('hidden');
+        });
+
+        document.getElementById('btn-resume').addEventListener('click', () => {
+            togglePause();
+        });
+
+        document.getElementById('btn-quit').addEventListener('click', () => {
+            location.reload(); 
+        });
+
+        document.getElementById('res-select').addEventListener('change', (e) => {
+            renderer.setPixelRatio(window.devicePixelRatio * e.target.value);
+        });
+
+        document.getElementById('fullscreen-check').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        });
+
+        document.getElementById('rebirth-btn').addEventListener('click', performRebirth);
+
+        // Pointer Lock events to handle ESC key automatically
+        controls.addEventListener('unlock', () => {
+            if (!state.isPaused && state.food < state.goal) {
+                state.isPaused = true;
+                pauseMenu.classList.remove('hidden');
+            }
+        });
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start
+        initGame();
+        animate();
+
+    </script>
+</body>
+</html>
