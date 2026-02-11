@@ -168,10 +168,19 @@
                 </span>
             </div>
             <div class="flex items-center gap-2">
-                <button id="fix-btn" onclick="toggleLoadMethod()" class="p-2 text-yellow-500 hover:text-yellow-400 hover:bg-gray-700 rounded-md transition-colors hidden" title="Fix Loading (Switch Mode)">
-                    <i class="fas fa-rocket"></i> <span class="text-xs font-bold ml-1">FIX LOAD</span>
+                
+                <!-- Loading Mode Switcher -->
+                <button id="mode-btn" onclick="cycleLoadMode()" class="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-gray-700 rounded-md transition-colors flex items-center gap-1" title="Change Loading Mode (Auto/Direct/Embed)">
+                    <i class="fas fa-magic"></i> <span id="mode-label" class="text-xs font-bold">AUTO</span>
                 </button>
+
+                <!-- Server Switcher -->
+                <button id="server-btn" onclick="cycleMirror()" class="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-gray-700 rounded-md transition-colors flex items-center gap-1 ml-1" title="Switch Server Mirror">
+                    <i class="fas fa-server"></i> <span id="server-label" class="text-xs font-bold">SRV 1</span>
+                </button>
+                
                 <div class="h-6 w-px bg-gray-700 mx-1"></div>
+                
                 <button onclick="toggleFullscreen()" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md transition-colors" title="Fullscreen">
                     <i class="fas fa-expand"></i>
                 </button>
@@ -196,17 +205,27 @@
         // Github API for listing files
         const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/trees/main?recursive=1`;
         
-        // 1. RAW GITHUB: Used to fetch the Code Text (Reliable, High Rate Limits)
+        // 1. RAW GITHUB: Used to fetch the Code Text
         const FETCH_SOURCE_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/`;
         
-        // 2. GITHACK PROXY: Used for the <base> tag to load assets (Images/CSS) with correct MIME types
-        // Using rawcdn (production) for better caching and reliability
-        const ASSET_BASE_URL = `https://rawcdn.githack.com/${REPO_OWNER}/${REPO_NAME}/main/`;
+        // 2. MIRRORS: 
+        const MIRRORS = [
+            { name: "SRV 1", url: `https://raw.githack.com/${REPO_OWNER}/${REPO_NAME}/main/` },
+            { name: "SRV 2", url: `https://rawcdn.githack.com/${REPO_OWNER}/${REPO_NAME}/main/` }
+        ];
+
+        // Loading Modes
+        const MODES = {
+            AUTO: 'AUTO',
+            DIRECT: 'DIRECT', // iframe.src = url
+            EMBED: 'EMBED'    // iframe.srcdoc = html
+        };
 
         // State
         let allGames = [];
         let currentGame = null;
-        let isDirectLoad = false;
+        let currentMirrorIndex = 0;
+        let currentMode = MODES.AUTO;
 
         // DOM Elements
         const loader = document.getElementById('loader');
@@ -219,7 +238,10 @@
         const modalTitle = document.getElementById('modal-title');
         const gameLoadingIndicator = document.getElementById('game-loading');
         const iframeWrapper = document.getElementById('iframe-wrapper');
-        const fixBtn = document.getElementById('fix-btn');
+        const serverBtn = document.getElementById('server-btn');
+        const serverLabel = document.getElementById('server-label');
+        const modeBtn = document.getElementById('mode-btn');
+        const modeLabel = document.getElementById('mode-label');
 
         // --- Initialization ---
         window.addEventListener('DOMContentLoaded', fetchGames);
@@ -285,10 +307,7 @@
                     name: formatGameName(folderName),
                     rawName: folderName,
                     fullPath: fullPath,
-                    // URL used to fetch text content (GitHub Raw)
-                    fetchUrl: `${FETCH_SOURCE_BASE}${fullPath}`,
-                    // URL used for assets (Githack CDN)
-                    assetUrl: `${ASSET_BASE_URL}${fullPath}`
+                    fetchUrl: `${FETCH_SOURCE_BASE}${fullPath}`
                 }));
 
                 // Sort alphabetically
@@ -360,19 +379,40 @@
 
         // --- Modal & Smart Game Logic ---
 
+        function getActiveMirrorUrl(game) {
+            return `${MIRRORS[currentMirrorIndex].url}${game.fullPath}`;
+        }
+
+        function cycleMirror() {
+            if (!currentGame) return;
+            currentMirrorIndex = (currentMirrorIndex + 1) % MIRRORS.length;
+            serverLabel.textContent = MIRRORS[currentMirrorIndex].name;
+            loadGameContent(currentGame);
+        }
+
+        function cycleLoadMode() {
+            if (!currentGame) return;
+            
+            // Cycle: AUTO -> DIRECT -> EMBED -> AUTO
+            if (currentMode === MODES.AUTO) currentMode = MODES.DIRECT;
+            else if (currentMode === MODES.DIRECT) currentMode = MODES.EMBED;
+            else currentMode = MODES.AUTO;
+
+            modeLabel.textContent = currentMode;
+            loadGameContent(currentGame);
+        }
+
         async function openGame(game) {
             currentGame = game;
-            isDirectLoad = false; // Default to anti-block mode
+            currentMode = MODES.AUTO; // Reset mode on new game
+            modeLabel.textContent = "AUTO";
             
             modalTitle.textContent = game.name;
             gameLoadingIndicator.classList.remove('hidden');
-            fixBtn.classList.remove('hidden'); // Show fix button
             
-            // Clear previous content
             gameFrame.src = 'about:blank';
             gameFrame.removeAttribute('srcdoc');
 
-            // Show modal
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
@@ -383,42 +423,73 @@
         }
 
         async function loadGameContent(game) {
+            gameLoadingIndicator.classList.remove('hidden');
+            
             try {
-                // 1. Fetch the raw HTML code directly from GitHub
-                const response = await fetch(game.fetchUrl);
-                if (!response.ok) throw new Error("Failed to fetch game code");
-                let htmlCode = await response.text();
+                // Determine Execution Strategy based on Mode and Game Type
+                let strategy = currentMode;
 
-                // 2. SMART BASE INJECTION
-                // Check if the game ALREADY has a base tag (like FNF). 
-                // If it does, we MUST NOT inject our own, or the game will break.
-                const hasExistingBase = /<base\s+href=/i.test(htmlCode);
-                
-                if (!hasExistingBase) {
-                    // Only inject if missing.
-                    // Calculate CDN directory
-                    const baseAssetUrl = game.assetUrl.substring(0, game.assetUrl.lastIndexOf('/') + 1);
+                if (strategy === MODES.AUTO) {
+                    // Fetch source just to sniff the engine type
+                    const response = await fetch(game.fetchUrl);
+                    if (!response.ok) throw new Error("Failed to fetch game code");
+                    const htmlCode = await response.text();
+
+                    const isComplexEngine = /UnityLoader|Build\/|UnityProgress|lime\.embed|fetchWithProgress/i.test(htmlCode);
                     
-                    if (htmlCode.includes('<head>')) {
-                        htmlCode = htmlCode.replace('<head>', `<head><base href="${baseAssetUrl}">`);
-                    } else if (htmlCode.includes('<html>')) {
-                        htmlCode = htmlCode.replace('<html>', `<html><head><base href="${baseAssetUrl}"></head>`);
+                    if (isComplexEngine) {
+                        // Unity/Ports usually fail in srcdoc due to CORS/Fetch issues.
+                        // We DEFAULT to DIRECT load for them.
+                        strategy = MODES.DIRECT;
                     } else {
-                        htmlCode = `<head><base href="${baseAssetUrl}"></head>` + htmlCode;
+                        // Simple games use EMBED to keep URL hidden
+                        strategy = MODES.EMBED;
                     }
-                } else {
-                    console.log("Existing <base> tag detected. Skipping injection.");
                 }
 
-                // 3. Inject the modified HTML into the iframe
-                gameFrame.srcdoc = htmlCode;
+                const directUrl = getActiveMirrorUrl(game);
+
+                if (strategy === MODES.DIRECT) {
+                    console.log("Loading Mode: DIRECT");
+                    gameFrame.removeAttribute('srcdoc');
+                    gameFrame.src = directUrl;
+                } 
+                else if (strategy === MODES.EMBED) {
+                    console.log("Loading Mode: EMBED");
+                    // We need to fetch the code if we haven't already
+                    const response = await fetch(game.fetchUrl);
+                    let htmlCode = await response.text();
+
+                    // Inject Base for Assets
+                    const baseAssetUrl = directUrl.substring(0, directUrl.lastIndexOf('/') + 1);
+                    const hasExistingBase = /<base\s+href=/i.test(htmlCode);
+                    
+                    if (!hasExistingBase) {
+                        if (htmlCode.includes('<head>')) {
+                            htmlCode = htmlCode.replace('<head>', `<head><base href="${baseAssetUrl}">`);
+                        } else {
+                            htmlCode = `<head><base href="${baseAssetUrl}"></head>` + htmlCode;
+                        }
+                    }
+
+                    // Patch IDB for Unity (just in case they force Embed on Unity)
+                    const idbFix = `
+                    <script>
+                        window.indexedDB = null;
+                        window.mozIndexedDB = null;
+                        window.webkitIndexedDB = null;
+                        window.msIndexedDB = null;
+                    <\/script>`;
+                    htmlCode = idbFix + htmlCode;
+
+                    gameFrame.srcdoc = htmlCode;
+                }
 
             } catch (err) {
-                console.error("Anti-block load failed:", err);
-                // Fallback to direct URL if injection completely fails
+                console.error("Load failed:", err);
+                // Fallback
                 gameFrame.removeAttribute('srcdoc');
-                gameFrame.src = game.assetUrl;
-                isDirectLoad = true;
+                gameFrame.src = getActiveMirrorUrl(game);
             } finally {
                 setTimeout(() => {
                     gameLoadingIndicator.classList.add('hidden');
@@ -426,49 +497,18 @@
             }
         }
 
-        function toggleLoadMethod() {
-            if (!currentGame) return;
-
-            gameLoadingIndicator.classList.remove('hidden');
-            isDirectLoad = !isDirectLoad;
-
-            if (isDirectLoad) {
-                // Switch to Direct Mode (Good for Unity/Heavy Games)
-                console.log("Switching to Direct Load Mode");
-                gameFrame.removeAttribute('srcdoc');
-                gameFrame.src = currentGame.assetUrl;
-                // Visual feedback
-                fixBtn.innerHTML = '<i class="fas fa-check"></i> <span class="text-xs font-bold ml-1">DIRECT MODE</span>';
-                fixBtn.classList.remove('text-yellow-500');
-                fixBtn.classList.add('text-green-500');
-            } else {
-                // Switch back to Anti-block Mode (Good for privacy/extensions)
-                console.log("Switching to Anti-block Mode");
-                fixBtn.innerHTML = '<i class="fas fa-rocket"></i> <span class="text-xs font-bold ml-1">FIX LOAD</span>';
-                fixBtn.classList.add('text-yellow-500');
-                fixBtn.classList.remove('text-green-500');
-                loadGameContent(currentGame);
-            }
-            
-            setTimeout(() => {
-                gameLoadingIndicator.classList.add('hidden');
-            }, 1000);
-        }
-
         function closeGame() {
-            // 1. Attempt to suppress game-specific "Leave Site?" alerts
             try {
                 if (gameFrame.contentWindow) {
                     gameFrame.contentWindow.onbeforeunload = null;
                 }
-            } catch (e) { /* Ignore cross-origin issues */ }
+            } catch (e) { }
 
             modal.classList.add('opacity-0');
             
             setTimeout(() => {
                 modal.classList.add('hidden');
                 
-                // 2. Nuclear Option: Destroy and recreate the iframe
                 const newFrame = document.createElement('iframe');
                 newFrame.id = 'game-frame';
                 newFrame.className = 'w-full h-full border-0';
@@ -480,11 +520,6 @@
                 
                 gameFrame = newFrame;
                 currentGame = null;
-
-                // Reset Fix Button
-                fixBtn.innerHTML = '<i class="fas fa-rocket"></i> <span class="text-xs font-bold ml-1">FIX LOAD</span>';
-                fixBtn.classList.add('text-yellow-500');
-                fixBtn.classList.remove('text-green-500');
 
                 exitFullscreen();
             }, 300);
