@@ -16,11 +16,12 @@
             background-color: #333;
             height: 100vh;
             width: 100vw;
-            overflow: hidden; /* Prevent scrolling */
+            overflow: hidden;
             touch-action: none;
             font-family: 'FlappyFont', sans-serif;
             user-select: none;
             -webkit-user-select: none;
+            cursor: default;
         }
 
         #game-container {
@@ -35,16 +36,13 @@
             display: block;
             width: 100%;
             height: 100%;
-            /* Critical for the optimization: ensures the low-res canvas looks sharp when stretched */
-            image-rendering: pixelated; 
+            image-rendering: pixelated;
         }
 
-        /* UI Elements */
-        #shopTriggerBtn {
+        /* --- UI BUTTONS --- */
+        .game-btn {
             position: absolute;
             bottom: 5vh; 
-            left: 50%;
-            transform: translateX(-50%);
             background: #E57338;
             border: 2px solid #FFF;
             color: white;
@@ -54,18 +52,35 @@
             cursor: pointer;
             text-shadow: 2px 2px 0 #000;
             box-shadow: 0 4px 0 #9e4f24;
-            display: none;
             text-transform: uppercase;
             z-index: 10;
             white-space: nowrap;
+            display: none; 
+            min-width: 120px;
+            text-align: center;
         }
         
-        #shopTriggerBtn:active {
-            transform: translateX(-50%) translateY(4px);
+        .game-btn:active, .game-btn.active-press {
+            transform: translateY(4px);
             box-shadow: none;
         }
 
-        #shop-modal {
+        /* Controller Focus State */
+        .game-btn.focused, .shop-item.focused, .setting-row.focused {
+            border-color: #FFD700;
+            box-shadow: 0 0 15px #FFD700;
+            transform: scale(1.05);
+            z-index: 20;
+        }
+
+        #shopTriggerBtn { left: 5vw; }
+        #startTriggerBtn { left: 50%; transform: translateX(-50%); background: #73BF2E; box-shadow: 0 4px 0 #4d851e; }
+        #startTriggerBtn:active, #startTriggerBtn.active-press { transform: translateX(-50%) translateY(4px); box-shadow: none; }
+        
+        #settingsTriggerBtn { right: 5vw; background: #4ec0ca; box-shadow: 0 4px 0 #2e8b94; }
+
+        /* --- MODALS --- */
+        .modal {
             position: absolute;
             top: 0;
             left: 0;
@@ -82,56 +97,17 @@
             box-sizing: border-box;
         }
 
-        #shop-modal h2 {
+        .modal h2 {
             margin: 0 0 2vh 0;
             font-size: 5vh;
             color: #FFD700;
             text-shadow: 2px 2px 0 #000;
         }
 
-        .coin-display {
-            font-size: 3vh;
-            margin-bottom: 2vh;
-            color: #FFF;
-        }
-
-        .shop-items {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-content: flex-start;
-            gap: 10px;
-            width: 90%;
-            height: 70%;
-            overflow-y: auto;
-            padding: 5px;
-        }
-
-        .shop-item {
-            background: #4ec0ca;
-            border: 2px solid #fff;
-            padding: 5px;
-            width: 100px;
-            height: 120px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 3px 3px 0 #000;
-            flex-shrink: 0;
-        }
-
-        .shop-item.locked { filter: grayscale(1); opacity: 0.6; }
-        .shop-item.selected { border-color: #FFD700; background: #fff; color: #333; }
-        .shop-item img { width: 50px; margin-bottom: 5px; object-fit: contain; }
-        .item-cost { font-size: 16px; text-align: center; }
-
         .close-x {
             position: absolute;
             top: 2vh;
             right: 2vh;
-            left: auto;
             background: #d32f2f;
             border: 2px solid #FFF;
             color: white;
@@ -144,18 +120,56 @@
             box-shadow: 0 4px 0 #8b0000;
         }
         .close-x:active { transform: translateY(2px); box-shadow: none; }
+        .close-x.focused { border-color: #FFD700; box-shadow: 0 0 10px #FFD700; }
+
+        /* Shop Specific */
+        .coin-display { font-size: 3vh; margin-bottom: 2vh; color: #FFF; }
+        .shop-items {
+            display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
+            gap: 10px; width: 90%; height: 70%; overflow-y: auto; padding: 5px;
+        }
+        .shop-item {
+            background: #4ec0ca; border: 2px solid #fff; padding: 5px;
+            width: 100px; height: 120px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: 3px 3px 0 #000; flex-shrink: 0;
+        }
+        .shop-item.locked { filter: grayscale(1); opacity: 0.6; }
+        .shop-item.selected { border-color: #FFD700; background: #fff; color: #333; }
+        .shop-item img { width: 50px; margin-bottom: 5px; object-fit: contain; }
+        .item-cost { font-size: 16px; text-align: center; }
+
+        /* Settings Specific */
+        .setting-row {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 10px;
+            border: 2px solid transparent; 
+        }
+        .setting-label { font-size: 24px; margin-bottom: 10px; color: #EEE; }
+        select, .toggle-btn {
+            font-family: 'FlappyFont', sans-serif;
+            font-size: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 2px solid #FFF;
+            background: #E57338;
+            color: white;
+            cursor: pointer;
+            width: 200px;
+            text-align: center;
+        }
+        .toggle-btn { background: #73BF2E; }
+        .toggle-btn.off { background: #d32f2f; }
 
         #loading-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #70c5ce;
-            z-index: 200;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 30px;
-            text-shadow: 2px 2px 0 #000;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #70c5ce; z-index: 200; display: flex;
+            justify-content: center; align-items: center;
+            color: white; font-size: 30px; text-shadow: 2px 2px 0 #000;
         }
     </style>
 </head>
@@ -164,18 +178,90 @@
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
     <div id="loading-overlay">LOADING...</div>
-    <button id="shopTriggerBtn">SHOP</button>
+    
+    <button id="shopTriggerBtn" class="game-btn" data-nav="menu" data-index="0">SHOP</button>
+    <button id="startTriggerBtn" class="game-btn" data-nav="menu" data-index="1">START</button>
+    <button id="settingsTriggerBtn" class="game-btn" data-nav="menu" data-index="2">SETTINGS</button>
 
-    <div id="shop-modal">
-        <button id="closeShopX" class="close-x">X</button>
+    <!-- SHOP MODAL -->
+    <div id="shop-modal" class="modal">
+        <button id="closeShopX" class="close-x" data-nav="shop_close">X</button>
         <h2>SKIN SHOP</h2>
         <div class="coin-display">COINS: <span id="shopCoinCount">0</span></div>
         <div class="shop-items" id="shopItemsContainer"></div>
     </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="modal">
+        <button id="closeSettingsX" class="close-x" data-nav="settings_close">X</button>
+        <h2>SETTINGS</h2>
+        
+        <div class="setting-row" id="setting-res-row" data-nav="settings" data-index="0">
+            <div class="setting-label">RESOLUTION</div>
+            <select id="resolutionSelect" tabindex="-1">
+                <option value="retro">Performance</option>
+                <option value="native">Native</option>
+                <option value="720">720p</option>
+                <option value="1080">1080p</option>
+            </select>
+        </div>
+
+        <div class="setting-row" id="setting-fs-row" data-nav="settings" data-index="1">
+            <div class="setting-label">FULLSCREEN</div>
+            <button id="fullscreenToggle" class="toggle-btn off" tabindex="-1">OFF</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    // --- 1. Configuration & Assets ---
+    // --- 1. Audio Engine ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    const soundBuffers = {};
+    let audioResumed = false;
+
+    async function resumeAudio() {
+        if (!audioResumed && audioCtx) {
+            try {
+                await audioCtx.resume();
+                audioResumed = true;
+            } catch (e) { console.error(e); }
+        }
+    }
+
+    window.addEventListener('keydown', resumeAudio, { once: true });
+    window.addEventListener('pointerdown', resumeAudio, { once: true });
+    window.addEventListener('touchstart', resumeAudio, { once: true });
+
+    async function loadSound(url, key) {
+        try {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            soundBuffers[key] = await audioCtx.decodeAudioData(arrayBuffer);
+        } catch(e) { console.warn("Failed loading sound:", key); }
+    }
+
+    function playSound(name) {
+        if (!audioResumed) resumeAudio(); 
+        
+        let key = name;
+        if (userData.equippedSkin === 'amongus') {
+            if (name === 'point') key = 'au_point';
+            else if (name === 'hit' || name === 'die') key = 'au_kill';
+        } else if (userData.equippedSkin === 'bigo') {
+            if (name === 'flap') key = 'bigo_flap';
+            if (name === 'chomp') key = 'bigo_chomp'; 
+        }
+        const buffer = soundBuffers[key];
+        if (buffer) {
+            const src = audioCtx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(audioCtx.destination);
+            src.start(0);
+        }
+    }
+
+    // --- 2. Configuration & Assets ---
     const ASSETS = {
         sprites: {
             bg: "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/background-day.png",
@@ -202,7 +288,7 @@
         }
     };
 
-    // --- 2. Asset Generators (Robust Polyfills) ---
+    // --- 3. Asset Generators ---
     function drawRoundRect(ctx, x, y, w, h, r) {
         ctx.beginPath();
         ctx.moveTo(x + r, y);
@@ -266,68 +352,74 @@
         cx.globalAlpha=1.0; return cvs;
     }
 
-    // --- 3. Audio Engine ---
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    const audioCtx = new AudioContext();
-    const soundBuffers = {};
-
-    async function loadSound(url, key) {
-        try {
-            const response = await fetch(url);
-            const arrayBuffer = await response.arrayBuffer();
-            soundBuffers[key] = await audioCtx.decodeAudioData(arrayBuffer);
-        } catch(e) { console.warn("Failed loading sound:", key); }
-    }
-
-    function playSound(name) {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        let key = name;
-        if (userData.equippedSkin === 'amongus') {
-            if (name === 'point') key = 'au_point';
-            else if (name === 'hit' || name === 'die') key = 'au_kill';
-        } else if (userData.equippedSkin === 'bigo') {
-            if (name === 'flap') key = 'bigo_flap';
-            if (name === 'chomp') key = 'bigo_chomp'; 
-        }
-        const buffer = soundBuffers[key];
-        if (buffer) {
-            const src = audioCtx.createBufferSource();
-            src.buffer = buffer;
-            src.connect(audioCtx.destination);
-            src.start(0);
-        }
-    }
-
-    // --- 4. Game State & Optimized Scaling System ---
+    // --- 4. Game Logic & State ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
-    // OPTIMIZATION: Always false to ensure sharp pixels on low-res canvas
-    ctx.imageSmoothingEnabled = false;
+    let gameSettings = {
+        resolution: localStorage.getItem('fb_res') || 'retro', 
+    };
+    document.getElementById('resolutionSelect').value = gameSettings.resolution;
 
-    // SCALING LOGIC
-    // We now use a fixed internal height of 480px.
-    // The width adapts to the screen aspect ratio.
     const LOGICAL_HEIGHT = 480;
     let logicalWidth = 320; 
+    let globalScale = 1;
 
     function resize() {
-        const scale = window.innerHeight / LOGICAL_HEIGHT;
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
         
-        // OPTIMIZATION: Set canvas dimensions to small logic units
-        // CSS will stretch this to fullscreen via GPU
-        canvas.height = LOGICAL_HEIGHT;
-        canvas.width = Math.ceil(window.innerWidth / scale);
-        
-        if (canvas.width < 320) canvas.width = 320; // Min width safeguard
-        
-        logicalWidth = canvas.width;
+        if (gameSettings.resolution === 'retro') {
+            const ratio = winH / LOGICAL_HEIGHT;
+            canvas.height = LOGICAL_HEIGHT;
+            canvas.width = Math.ceil(winW / ratio);
+            if (canvas.width < 320) canvas.width = 320; 
+            globalScale = 1; 
+        } else if (gameSettings.resolution === 'native') {
+            canvas.width = winW;
+            canvas.height = winH;
+            globalScale = winH / LOGICAL_HEIGHT;
+        } else {
+            const targetH = parseInt(gameSettings.resolution);
+            canvas.height = targetH;
+            canvas.width = Math.ceil(winW * (targetH / winH));
+            globalScale = targetH / LOGICAL_HEIGHT;
+        }
+
+        logicalWidth = canvas.width / globalScale;
         ctx.imageSmoothingEnabled = false;
     }
     window.addEventListener('resize', resize);
+    
+    // UI Logic
+    document.getElementById('resolutionSelect').addEventListener('change', (e) => {
+        gameSettings.resolution = e.target.value;
+        localStorage.setItem('fb_res', gameSettings.resolution);
+        resize();
+        document.getElementById('resolutionSelect').blur();
+    });
+
+    const fsToggle = document.getElementById('fullscreenToggle');
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log(err));
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    fsToggle.addEventListener('click', toggleFullScreen);
+
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            fsToggle.innerText = "OFF"; fsToggle.classList.add('off');
+        } else {
+            fsToggle.innerText = "ON"; fsToggle.classList.remove('off');
+        }
+    });
+
     resize();
 
-    let frames = 0;
+    let frames = 0; 
     let screenShake = 0;
     const DEGREE = Math.PI / 180;
     const state = { current: 0, getReady: 0, game: 1, over: 2, falling: 3 };
@@ -340,7 +432,6 @@
     };
 
     const images = {};
-    let debris = [];
     let crackParams = { active: false, width: 0, x: 0 }; 
 
     function getGameSpeed() {
@@ -348,7 +439,38 @@
         return 2;
     }
 
-    // --- 5. Game Objects ---
+    const debrisSystem = {
+        particles: [],
+        create: function(x, y) {
+            for(let i=0; i<40; i++) {
+                 this.particles.push({
+                     x: x, y: y,
+                     vx: (Math.random() - 0.5) * 15,
+                     vy: (Math.random() - 0.5) * 15,
+                     life: 60,
+                     color: Math.random() < 0.5 ? '#558022' : '#73BF2E',
+                     size: Math.random() * 6 + 3
+                 });
+            }
+        },
+        update: function(dt) {
+            for(let i=0; i<this.particles.length; i++) {
+                let p = this.particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vy += 0.5 * dt;
+                p.life -= dt;
+                if(p.life <= 0) { this.particles.splice(i, 1); i--; }
+            }
+        },
+        draw: function() {
+            for(let p of this.particles) {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+        }
+    };
+
     const bg = {
         draw: function() {
             ctx.save();
@@ -359,11 +481,9 @@
                 screenShake *= 0.9;
                 if(screenShake < 0.5) screenShake = 0;
             }
-
             let cur = (userData.equippedSkin === 'amongus') ? images.bgSpace : images.bg;
             if(cur) {
                 const bgW = 276; 
-                // Optimization: Only draw enough tiles to fill current width
                 const count = Math.ceil(logicalWidth / bgW) + 1;
                 for(let i=0; i<count; i++) {
                     ctx.drawImage(cur, i * bgW, LOGICAL_HEIGHT - 512); 
@@ -372,7 +492,6 @@
                 ctx.fillStyle = "#70c5ce";
                 ctx.fillRect(0, 0, logicalWidth, LOGICAL_HEIGHT);
             }
-            
             ctx.restore(); 
         }
     };
@@ -385,25 +504,22 @@
                 if (userData.equippedSkin === 'amongus') {
                     ctx.filter = 'hue-rotate(220deg) saturate(1.5) brightness(0.8)';
                 }
-                
                 let floorY = LOGICAL_HEIGHT - 112;
                 const baseW = 336;
                 const count = Math.ceil(logicalWidth / baseW) + 1;
                 for(let i=0; i<count; i++) {
                      ctx.drawImage(images.base, this.x + (i * baseW), floorY);
                 }
-                
                 if (crackParams.active) {
                      ctx.fillStyle = "#000";
                      ctx.fillRect(crackParams.x - crackParams.width/2, floorY, crackParams.width, 112);
                 }
-
                 ctx.restore();
             }
         },
-        update: function() {
+        update: function(dt) {
             if (state.current === state.game || state.current === state.getReady) {
-                this.x = (this.x - getGameSpeed()) % 336;
+                this.x = (this.x - getGameSpeed() * dt) % 336;
             }
         }
     };
@@ -436,33 +552,27 @@
                 }
             }
             if(!sprite) return;
-            
             let drawW = this.w; let drawH = this.h;
             if (userData.equippedSkin === 'bigo') { drawW = 44; drawH = 34; }
             if (userData.equippedSkin === 'gd') { drawW = 30; drawH = 30; }
-
             ctx.save();
             ctx.translate(this.x, this.y);
-            
             let rot = this.rotation;
             if (state.current === state.over && userData.equippedSkin === 'amongus') rot = 0;
             if (state.current === state.falling) rot = 0; 
-
             ctx.rotate(rot);
             if (sprite.complete || sprite instanceof HTMLCanvasElement) {
                 ctx.drawImage(sprite, -drawW/2, -drawH/2, drawW, drawH);
             }
             ctx.restore();
         },
-        update: function() {
+        update: function(dt) {
             let period = state.current === state.getReady ? 10 : 5;
             this.frame += frames % period === 0 ? 1 : 0;
             this.frame %= this.animation.length;
-            
             if(userData.equippedSkin === 'bigo') this.radius = 18; 
             else if(userData.equippedSkin === 'gd') this.radius = 15;
             else this.radius = 12;
-
             if(state.current === state.getReady) {
                 if (userData.equippedSkin === 'gd') {
                     this.y = LOGICAL_HEIGHT - 112 - 15;
@@ -472,9 +582,9 @@
                 }
             } 
             else if (state.current === state.falling) {
-                this.speed += this.gravity * 1.5; 
-                this.y += this.speed;
-                crackParams.width += 3; 
+                this.speed += (this.gravity * 1.5) * dt; 
+                this.y += this.speed * dt;
+                crackParams.width += 3 * dt; 
                 if (this.y > LOGICAL_HEIGHT + 60) {
                     state.current = state.over; 
                     playSound('hit'); 
@@ -483,12 +593,11 @@
             else {
                 let g = this.gravity;
                 if (userData.equippedSkin === 'gd') g = 0.45;
-                this.speed += g;
-                this.y += this.speed;
-
+                this.speed += g * dt;
+                this.y += this.speed * dt;
                 if (userData.equippedSkin === 'gd') {
                     if (!this.onGround) {
-                        this.rotation += 0.05;
+                        this.rotation += 0.05 * dt;
                     } else {
                         let nearest90 = Math.round(this.rotation / (Math.PI/2)) * (Math.PI/2);
                         this.rotation = nearest90;
@@ -500,9 +609,7 @@
                         this.rotation = -25 * DEGREE;
                     }
                 }
-
                 if(this.y - this.radius < 0) { this.y = this.radius; this.speed = 0; }
-                
                 let floorY = LOGICAL_HEIGHT - 112 - (userData.equippedSkin === 'gd' ? 15 : this.h/2);
                 if(this.y >= floorY) {
                     if (userData.equippedSkin === 'bigo') {
@@ -532,41 +639,31 @@
     };
 
     const pipes = {
-        position: [], w: 52, gap: 100,
-        update: function() {
+        position: [], w: 52, gap: 100, lastSpawn: 0,
+        update: function(dt) {
             if(state.current !== state.game) return;
-            
             let spawnRate = 100;
-            if (userData.equippedSkin === 'gd') spawnRate = 90;
-
-            if(frames % spawnRate === 0) {
+            this.lastSpawn += dt;
+            if(this.lastSpawn > spawnRate) {
+                this.lastSpawn = 0;
                 let spikeCount = 0;
                 if (userData.equippedSkin === 'gd') spikeCount = Math.floor(Math.random() * 3) + 1;
-
                 this.position.push({ 
-                    x: logicalWidth, 
-                    y: -150 * (Math.random() + 1), 
-                    passed: false, 
-                    hasCoin: userData.equippedSkin !== 'bigo' && userData.equippedSkin !== 'gd' && Math.random() < 0.4, 
-                    hasBurger: userData.equippedSkin === 'bigo',
-                    collected: false,
-                    broken: false,
-                    spikes: spikeCount 
+                    x: logicalWidth, y: -150 * (Math.random() + 1), 
+                    passed: false, hasCoin: userData.equippedSkin !== 'bigo' && userData.equippedSkin !== 'gd' && Math.random() < 0.4, 
+                    hasBurger: userData.equippedSkin === 'bigo', collected: false, broken: false, spikes: spikeCount 
                 });
             }
-
             for(let i=0; i<this.position.length; i++) {
                 let p = this.position[i];
                 let bY = p.y + 320 + this.gap;
                 let collided = false;
-
                 if (userData.equippedSkin === 'gd') {
                     let spikeY = LOGICAL_HEIGHT - 112;
                     let birdBottom = bird.y + bird.radius;
                     let birdRight = bird.x + bird.radius;
                     let birdLeft = bird.x - bird.radius;
                     let spikesW = p.spikes * 30; 
-                    
                     if (birdRight > p.x + 10 && birdLeft < p.x + spikesW - 10) {
                         if (birdBottom > spikeY - 20) collided = true;
                     }
@@ -577,25 +674,22 @@
                         }
                     }
                 }
-
                 if (collided) {
                     if (userData.equippedSkin === 'bigo') {
-                        p.broken = true; createDebris(p.x + this.w/2, p.y + 320); playSound('hit');
+                        if (!p.broken) {
+                            p.broken = true; debrisSystem.create(p.x + this.w/2, p.y + 320); playSound('hit'); screenShake = 10;
+                        }
                     } else {
-                        state.current = state.over; 
-                        playSound('hit');
+                        state.current = state.over; playSound('hit');
                         if (userData.equippedSkin !== 'amongus' && userData.equippedSkin !== 'gd') setTimeout(() => playSound('die'), 300);
                     }
                 }
-
                 let scoreCondition = false;
                 if (userData.equippedSkin === 'bigo') {
                     if (p.hasBurger && !p.collected) {
                         let cx = p.x + this.w/2, cy = p.y + 320 + this.gap/2;
                         if(Math.hypot(bird.x-cx, bird.y-cy) < 35) { 
-                            p.collected = true; score.value++;
-                            userData.highScore = Math.max(score.value, userData.highScore);
-                            playSound('chomp'); saveData();
+                            p.collected = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('chomp'); saveData();
                         }
                     }
                 } else if (userData.equippedSkin === 'gd') {
@@ -603,68 +697,55 @@
                 } else {
                     if(!p.passed && bird.x - bird.radius > p.x + this.w) scoreCondition = true;
                 }
-
                 if(scoreCondition) {
-                    p.passed = true; score.value++;
-                    userData.highScore = Math.max(score.value, userData.highScore);
-                    playSound('point'); saveData();
+                    p.passed = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('point'); saveData();
                 }
-
                 if(p.hasCoin && !p.collected) {
                     let cx = p.x + this.w/2, cy = p.y + 320 + this.gap/2;
                     if (userData.equippedSkin === 'gd') { cx = p.x + (p.spikes*30) + 100; cy = LOGICAL_HEIGHT - 112 - 20; }
-                    
                     if(Math.hypot(bird.x-cx, bird.y-cy) < 30) { 
                         p.collected = true; userData.coins++; saveData(); playSound('coin');
                         document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; 
                     }
                 }
-                
-                p.x -= getGameSpeed();
+                p.x -= getGameSpeed() * dt;
                 if(p.x + 150 <= 0) { this.position.shift(); i--; }
             }
         },
         draw: function() {
             let isAU = userData.equippedSkin === 'amongus';
             let isGD = userData.equippedSkin === 'gd';
-
             for(let p of this.position) {
-                if (p.broken) continue; 
-                
-                if (isGD) {
-                    let floorY = LOGICAL_HEIGHT - 112;
-                    ctx.fillStyle = '#333'; ctx.beginPath();
-                    for(let i=0; i<p.spikes; i++) {
-                        let sx = p.x + (i * 30);
-                        ctx.moveTo(sx, floorY); ctx.lineTo(sx + 15, floorY - 30); ctx.lineTo(sx + 30, floorY);
-                    }
-                    ctx.fill(); ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.stroke();
-                } else {
-                    if (images.pipe) {
-                        let topY = p.y;
-                        let bottomY = p.y + 320 + this.gap;
-
-                        ctx.save();
-                        if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)';
-                        ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI);
-                        ctx.drawImage(images.pipe, -this.w/2, -160, this.w, 320); 
-                        ctx.restore();
-
-                        ctx.save();
-                        if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)';
-                        ctx.drawImage(images.pipe, p.x, bottomY);
-                        ctx.restore();
+                if (!p.broken) {
+                    if (isGD) {
+                        let floorY = LOGICAL_HEIGHT - 112;
+                        ctx.fillStyle = '#333'; ctx.beginPath();
+                        for(let i=0; i<p.spikes; i++) {
+                            let sx = p.x + (i * 30);
+                            ctx.moveTo(sx, floorY); ctx.lineTo(sx + 15, floorY - 30); ctx.lineTo(sx + 30, floorY);
+                        }
+                        ctx.fill(); ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.stroke();
                     } else {
-                         ctx.fillStyle = "green";
-                         ctx.fillRect(p.x, p.y, this.w, 320);
-                         ctx.fillRect(p.x, p.y + 320 + this.gap, this.w, 320);
-                    }
-                    
-                    if(p.hasBurger && !p.collected && images.burger) {
-                        ctx.drawImage(images.burger, p.x + this.w/2 - 12, p.y + 320 + this.gap/2 - 10);
+                        if (images.pipe) {
+                            let topY = p.y;
+                            let bottomY = p.y + 320 + this.gap;
+                            ctx.save();
+                            if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)';
+                            ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI);
+                            ctx.drawImage(images.pipe, -this.w/2, -160, this.w, 320); 
+                            ctx.restore();
+                            ctx.save();
+                            if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)';
+                            ctx.drawImage(images.pipe, p.x, bottomY);
+                            ctx.restore();
+                        } else {
+                            ctx.fillStyle = "green"; ctx.fillRect(p.x, p.y, this.w, 320); ctx.fillRect(p.x, p.y + 320 + this.gap, this.w, 320);
+                        }
                     }
                 }
-
+                if(p.hasBurger && !p.collected && images.burger) {
+                    ctx.drawImage(images.burger, p.x + this.w/2 - 12, p.y + 320 + this.gap/2 - 10);
+                }
                 if(p.hasCoin && !p.collected) {
                     let cx = p.x + this.w/2, cy = p.y + 320 + this.gap/2;
                     if (isGD) { cx = p.x + (p.spikes*30) + 100; cy = LOGICAL_HEIGHT - 112 - 20; }
@@ -689,41 +770,248 @@
         reset: function() { this.value = 0; }
     };
 
-    function createDebris(x, y) {
-        for(let i=0; i<10; i++) debris.push({ x: x, y: y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 30, color: '#558022' });
-    }
-    function updateDebris() {
-        for(let i=0; i<debris.length; i++) {
-            let p = debris[i]; p.x += p.vx; p.y += p.vy; p.life--;
-            ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 6, 6);
-            if(p.life <= 0) { debris.splice(i, 1); i--; }
-        }
-    }
+    // --- CONTROLLER / INPUT MANAGER ---
+    const Input = {
+        active: 'mouse', // mouse or gamepad
+        focusIndex: 1, // Default to START button
+        navContext: 'menu', // menu, shop, settings, game
+        lastAxis: 0,
+        btnPressed: false,
 
-    // OPTIMIZATION: Main Draw Loop
+        update: function() {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const pad = pads[0]; // Use first controller
+            
+            if (pad) {
+                this.handleGamepad(pad);
+            }
+        },
+
+        handleGamepad: function(pad) {
+            const axisX = pad.axes[0];
+            const axisY = pad.axes[1];
+            
+            const btnA = pad.buttons[0].pressed; // X / A / Enter
+            const btnB = pad.buttons[1].pressed; // O / B / Back
+            const dpadLeft = pad.buttons[14].pressed;
+            const dpadRight = pad.buttons[15].pressed;
+            const dpadUp = pad.buttons[12].pressed;
+            const dpadDown = pad.buttons[13].pressed;
+
+            // --- NAVIGATION LOGIC ---
+            let move = 0; 
+            if (axisX < -0.5 || dpadLeft) move = -1;
+            else if (axisX > 0.5 || dpadRight) move = 1;
+
+            if (this.navContext === 'menu' || this.navContext === 'shop') {
+                if (move !== 0 && this.lastAxis === 0) {
+                    this.moveFocus(move);
+                    this.active = 'gamepad';
+                    resumeAudio();
+                }
+            } 
+            else if (this.navContext === 'settings') {
+                 let vMove = 0;
+                 if (axisY < -0.5 || dpadUp) vMove = -1;
+                 else if (axisY > 0.5 || dpadDown) vMove = 1;
+                 
+                 if (vMove !== 0 && this.lastAxis === 0) {
+                     this.moveFocus(vMove);
+                     this.active = 'gamepad';
+                     resumeAudio();
+                 }
+                 
+                 if (move !== 0 && this.lastAxis === 0) {
+                     this.changeSetting(move);
+                 }
+            }
+
+            this.lastAxis = (Math.abs(axisX) > 0.5 || Math.abs(axisY) > 0.5 || dpadLeft || dpadRight || dpadUp || dpadDown) ? 1 : 0;
+
+            // --- ACTION LOGIC ---
+            if (btnA && !this.btnPressed) {
+                this.btnPressed = true;
+                this.active = 'gamepad';
+                resumeAudio();
+                this.triggerAction();
+            } else if (!btnA) {
+                this.btnPressed = false;
+            }
+
+            if (btnB && (this.navContext === 'shop' || this.navContext === 'settings')) {
+                this.closeModal();
+            }
+        },
+
+        moveFocus: function(dir) {
+            let max = 0;
+            if (this.navContext === 'menu') max = 2; // Shop, Start, Settings
+            if (this.navContext === 'shop') max = shopConfig.length - 1;
+            if (this.navContext === 'settings') max = 1; // Res, Fullscreen
+
+            this.focusIndex += dir;
+            if (this.focusIndex < 0) this.focusIndex = max;
+            if (this.focusIndex > max) this.focusIndex = 0;
+            
+            this.renderFocus();
+        },
+
+        renderFocus: function() {
+            document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused'));
+            
+            if (this.navContext === 'menu') {
+                const btns = [
+                    document.getElementById('shopTriggerBtn'), 
+                    document.getElementById('startTriggerBtn'), 
+                    document.getElementById('settingsTriggerBtn')
+                ];
+                if(btns[this.focusIndex]) btns[this.focusIndex].classList.add('focused');
+            }
+            else if (this.navContext === 'shop') {
+                const items = document.querySelectorAll('.shop-item');
+                if(items[this.focusIndex]) {
+                    items[this.focusIndex].classList.add('focused');
+                    items[this.focusIndex].scrollIntoView({block: 'center', behavior: 'smooth'});
+                }
+            }
+            else if (this.navContext === 'settings') {
+                const rows = document.querySelectorAll('.setting-row');
+                if(rows[this.focusIndex]) rows[this.focusIndex].classList.add('focused');
+            }
+        },
+
+        triggerAction: function() {
+            if (state.current === state.game) {
+                bird.flap(); playSound('flap');
+                return;
+            }
+            
+            if (state.current === state.over) {
+                resetGame();
+                state.current = state.getReady;
+                return;
+            }
+
+            // MENU LOGIC: Only trigger the focused item
+            if (this.navContext === 'menu') {
+                if (this.focusIndex === 0) {
+                     document.getElementById('shopTriggerBtn').click();
+                }
+                else if (this.focusIndex === 1) { // START GAME
+                     state.current = state.game;
+                     bird.flap(); 
+                     playSound('flap');
+                }
+                else if (this.focusIndex === 2) {
+                     document.getElementById('settingsTriggerBtn').click();
+                }
+            }
+            else if (this.navContext === 'shop') {
+                const item = shopConfig[this.focusIndex];
+                handleShopClick(item);
+            }
+            else if (this.navContext === 'settings') {
+                if (this.focusIndex === 1) toggleFullScreen();
+            }
+        },
+
+        changeSetting: function(dir) {
+            if (this.focusIndex === 0) { // Resolution
+                const sel = document.getElementById('resolutionSelect');
+                let idx = sel.selectedIndex + dir;
+                if (idx >= 0 && idx < sel.options.length) {
+                    sel.selectedIndex = idx;
+                    sel.dispatchEvent(new Event('change'));
+                }
+            }
+        },
+
+        openModal: function(context) {
+            this.navContext = context;
+            this.focusIndex = 0;
+            setTimeout(() => this.renderFocus(), 50); 
+        },
+
+        closeModal: function() {
+            if (this.navContext === 'shop') document.getElementById('closeShopX').click();
+            if (this.navContext === 'settings') document.getElementById('closeSettingsX').click();
+            this.navContext = 'menu';
+            this.focusIndex = 1; // Back to Start button
+            this.renderFocus();
+        }
+    };
+
+    window.addEventListener('keydown', (e) => {
+        resumeAudio();
+        
+        if (state.current === state.game) {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'Enter') {
+                bird.flap(); playSound('flap');
+            }
+            return;
+        }
+
+        Input.active = 'gamepad'; 
+
+        switch(e.code) {
+            case 'ArrowLeft': 
+                if(Input.navContext !== 'settings') Input.moveFocus(-1); 
+                else Input.changeSetting(-1);
+                break;
+            case 'ArrowRight': 
+                if(Input.navContext !== 'settings') Input.moveFocus(1); 
+                else Input.changeSetting(1);
+                break;
+            case 'ArrowUp': 
+                if(Input.navContext === 'settings') Input.moveFocus(-1); 
+                else if(Input.navContext === 'shop') Input.moveFocus(-3); 
+                break;
+            case 'ArrowDown': 
+                if(Input.navContext === 'settings') Input.moveFocus(1);
+                else if(Input.navContext === 'shop') Input.moveFocus(3);
+                break;
+            case 'Enter':
+            case 'Space': // Space acts as Select (A) button
+                if (Input.navContext === 'menu') {
+                    // Special behavior for Keyboard Space: if "Start" is focused (default), start game
+                    // But if user focused "Shop", open Shop.
+                    Input.triggerAction();
+                } else {
+                    Input.triggerAction();
+                }
+                break;
+            case 'Escape':
+            case 'Backspace':
+                if(Input.navContext !== 'menu') Input.closeModal();
+                break;
+        }
+    });
+
+    // --- MAIN DRAW & LOOP ---
     function draw() {
         ctx.clearRect(0,0,canvas.width,canvas.height);
         
-        // Removed global ctx.scale(). We now draw 1:1 to the low-res canvas
-        
+        ctx.save();
+        if (globalScale !== 1) ctx.scale(globalScale, globalScale);
+
         bg.draw(); 
-        
         try {
-            pipes.draw(); 
-            bird.draw(); 
-            fg.draw(); 
-            score.draw(); 
-            updateDebris(); 
-        } catch(e) {
-            console.error("Draw error:", e);
-        }
+            pipes.draw(); debrisSystem.draw(); bird.draw(); fg.draw(); score.draw(); 
+        } catch(e) { console.error("Draw error:", e); }
 
         if (state.current === state.getReady) {
             if (images.msg) ctx.drawImage(images.msg, logicalWidth/2 - images.msg.width/2, 100);
+            
+            // Show UI buttons
             document.getElementById('shopTriggerBtn').style.display = 'block'; 
+            document.getElementById('startTriggerBtn').style.display = 'block'; 
+            document.getElementById('settingsTriggerBtn').style.display = 'block'; 
             document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`;
         } else if (state.current === state.over) {
             document.getElementById('shopTriggerBtn').style.display = 'none';
+            document.getElementById('startTriggerBtn').style.display = 'none';
+            document.getElementById('settingsTriggerBtn').style.display = 'none';
+
             let centerX = logicalWidth / 2;
             if (images.gameover) ctx.drawImage(images.gameover, centerX - images.gameover.width/2, 80);
 
@@ -733,7 +1021,7 @@
             ctx.fillStyle = '#FFF'; ctx.textAlign = 'right';
             ctx.fillText(score.value, centerX + 70, 170); ctx.fillText(userData.highScore, centerX + 70, 210);
             ctx.fillStyle = '#73BF2E'; ctx.fillRect(centerX - 41, 263, 83, 35); ctx.strokeRect(centerX - 41, 263, 83, 35);
-            ctx.fillStyle = '#FFF'; ctx.textAlign = 'center'; ctx.fillText("START", centerX, 288);
+            ctx.fillStyle = '#FFF'; ctx.textAlign = 'center'; ctx.fillText("RESTART", centerX, 288);
             
             if(score.value >= 10) {
                 ctx.fillStyle = score.value >= 20 ? '#FFD700' : '#C0C0C0';
@@ -741,16 +1029,42 @@
             }
         } else {
             document.getElementById('shopTriggerBtn').style.display = 'none';
+            document.getElementById('startTriggerBtn').style.display = 'none';
+            document.getElementById('settingsTriggerBtn').style.display = 'none';
         }
-        
-        // No restore needed as we didn't save/scale globally
+
+        ctx.restore(); 
     }
 
-    function loop() {
-        bird.update(); fg.update(); pipes.update(); draw(); frames++; requestAnimationFrame(loop);
+    function update(dt) {
+        bird.update(dt); fg.update(dt); pipes.update(dt); debrisSystem.update(dt);
+        Input.update(); 
+        frames++; 
     }
-    function resetGame() { bird.speed = 0; bird.y = 150; pipes.position = []; score.value = 0; frames = 0; debris = []; crackParams={active:false,width:0,x:0}; }
 
+    let lastTime = performance.now();
+    const targetFPS = 60;
+    
+    function loop(timestamp) {
+        if (!timestamp) timestamp = performance.now();
+        const rawDelta = timestamp - lastTime;
+        lastTime = timestamp;
+        let dt = rawDelta / (1000 / targetFPS);
+        if (dt > 3.0) dt = 3.0; 
+
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    function resetGame() { 
+        bird.speed = 0; bird.y = 150; pipes.position = []; score.value = 0; frames = 0; 
+        debrisSystem.particles = []; crackParams={active:false,width:0,x:0}; pipes.lastSpawn = 0; 
+        // Reset Focus to Start Button
+        Input.focusIndex = 1;
+        Input.renderFocus();
+    }
+    
     function saveData() {
         localStorage.setItem('fb_highScore', userData.highScore);
         localStorage.setItem('fb_coins', userData.coins);
@@ -767,7 +1081,7 @@
 
     function initShop() {
         const container = document.getElementById('shopItemsContainer'); container.innerHTML = '';
-        shopConfig.forEach(item => {
+        shopConfig.forEach((item, index) => {
             const div = document.createElement('div'); div.className = 'shop-item'; div.id = `shop-item-${item.id}`;
             div.onclick = (e) => { e.stopPropagation(); handleShopClick(item); };
             const img = document.createElement('img');
@@ -784,7 +1098,7 @@
 
     function updateShopUI() {
         document.getElementById('shopCoinCount').innerText = userData.coins;
-        shopConfig.forEach(item => {
+        shopConfig.forEach((item, index) => {
             const el = document.getElementById(`shop-item-${item.id}`);
             const costEl = el.querySelector('.item-cost');
             const isUnlocked = userData.unlockedSkins.includes(item.id);
@@ -793,6 +1107,12 @@
             if (!isUnlocked) el.classList.add('locked');
             if (isEquipped) el.classList.add('selected');
             costEl.innerText = isEquipped ? "EQUIPPED" : (isUnlocked ? "OWNED" : `${item.price} COINS`);
+            
+            if(Input.navContext === 'shop' && Input.focusIndex === index) {
+                el.classList.add('focused');
+            } else {
+                el.classList.remove('focused');
+            }
         });
     }
 
@@ -808,29 +1128,39 @@
     }
 
     const shopModal = document.getElementById('shop-modal');
-    const shopBtn = document.getElementById('shopTriggerBtn');
-    shopBtn.onclick = (e) => { e.stopPropagation(); updateShopUI(); shopModal.style.display = 'flex'; };
-    document.getElementById('closeShopX').onclick = (e) => { e.stopPropagation(); shopModal.style.display = 'none'; shopBtn.innerText = `SHOP (${userData.coins})`; };
+    const settingsModal = document.getElementById('settings-modal');
     
-    // --- Optimized Responsive Input ---
+    // UI Event Listeners
+    document.getElementById('shopTriggerBtn').onclick = (e) => { 
+        e.stopPropagation(); updateShopUI(); shopModal.style.display = 'flex'; Input.openModal('shop');
+    };
+    document.getElementById('startTriggerBtn').onclick = (e) => { 
+        e.stopPropagation(); state.current = state.game; bird.flap(); playSound('flap');
+    };
+    document.getElementById('settingsTriggerBtn').onclick = (e) => { 
+        e.stopPropagation(); settingsModal.style.display = 'flex'; Input.openModal('settings');
+    };
+    
+    document.getElementById('closeShopX').onclick = (e) => { 
+        e.stopPropagation(); shopModal.style.display = 'none'; Input.closeModal();
+    };
+    document.getElementById('closeSettingsX').onclick = (e) => { 
+        e.stopPropagation(); settingsModal.style.display = 'none'; Input.closeModal();
+    };
+
     function getGameCoords(e) {
         let rect = canvas.getBoundingClientRect();
-        // Updated mapping logic for Low-Res Canvas
-        return {
-            x: (e.clientX - rect.left) * (canvas.width / rect.width),
-            y: (e.clientY - rect.top) * (canvas.height / rect.height)
-        };
+        let rawX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        let rawY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        return { x: rawX / globalScale, y: rawY / globalScale };
     }
 
     canvas.addEventListener('pointerdown', (e) => {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        if (shopModal.style.display === 'flex') return;
+        if (shopModal.style.display === 'flex' || settingsModal.style.display === 'flex') return;
         
         if (state.current === state.over) {
             let coords = getGameCoords(e);
             let centerX = logicalWidth / 2;
-            
-            // Scaled Start Button hit detection
             if (coords.x >= centerX - 41 && coords.x <= centerX + 42 &&
                 coords.y >= 263 && coords.y <= 298) {
                 resetGame();
@@ -843,15 +1173,6 @@
         if (state.current === state.game) { bird.flap(); playSound('flap'); }
     });
 
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') {
-            if (e.repeat) return;
-            if (shopModal.style.display === 'flex') return;
-            if (state.current === state.getReady) state.current = state.game;
-            if (state.current === state.game) { bird.flap(); playSound('flap'); }
-        }
-    });
-
     async function initGame() {
         const audioProms = Object.keys(ASSETS.audio).map(k => loadSound(ASSETS.audio[k], k));
         audioProms.push(loadSound(ASSETS.audio.au_point, 'au_point'));
@@ -859,7 +1180,6 @@
         audioProms.push(loadSound(ASSETS.audio.bigo_flap, 'bigo_flap'));
         audioProms.push(loadSound(ASSETS.audio.bigo_chomp, 'bigo_chomp'));
 
-        // Robust image loader that returns null on error instead of throwing
         const loadImg = (src) => new Promise(r => { const img = new Image(); if(!src.startsWith('data')) img.crossOrigin = "anonymous"; img.onload = () => r(img); img.onerror = () => r(null); img.src = src; });
         
         images.bg = await loadImg(ASSETS.sprites.bg);
@@ -888,7 +1208,10 @@
         }
         await Promise.all(audioProms);
         document.getElementById('loading-overlay').style.display = 'none';
-        initShop(); loop();
+        
+        initShop();
+        lastTime = performance.now();
+        requestAnimationFrame(loop);
     }
     initGame();
 </script>
