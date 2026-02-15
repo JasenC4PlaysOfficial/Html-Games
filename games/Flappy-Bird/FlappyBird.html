@@ -7,7 +7,7 @@
     <style>
         @font-face {
             font-family: 'FlappyFont';
-            src: url('https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/fonts/04B_19__.TTF') format('truetype');
+            src: url('https://raw.githubusercontent.com/paulkr/Flappy-Bird/master/lib/res/fonts/flappy-font.ttf') format('truetype');
         }
 
         body {
@@ -68,6 +68,23 @@
         #shopTriggerBtn { left: 5vw; }
         #startTriggerBtn { left: 50%; transform: translateX(-50%); background: #73BF2E; box-shadow: 0 4px 0 #4d851e; }
         #settingsTriggerBtn { right: 5vw; background: #4ec0ca; box-shadow: 0 4px 0 #2e8b94; }
+
+        /* Crossy D-Pad */
+        #crossy-controls {
+            position: absolute; bottom: 20px; left: 20px; z-index: 50;
+            display: none; flex-direction: column; align-items: center;
+            gap: 10px;
+        }
+        .dpad-row { display: flex; gap: 10px; }
+        .dpad-btn {
+            width: 60px; height: 60px; background: rgba(255,255,255,0.3);
+            border: 2px solid #FFF; border-radius: 10px; color: #FFF;
+            font-size: 24px; touch-action: manipulation;
+            user-select: none; -webkit-user-select: none;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+        }
+        .dpad-btn:active { background: rgba(255,255,255,0.6); transform: scale(0.95); }
 
         /* Modals */
         .modal {
@@ -170,6 +187,16 @@
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
+    
+    <div id="crossy-controls">
+        <div class="dpad-btn" id="c-up">▲</div>
+        <div class="dpad-row">
+            <div class="dpad-btn" id="c-left">◀</div>
+            <div class="dpad-btn" id="c-down">▼</div>
+            <div class="dpad-btn" id="c-right">▶</div>
+        </div>
+    </div>
+
     <div id="loading-overlay">LOADING...</div>
     <button id="shopTriggerBtn" class="game-btn" data-nav="menu" data-index="0">SHOP</button>
     <button id="startTriggerBtn" class="game-btn" data-nav="menu" data-index="1">START</button>
@@ -231,6 +258,10 @@
     const soundBuffers = {};
     let audioResumed = false;
     let bgmSource = null;
+    let isTouch = false;
+    
+    // Detect Touch
+    window.addEventListener('touchstart', function() { isTouch = true; }, {once: true});
 
     async function resumeAudio() {
         if (!audioResumed && audioCtx) {
@@ -258,7 +289,15 @@
         } else if (userData.equippedSkin === 'mario') {
             if (name === 'flap') key = 'mario_jump'; else if (name === 'die') key = 'mario_die'; else if (name === 'hit') key = 'mario_stomp'; else if (name === 'coin') key = 'mario_coin';
             else if (name === 'break') key = 'mario_break';
+        } else if (userData.equippedSkin === 'dragon') {
+            if (name === 'fire') key = 'mario_break'; 
+        } else if (userData.equippedSkin === 'ufo' || userData.equippedSkin === 'clown') {
+            if (name === 'flap') key = 'coin'; 
+        } else if (userData.equippedSkin === 'crossy') {
+            if (name === 'flap') key = 'mario_jump'; 
+            if (name === 'hit') key = 'mario_stomp';
         }
+
         const buffer = soundBuffers[key];
         if (buffer) {
             const src = audioCtx.createBufferSource();
@@ -314,6 +353,114 @@
         ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath();
     }
 
+    // New Skin Assets
+    function createDragonAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=40; cvs.height=30; const cx=cvs.getContext('2d');
+        cx.fillStyle = '#2E8B57'; cx.beginPath(); cx.ellipse(20, 18, 14, 8, 0, 0, Math.PI*2); cx.fill(); // Body
+        cx.fillStyle = '#228B22'; cx.beginPath(); cx.moveTo(10,18); cx.lineTo(5,10); cx.lineTo(25,12); cx.fill(); // Wing
+        cx.fillStyle = '#2E8B57'; cx.beginPath(); cx.arc(32, 14, 7, 0, Math.PI*2); cx.fill(); // Head
+        cx.fillStyle = '#FFF'; cx.beginPath(); cx.arc(34, 13, 2, 0, Math.PI*2); cx.fill(); // Eye
+        cx.fillStyle = '#000'; cx.beginPath(); cx.arc(35, 13, 1, 0, Math.PI*2); cx.fill(); 
+        cx.fillStyle = '#CD5C5C'; cx.beginPath(); cx.moveTo(25,18); cx.lineTo(35,18); cx.lineTo(30,25); cx.fill(); // Spike
+        return cvs;
+    }
+
+    function createUFOAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=36; cvs.height=26; const cx=cvs.getContext('2d');
+        cx.fillStyle = 'rgba(100,255,100,0.4)'; cx.beginPath(); cx.arc(18, 10, 8, Math.PI, 0); cx.fill(); cx.stroke(); // Dome
+        cx.fillStyle = '#7F8C8D'; cx.beginPath(); cx.ellipse(18, 14, 18, 6, 0, 0, Math.PI*2); cx.fill(); // Disc
+        cx.fillStyle = '#BDC3C7'; cx.beginPath(); cx.ellipse(18, 12, 10, 3, 0, 0, Math.PI*2); cx.fill(); // Top detail
+        cx.fillStyle = '#F1C40F'; cx.beginPath(); cx.arc(8, 14, 2, 0, Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(18, 18, 2, 0, Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(28, 14, 2, 0, Math.PI*2); cx.fill(); // Lights
+        return cvs;
+    }
+
+    function createCyborgAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=34; cvs.height=24; const cx=cvs.getContext('2d');
+        cx.fillStyle = '#95A5A6'; cx.fillRect(4, 4, 26, 16); // Metal Body
+        cx.fillStyle = '#7F8C8D'; cx.fillRect(0, 8, 4, 8); // Jetpack
+        cx.fillStyle = '#E74C3C'; cx.fillRect(24, 6, 6, 4); // Eye
+        cx.fillStyle = '#3498DB'; cx.fillRect(0, 16, 4, 4); cx.fillRect(2, 18, 2, 4); // Thruster flame
+        cx.strokeStyle = '#2C3E50'; cx.strokeRect(4,4,26,16);
+        return cvs;
+    }
+
+    // --- 10 NEW SKINS ASSETS ---
+    function createBatAsset() { const cvs=document.createElement('canvas'); cvs.width=36; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#000'; cx.beginPath(); cx.arc(18,10,6,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.moveTo(18,10); cx.lineTo(2,2); cx.lineTo(6,14); cx.lineTo(14,10); cx.fill(); cx.beginPath(); cx.moveTo(18,10); cx.lineTo(34,2); cx.lineTo(30,14); cx.lineTo(22,10); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(16,9,1,0,Math.PI*2); cx.arc(20,9,1,0,Math.PI*2); cx.fill(); return cvs; }
+    function createPigAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=24; const cx=cvs.getContext('2d'); cx.fillStyle='#F48FB1'; cx.beginPath(); cx.ellipse(17,12,14,10,0,0,Math.PI*2); cx.fill(); cx.fillStyle='#F06292'; cx.beginPath(); cx.ellipse(28,12,3,4,0,0,Math.PI*2); cx.fill(); cx.fillStyle='#F8BBD0'; cx.beginPath(); cx.moveTo(10,12); cx.lineTo(5,4); cx.lineTo(14,8); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(22,10,2,0,Math.PI*2); cx.fill(); return cvs; }
+    function createFairyAsset() { const cvs=document.createElement('canvas'); cvs.width=24; cvs.height=24; const cx=cvs.getContext('2d'); cx.fillStyle='#81D4FA'; cx.globalAlpha=0.6; cx.beginPath(); cx.ellipse(8,10,8,4,Math.PI/4,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.ellipse(16,10,8,4,-Math.PI/4,0,Math.PI*2); cx.fill(); cx.globalAlpha=1; cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(12,12,4,0,Math.PI*2); cx.fill(); cx.shadowBlur=5; cx.shadowColor='#FFF'; cx.fill(); return cvs; }
+    function createRockAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#757575'; cx.beginPath(); cx.moveTo(5,10); cx.lineTo(15,2); cx.lineTo(28,8); cx.lineTo(25,25); cx.lineTo(8,28); cx.closePath(); cx.fill(); cx.fillStyle='#9E9E9E'; cx.beginPath(); cx.arc(12,12,3,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,20,4,0,Math.PI*2); cx.fill(); return cvs; }
+    function createBalloonAsset() { const cvs=document.createElement('canvas'); cvs.width=26; cvs.height=36; const cx=cvs.getContext('2d'); cx.fillStyle='#E53935'; cx.beginPath(); cx.ellipse(13,12,12,14,0,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.moveTo(13,26); cx.lineTo(10,30); cx.lineTo(16,30); cx.fill(); cx.strokeStyle='#EEE'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(13,30); cx.lineTo(13,36); cx.stroke(); cx.fillStyle='rgba(255,255,255,0.3)'; cx.beginPath(); cx.ellipse(10,8,4,6,-0.5,0,Math.PI*2); cx.fill(); return cvs; }
+    function createPlaneAsset() { const cvs=document.createElement('canvas'); cvs.width=36; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.beginPath(); cx.moveTo(2,10); cx.lineTo(34,10); cx.lineTo(10,2); cx.fill(); cx.fillStyle='#E0E0E0'; cx.beginPath(); cx.moveTo(2,10); cx.lineTo(34,10); cx.lineTo(10,16); cx.fill(); return cvs; }
+    function createFishAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=24; const cx=cvs.getContext('2d'); cx.fillStyle='#FF9800'; cx.beginPath(); cx.ellipse(18,12,14,8,0,0,Math.PI*2); cx.fill(); cx.fillStyle='#F57C00'; cx.beginPath(); cx.moveTo(4,12); cx.lineTo(0,4); cx.lineTo(0,20); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(24,10,3,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(25,10,1,0,Math.PI*2); cx.fill(); return cvs; }
+    function createCatAsset() { const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=28; const cx=cvs.getContext('2d'); cx.fillStyle='#9E9E9E'; cx.beginPath(); cx.arc(16,16,12,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.moveTo(8,8); cx.lineTo(4,0); cx.lineTo(12,6); cx.fill(); cx.beginPath(); cx.moveTo(24,8); cx.lineTo(28,0); cx.lineTo(20,6); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(12,14,3,0,Math.PI*2); cx.arc(20,14,3,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(12,14,1,0,Math.PI*2); cx.arc(20,14,1,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFAB91'; cx.beginPath(); cx.arc(16,19,2,0,Math.PI*2); cx.fill(); return cvs; }
+    function createDogAsset() { const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=28; const cx=cvs.getContext('2d'); cx.fillStyle='#8D6E63'; cx.beginPath(); cx.arc(16,14,12,0,Math.PI*2); cx.fill(); cx.fillStyle='#6D4C41'; cx.beginPath(); cx.ellipse(6,12,4,8,0.5,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.ellipse(26,12,4,8,-0.5,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(12,12,3,0,Math.PI*2); cx.arc(20,12,3,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(12,12,1,0,Math.PI*2); cx.arc(20,12,1,0,Math.PI*2); cx.fill(); cx.fillStyle='#3E2723'; cx.beginPath(); cx.ellipse(16,18,3,2,0,0,Math.PI*2); cx.fill(); return cvs; }
+    function createMeteorAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#5D4037'; cx.beginPath(); cx.arc(15,15,12,0,Math.PI*2); cx.fill(); cx.fillStyle='#8D6E63'; cx.beginPath(); cx.arc(10,12,4,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,18,3,0,Math.PI*2); cx.fill(); return cvs; }
+    
+    // --- 20 MORE NEW ASSETS ---
+    function createSlimeAsset() { const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=28; const cx=cvs.getContext('2d'); cx.fillStyle='#00FF00'; cx.beginPath(); cx.moveTo(4,28); cx.quadraticCurveTo(4,0,16,0); cx.quadraticCurveTo(28,0,28,28); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(12,10,4,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,10,4,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(13,10,1,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(21,10,1,0,Math.PI*2); cx.fill(); return cvs; }
+    function createRobotAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#7f8c8d'; cx.fillRect(5,5,20,20); cx.fillStyle='#95a5a6'; cx.fillRect(3,10,4,10); cx.fillRect(23,10,4,10); cx.fillStyle='#e74c3c'; cx.fillRect(8,10,6,4); cx.fillRect(16,10,6,4); cx.fillStyle='#f1c40f'; cx.fillRect(12,20,6,2); return cvs; }
+    function createPaperAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#ecf0f1'; cx.beginPath(); cx.moveTo(5,5); cx.lineTo(25,2); cx.lineTo(28,25); cx.lineTo(8,28); cx.fill(); cx.strokeStyle='#bdc3c7'; cx.beginPath(); cx.moveTo(5,5); cx.lineTo(25,2); cx.lineTo(28,25); cx.lineTo(8,28); cx.closePath(); cx.stroke(); cx.beginPath(); cx.moveTo(5,5); cx.lineTo(28,25); cx.stroke(); return cvs; }
+    function createEyeAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.fill(); cx.fillStyle='#3498db'; cx.beginPath(); cx.arc(15,15,8,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(15,15,4,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(18,12,2,0,Math.PI*2); cx.fill(); return cvs; }
+    function createTurtleAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=24; const cx=cvs.getContext('2d'); cx.fillStyle='#27ae60'; cx.beginPath(); cx.arc(17,12,10,0,Math.PI*2); cx.fill(); cx.fillStyle='#2ecc71'; cx.beginPath(); cx.arc(6,12,5,0,Math.PI*2); cx.fill(); cx.fillRect(12,20,4,4); cx.fillRect(22,20,4,4); cx.fillStyle='#000'; cx.beginPath(); cx.arc(4,10,1,0,Math.PI*2); cx.fill(); return cvs; }
+    function createBombAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#2c3e50'; cx.beginPath(); cx.arc(15,18,10,0,Math.PI*2); cx.fill(); cx.fillStyle='#95a5a6'; cx.fillRect(13,4,4,6); cx.fillStyle='#e74c3c'; cx.beginPath(); cx.arc(15,2,2,0,Math.PI*2); cx.fill(); return cvs; }
+    function createBallAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#e67e22'; cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.fill(); cx.strokeStyle='#d35400'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(1,15); cx.lineTo(29,15); cx.stroke(); cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.stroke(); return cvs; }
+    function createSnowmanAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=40; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(15,30,10,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(15,15,8,0,Math.PI*2); cx.fill(); cx.fillStyle='#e67e22'; cx.beginPath(); cx.moveTo(15,15); cx.lineTo(25,18); cx.lineTo(15,21); cx.fill(); cx.fillStyle='#2c3e50'; cx.fillRect(10,5,10,2); cx.fillRect(12,0,6,6); return cvs; }
+    function createVampireAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#ecf0f1'; cx.beginPath(); cx.arc(15,15,10,0,Math.PI*2); cx.fill(); cx.fillStyle='#2c3e50'; cx.beginPath(); cx.moveTo(5,10); cx.lineTo(15,5); cx.lineTo(25,10); cx.lineTo(15,0); cx.fill(); cx.fillStyle='#c0392b'; cx.beginPath(); cx.arc(12,14,1,0,Math.PI*2); cx.arc(18,14,1,0,Math.PI*2); cx.fill(); return cvs; }
+    function createZombieAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#8e44ad'; cx.beginPath(); cx.arc(15,15,12,0,Math.PI*2); cx.fill(); cx.fillStyle='#2ecc71'; cx.beginPath(); cx.arc(10,12,3,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(18,12,4,0,Math.PI*2); cx.fill(); return cvs; }
+    function createSkeletonAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#bdc3c7'; cx.beginPath(); cx.arc(15,15,12,0,Math.PI*2); cx.fill(); cx.fillStyle='#2c3e50'; cx.beginPath(); cx.arc(11,15,3,0,Math.PI*2); cx.arc(19,15,3,0,Math.PI*2); cx.fill(); cx.fillRect(13,22,4,4); return cvs; }
+    function createAlienAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#2ecc71'; cx.beginPath(); cx.ellipse(17,15,12,14,0,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.ellipse(12,12,4,6,-0.5,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.ellipse(22,12,4,6,0.5,0,Math.PI*2); cx.fill(); return cvs; }
+    function createClownAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(15,15,12,0,Math.PI*2); cx.fill(); cx.fillStyle='#c0392b'; cx.beginPath(); cx.arc(15,15,4,0,Math.PI*2); cx.fill(); cx.fillStyle='#3498db'; cx.beginPath(); cx.moveTo(10,10); cx.lineTo(12,8); cx.stroke(); cx.moveTo(18,8); cx.lineTo(20,10); cx.stroke(); return cvs; }
+    function createPumpkinAsset() { const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=28; const cx=cvs.getContext('2d'); cx.fillStyle='#d35400'; cx.beginPath(); cx.ellipse(16,16,14,10,0,0,Math.PI*2); cx.fill(); cx.fillStyle='#27ae60'; cx.fillRect(14,0,4,6); cx.fillStyle='#000'; cx.beginPath(); cx.moveTo(10,12); cx.lineTo(12,16); cx.lineTo(8,16); cx.fill(); cx.beginPath(); cx.moveTo(22,12); cx.lineTo(24,16); cx.lineTo(20,16); cx.fill(); return cvs; }
+    function createEarthAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#3498db'; cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.fill(); cx.fillStyle='#2ecc71'; cx.beginPath(); cx.arc(15,15,10,0,Math.PI*1.5); cx.fill(); return cvs; }
+    function createMoonAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#bdc3c7'; cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.fill(); cx.fillStyle='#95a5a6'; cx.beginPath(); cx.arc(10,10,3,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,20,5,0,Math.PI*2); cx.fill(); return cvs; }
+    function createSunAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=34; const cx=cvs.getContext('2d'); cx.fillStyle='#f1c40f'; cx.beginPath(); cx.arc(17,17,12,0,Math.PI*2); cx.fill(); cx.strokeStyle='#e67e22'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(17,0); cx.lineTo(17,34); cx.moveTo(0,17); cx.lineTo(34,17); cx.stroke(); return cvs; }
+    function createMelonAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=26; const cx=cvs.getContext('2d'); cx.fillStyle='#27ae60'; cx.beginPath(); cx.arc(17,13,12,0,Math.PI,false); cx.fill(); cx.fillStyle='#c0392b'; cx.beginPath(); cx.arc(17,13,10,0,Math.PI,false); cx.fill(); cx.fillStyle='#000'; cx.fillRect(14,16,2,2); cx.fillRect(20,16,2,2); return cvs; }
+    function createCookieAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#d35400'; cx.beginPath(); cx.arc(15,15,13,0,Math.PI*2); cx.fill(); cx.fillStyle='#3e2723'; cx.beginPath(); cx.arc(10,10,2,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,20,2,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,10,2,0,Math.PI*2); cx.fill(); return cvs; }
+    function createCheetahAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=24; const cx=cvs.getContext('2d'); cx.fillStyle='#f1c40f'; cx.beginPath(); cx.ellipse(17,12,14,8,0,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(10,10,2,0,Math.PI*2); cx.fill(); cx.arc(18,8,2,0,Math.PI*2); cx.fill(); cx.arc(24,14,2,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(28,10,2,0,Math.PI*2); cx.fill(); return cvs; }
+
+    // --- 30 RANDOM MECHANIC ASSETS ---
+    function createRabbitAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=34; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.beginPath(); cx.ellipse(15,22,12,10,0,0,Math.PI*2); cx.fill(); cx.fillStyle='#pink'; cx.fillRect(8,0,4,16); cx.fillRect(18,0,4,16); return cvs; }
+    function createGravBotAsset() { const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=32; const cx=cvs.getContext('2d'); cx.fillStyle='#34495e'; cx.fillRect(0,0,32,32); cx.fillStyle='#2ecc71'; cx.fillRect(8,8,16,16); return cvs; }
+    function createMagnetoAsset() { const cvs=document.createElement('canvas'); cvs.width=34; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#c0392b'; cx.beginPath(); cx.arc(17,15,14,Math.PI,0); cx.lineTo(31,30); cx.lineTo(25,30); cx.lineTo(17,20); cx.lineTo(9,30); cx.lineTo(3,30); cx.fill(); return cvs; }
+    function createPaladinAsset() { const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=32; const cx=cvs.getContext('2d'); cx.fillStyle='#f1c40f'; cx.beginPath(); cx.arc(16,16,14,0,Math.PI*2); cx.fill(); cx.fillStyle='#fff'; cx.fillRect(14,4,4,24); cx.fillRect(4,14,24,4); return cvs; }
+    function createBulldozerAsset() { const cvs=document.createElement('canvas'); cvs.width=40; cvs.height=24; const cx=cvs.getContext('2d'); cx.fillStyle='#f39c12'; cx.fillRect(10,4,20,16); cx.fillStyle='#000'; cx.fillRect(30,4,10,16); return cvs; }
+    function createPhantomAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='rgba(142,68,173,0.5)'; cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.fill(); return cvs; }
+    function createDrunkardAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#d35400'; cx.fillRect(10,0,10,10); cx.fillRect(5,10,20,20); return cvs; }
+    function createRubberAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#e91e63'; cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.fill(); return cvs; }
+    function createPufferAsset() { const cvs=document.createElement('canvas'); cvs.width=32; cvs.height=32; const cx=cvs.getContext('2d'); cx.fillStyle='#e67e22'; cx.beginPath(); cx.arc(16,16,14,0,Math.PI*2); cx.fill(); cx.fillStyle='#000'; cx.fillRect(8,8,2,2); cx.fillRect(22,8,2,2); return cvs; }
+    function createEnderAsset() { const cvs=document.createElement('canvas'); cvs.width=20; cvs.height=40; const cx=cvs.getContext('2d'); cx.fillStyle='#000'; cx.fillRect(0,0,20,40); cx.fillStyle='#8e44ad'; cx.fillRect(2,10,4,2); cx.fillRect(14,10,4,2); return cvs; }
+    function createSerpentAsset() { const cvs=document.createElement('canvas'); cvs.width=40; cvs.height=10; const cx=cvs.getContext('2d'); cx.fillStyle='#27ae60'; cx.fillRect(0,0,40,10); return cvs; }
+    function createInvertAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#34495e'; cx.beginPath(); cx.moveTo(15,25); cx.lineTo(5,5); cx.lineTo(25,5); cx.fill(); return cvs; }
+    function createFlashAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=10; const cx=cvs.getContext('2d'); cx.fillStyle='#95a5a6'; cx.fillRect(0,0,20,10); cx.fillStyle='#f1c40f'; cx.fillRect(20,2,10,6); return cvs; }
+    function createRacerAsset() { const cvs=document.createElement('canvas'); cvs.width=40; cvs.height=16; const cx=cvs.getContext('2d'); cx.fillStyle='#c0392b'; cx.fillRect(0,4,40,8); cx.fillStyle='#000'; cx.fillRect(5,12,6,4); cx.fillRect(29,12,6,4); return cvs; }
+    function createWindyAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#ecf0f1'; cx.beginPath(); cx.arc(10,10,8,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,10,10,0,Math.PI*2); cx.fill(); return cvs; }
+    function createTwinAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#e74c3c'; cx.beginPath(); cx.arc(15,10,6,0,Math.PI*2); cx.fill(); cx.fillStyle='#3498db'; cx.beginPath(); cx.arc(15,20,6,0,Math.PI*2); cx.fill(); return cvs; }
+    function createFreezerAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#81d4fa'; cx.fillRect(5,5,20,20); cx.strokeStyle='#FFF'; cx.strokeRect(5,5,20,20); return cvs; }
+    function createGamblerAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.fillRect(0,0,30,30); cx.fillStyle='#000'; cx.beginPath(); cx.arc(8,8,2,0,Math.PI*2); cx.arc(22,22,2,0,Math.PI*2); cx.fill(); return cvs; }
+    function createDrillAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#7f8c8d'; cx.beginPath(); cx.moveTo(0,0); cx.lineTo(30,10); cx.lineTo(0,20); cx.fill(); return cvs; }
+    function createCloudAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(10,10,8,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(20,10,8,0,Math.PI*2); cx.fill(); return cvs; }
+    function createHoverAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=10; const cx=cvs.getContext('2d'); cx.fillStyle='#34495e'; cx.fillRect(0,0,30,6); cx.fillStyle='#2ecc71'; cx.fillRect(10,6,10,4); return cvs; }
+    function createSpringAsset() { const cvs=document.createElement('canvas'); cvs.width=20; cvs.height=30; const cx=cvs.getContext('2d'); cx.strokeStyle='#7f8c8d'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(10,30); cx.lineTo(10,0); cx.stroke(); return cvs; }
+    function createCursorAsset() { const cvs=document.createElement('canvas'); cvs.width=20; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#FFF'; cx.beginPath(); cx.moveTo(0,0); cx.lineTo(20,10); cx.lineTo(10,20); cx.fill(); cx.strokeStyle='#000'; cx.stroke(); return cvs; }
+    function createGrenadeAsset() { const cvs=document.createElement('canvas'); cvs.width=24; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#2c3e50'; cx.beginPath(); cx.ellipse(12,18,10,12,0,0,Math.PI*2); cx.fill(); cx.fillRect(10,0,4,6); return cvs; }
+    function createHackerAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#000'; cx.fillRect(0,0,30,30); cx.fillStyle='#0F0'; cx.font='20px monospace'; cx.fillText('>',2,20); return cvs; }
+    function createBoatAsset() { const cvs=document.createElement('canvas'); cvs.width=40; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#e67e22'; cx.beginPath(); cx.moveTo(0,0); cx.lineTo(40,0); cx.lineTo(35,20); cx.lineTo(5,20); cx.fill(); cx.fillStyle='#FFF'; cx.fillRect(18,-15,4,15); cx.fillRect(18,-15,10,10); return cvs; }
+    function createChopperAsset() { const cvs=document.createElement('canvas'); cvs.width=40; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#34495e'; cx.fillRect(5,10,30,15); cx.fillRect(18,0,4,10); cx.fillStyle='#95a5a6'; cx.fillRect(0,0,40,4); return cvs; }
+    function createTeslaAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#7f8c8d'; cx.beginPath(); cx.moveTo(15,0); cx.lineTo(0,30); cx.lineTo(30,30); cx.fill(); cx.fillStyle='#f1c40f'; cx.beginPath(); cx.arc(15,0,4,0,Math.PI*2); cx.fill(); return cvs; }
+    function createVoidAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle='#000'; cx.beginPath(); cx.arc(15,15,14,0,Math.PI*2); cx.fill(); cx.strokeStyle='#8e44ad'; cx.lineWidth=2; cx.stroke(); return cvs; }
+    function createGliderAsset() { const cvs=document.createElement('canvas'); cvs.width=40; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#e74c3c'; cx.beginPath(); cx.moveTo(20,20); cx.lineTo(0,0); cx.lineTo(40,0); cx.fill(); return cvs; }
+    function createSniperAsset() { const cvs=document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.strokeStyle='#000'; cx.lineWidth=2; cx.beginPath(); cx.arc(15,15,12,0,Math.PI*2); cx.stroke(); cx.beginPath(); cx.moveTo(15,0); cx.lineTo(15,30); cx.moveTo(0,15); cx.lineTo(30,15); cx.stroke(); return cvs; }
+
+
+    function createNinjaAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=30; cvs.height=24; const cx=cvs.getContext('2d');
+        cx.fillStyle = '#111'; cx.beginPath(); cx.ellipse(15, 12, 12, 10, 0, 0, Math.PI*2); cx.fill(); // Body
+        cx.fillStyle = '#F4D03F'; cx.fillRect(12, 8, 10, 4); // Skin/Eye slit
+        cx.fillStyle = '#E74C3C'; cx.fillRect(2, 8, 20, 4); // Headband
+        cx.fillStyle = '#E74C3C'; cx.beginPath(); cx.moveTo(2,10); cx.lineTo(-5, 6); cx.lineTo(-5, 14); cx.fill(); // Band tails
+        return cvs;
+    }
+
     function createAmongUsAsset(type) {
         const cvs = document.createElement('canvas'); cvs.width = 34; cvs.height = 24; const cx = cvs.getContext('2d');
         const color = '#C51111'; const visor = '#9ECEF5';
@@ -329,6 +476,37 @@
         return cvs;
     }
 
+    // CROSSY ROAD ASSETS
+    function createVoxelChicken() {
+        const cvs = document.createElement('canvas'); cvs.width = 32; cvs.height = 32; const cx = cvs.getContext('2d');
+        cx.fillStyle = '#FFF'; cx.fillRect(8, 8, 16, 16); // Body
+        cx.fillStyle = '#FF0000'; cx.fillRect(12, 4, 4, 4); // Comb
+        cx.fillStyle = '#FF9900'; cx.fillRect(24, 12, 4, 4); // Beak
+        cx.fillStyle = '#000'; cx.fillRect(18, 10, 2, 2); // Eye
+        cx.fillStyle = '#FF9900'; cx.fillRect(12, 24, 2, 4); cx.fillRect(18, 24, 2, 4); // Legs
+        return cvs;
+    }
+    function createVoxelCar() {
+        const cvs = document.createElement('canvas'); cvs.width = 40; cvs.height = 20; const cx = cvs.getContext('2d');
+        cx.fillStyle = '#3498db'; cx.fillRect(0, 5, 40, 15); // Body
+        cx.fillStyle = '#87CEEB'; cx.fillRect(5, 0, 20, 5); // Top
+        cx.fillStyle = '#000'; cx.fillRect(5, 15, 6, 5); cx.fillRect(29, 15, 6, 5); // Wheels
+        return cvs;
+    }
+    function createLogAsset() {
+        const cvs = document.createElement('canvas'); cvs.width = 60; cvs.height = 20; const cx = cvs.getContext('2d');
+        cx.fillStyle = '#8D6E63'; cx.fillRect(0, 0, 60, 20);
+        cx.fillStyle = '#5D4037'; cx.fillRect(5, 2, 50, 16); // Texture
+        return cvs;
+    }
+    function createTrainAsset() {
+        const cvs = document.createElement('canvas'); cvs.width = 120; cvs.height = 30; const cx = cvs.getContext('2d');
+        cx.fillStyle = '#e74c3c'; cx.fillRect(0, 0, 120, 30); // Body
+        cx.fillStyle = '#c0392b'; cx.fillRect(10, 5, 100, 20);
+        cx.fillStyle = '#f1c40f'; cx.fillRect(5, 20, 10, 5); // Light
+        return cvs;
+    }
+
     function createBigOAsset() { const cvs = document.createElement('canvas'); cvs.width = 44; cvs.height = 34; const cx = cvs.getContext('2d'); cx.fillStyle='#F5CBA7'; cx.beginPath(); cx.arc(22,17,16,0,Math.PI*2); cx.fill(); cx.fillStyle='#2980B9'; cx.beginPath(); cx.arc(22,28,16,Math.PI,0); cx.fill(); cx.fillStyle='#4A235A'; cx.beginPath(); cx.arc(22,17,16,0.2,2.9); cx.lineTo(22,22); cx.fill(); cx.fillStyle='#000'; cx.beginPath(); cx.arc(16,14,2,0,Math.PI*2); cx.fill(); cx.beginPath(); cx.arc(28,14,2,0,Math.PI*2); cx.fill(); cx.strokeStyle='#000'; cx.lineWidth=2; cx.beginPath(); cx.arc(22,17,16,0,Math.PI*2); cx.stroke(); return cvs; }
     function createGDAsset() { const cvs = document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d'); cx.fillStyle = '#FFD700'; cx.fillRect(0,0,30,30); cx.fillStyle = '#000'; cx.fillRect(6,6,6,6); cx.fillRect(18,6,6,6); cx.fillRect(6,18,18,4); cx.strokeStyle = '#000'; cx.lineWidth = 2; cx.strokeRect(1,1,28,28); return cvs; }
     function createBurgerAsset() { const cvs = document.createElement('canvas'); cvs.width=24; cvs.height=20; const cx=cvs.getContext('2d'); cx.fillStyle='#E67E22'; cx.fillRect(2,14,20,4); cx.fillStyle='#2ECC71'; cx.fillRect(1,12,22,2); cx.fillStyle='#6E2C00'; cx.fillRect(2,8,20,4); cx.fillStyle='#E67E22'; cx.beginPath(); cx.arc(12,8,10,Math.PI,0); cx.fill(); cx.fillStyle='#F5B7B1'; cx.fillRect(8,2,2,2); cx.fillRect(14,3,2,2); cx.fillRect(11,5,2,2); cx.strokeStyle='#000'; cx.lineWidth=1; cx.strokeRect(2,14,20,4); return cvs; }
@@ -336,7 +514,7 @@
     function createSantaAsset() { const cvs = document.createElement('canvas'); cvs.width = 48; cvs.height = 30; const cx = cvs.getContext('2d'); cx.fillStyle='#8B0000'; cx.beginPath(); cx.moveTo(10,20); cx.lineTo(35,20); cx.lineTo(38,15); cx.lineTo(8,15); cx.fill(); cx.strokeStyle='#C0C0C0'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(5,25); cx.lineTo(40,25); cx.quadraticCurveTo(45,20,42,15); cx.stroke(); cx.fillStyle='#2E8B57'; cx.beginPath(); cx.arc(15,12,8,0,Math.PI*2); cx.fill(); cx.fillStyle='#D32F2F'; cx.beginPath(); cx.arc(28,14,6,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFCCBC'; cx.beginPath(); cx.arc(28,8,4,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(28,10,4,0,Math.PI,false); cx.fill(); cx.fillStyle='#D32F2F'; cx.beginPath(); cx.moveTo(24,6); cx.lineTo(32,6); cx.lineTo(28,0); cx.fill(); return cvs; }
     function createChimneyAsset() { const cvs = document.createElement('canvas'); cvs.width=52; cvs.height=320; const cx=cvs.getContext('2d'); cx.fillStyle='#8D6E63'; cx.fillRect(0,0,52,320); cx.fillStyle='#5D4037'; for(let y=0; y<320; y+=20) { cx.fillRect(0,y,52,2); for(let x=(y%40===0?0:26); x<52; x+=52) cx.fillRect(x,y,2,20); } cx.strokeStyle='#3E2723'; cx.lineWidth=4; cx.strokeRect(0,0,52,320); return cvs; }
 
-    // --- NEW PROCEDURAL ASSETS ---
+    // --- PROCEDURAL ASSETS ---
     function createSubmarineAsset() {
         const cvs = document.createElement('canvas'); cvs.width=40; cvs.height=30; const cx=cvs.getContext('2d');
         cx.fillStyle = '#F1C40F'; cx.beginPath(); cx.ellipse(20, 18, 18, 10, 0, 0, Math.PI*2); cx.fill(); // Body
@@ -423,7 +601,8 @@
     const state = { current: 0, getReady: 0, game: 1, over: 2, falling: 3 };
     let userData = {
         highScore: parseInt(localStorage.getItem('fb_highScore')) || 0, coins: parseInt(localStorage.getItem('fb_coins')) || 0,
-        unlockedSkins: JSON.parse(localStorage.getItem('fb_skins')) || ['yellow'], equippedSkin: localStorage.getItem('fb_equipped') || 'yellow'
+        unlockedSkins: JSON.parse(localStorage.getItem('fb_skins')) || ['yellow'], equippedSkin: localStorage.getItem('fb_equipped') || 'yellow',
+        shield: 0
     };
     // Ensure default unlocked
     if(!userData.unlockedSkins.includes('yellow')) userData.unlockedSkins.push('yellow');
@@ -434,6 +613,12 @@
         if (userData.equippedSkin === 'mario') return 4.5; 
         if (userData.equippedSkin === 'nyan') return 3.0;
         if (userData.equippedSkin === 'ghost') return 1.5;
+        if (userData.equippedSkin === 'ninja') return 2.4; 
+        if (userData.equippedSkin === 'meteor') return 3.5;
+        if (userData.equippedSkin === 'turtle') return 1.5;
+        if (userData.equippedSkin === 'cheetah') return 3.0;
+        if (userData.equippedSkin === 'racer') return 2 + (score.value * 0.05); // Faster with score
+        if (userData.equippedSkin === 'freezer' && frames - lastFlapFrame < 30) return 0; // Freeze time
         return 2; 
     }
 
@@ -483,6 +668,97 @@
         marioState.camX += getGameSpeed() * dt; marioState.timer += dt / 60;
     }
 
+    // --- CROSSY STATE ---
+    let crossyState = { 
+        tiles: [], tileW: 40, camX: 0, birdWorldX: 0, groundY: 0,
+        objects: [], // cars, logs, coins
+        lastGenX: 0
+    };
+    function initCrossyLevel() {
+        crossyState.camX = 0; crossyState.birdWorldX = 0;
+        // Move ground to middle of screen per request
+        crossyState.groundY = LOGICAL_HEIGHT / 2; 
+        crossyState.tiles = [];
+        crossyState.objects = [];
+        // Gen initial safe zone
+        for(let i=0; i<10; i++) {
+            crossyState.tiles.push({x: i*40, type: 'grass'});
+        }
+        crossyState.lastGenX = 9 * 40;
+    }
+    function updateCrossyLevel(dt) {
+        // Gen new terrain
+        while (crossyState.lastGenX < crossyState.camX + logicalWidth + 200) {
+            crossyState.lastGenX += 40;
+            let type = 'grass';
+            const r = Math.random();
+            if (r < 0.3) type = 'road';
+            else if (r < 0.5) type = 'river';
+            else if (r < 0.6) type = 'rail';
+            
+            // Grouping logic (make roads wider etc)
+            let prev = crossyState.tiles[crossyState.tiles.length-1];
+            if (prev.type === 'road' && Math.random() < 0.6) type = 'road';
+            if (prev.type === 'river' && Math.random() < 0.6) type = 'river';
+            if (prev.type === 'rail') type = 'grass'; // No double rails
+
+            let tile = {x: crossyState.lastGenX, type: type, timer: 0};
+            crossyState.tiles.push(tile);
+
+            // Init spawners
+            if (type === 'road') {
+                let speed = (2 + Math.random() * 3) * (Math.random() < 0.5 ? 1 : -1);
+                crossyState.objects.push({type:'car', x: crossyState.lastGenX, y: crossyState.groundY - 10, speed: speed, tileX: crossyState.lastGenX, timeOffset: Math.random()*100 });
+            } else if (type === 'river') {
+                let speed = (1 + Math.random() * 2) * (Math.random() < 0.5 ? 1 : -1);
+                // Logs
+                crossyState.objects.push({type:'log', x: crossyState.lastGenX, y: crossyState.groundY + 10, speed: speed, tileX: crossyState.lastGenX, timeOffset: Math.random()*100 });
+            } else if (type === 'rail') {
+                tile.trainTimer = Math.random() * 200;
+                tile.trainActive = false;
+                // Chance for coin on rail (dangerous!)
+                if (Math.random() < 0.3) {
+                    crossyState.objects.push({type:'coin', x: crossyState.lastGenX, y: crossyState.groundY, tileX: crossyState.lastGenX, collected: false});
+                }
+            } else if (type === 'grass') {
+                // Chance for coin
+                if (Math.random() < 0.3) {
+                    crossyState.objects.push({type:'coin', x: crossyState.lastGenX, y: crossyState.groundY, tileX: crossyState.lastGenX, collected: false});
+                }
+            }
+        }
+
+        // Cleanup
+        crossyState.tiles = crossyState.tiles.filter(t => t.x > crossyState.camX - 100);
+        crossyState.objects = crossyState.objects.filter(o => o.tileX > crossyState.camX - 100);
+
+        // Update Objects
+        for (let o of crossyState.objects) {
+            if (o.type === 'car' || o.type === 'log') {
+                o.y += o.speed;
+                if (o.y > LOGICAL_HEIGHT + 50) o.y = -50;
+                if (o.y < -50) o.y = LOGICAL_HEIGHT + 50;
+            }
+        }
+        
+        // Update Rails
+        for(let t of crossyState.tiles) {
+            if(t.type === 'rail') {
+                t.trainTimer++;
+                if (t.trainTimer > 300) { // Train comes every ~5s
+                    if (t.trainTimer > 360) { // Train passes
+                         t.trainActive = true;
+                    }
+                    if (t.trainTimer > 400) { t.trainTimer = 0; t.trainActive = false; }
+                }
+            }
+        }
+
+        // Camera follow (Center chicken horizontally approx 1/3 screen width)
+        let targetCamX = crossyState.birdWorldX - 100;
+        crossyState.camX += (targetCamX - crossyState.camX) * 0.1;
+    }
+
     const debrisSystem = { 
         particles: [], 
         create: function(x, y) { for(let i=0; i<40; i++) { this.particles.push({ x: x, y: y, vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15, life: 60, color: Math.random() < 0.5 ? '#558022' : '#73BF2E', size: Math.random() * 6 + 3 }); } },
@@ -504,10 +780,42 @@
                 });
             }
         },
+        createConfetti: function(x, y) {
+             for(let i=0; i<30; i++) {
+                const colors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6'];
+                this.particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15,
+                    life: 80,
+                    color: colors[Math.floor(Math.random()*colors.length)],
+                    size: Math.random() * 5 + 2
+                });
+            }
+        },
         createBubbles: function(x, y) {
             if(Math.random() > 0.3) return;
             this.particles.push({
                 x: x, y: y, vx: -2, vy: -Math.random()*2, life: 100, color: 'rgba(255,255,255,0.6)', size: Math.random()*4+2, type: 'bubble'
+            });
+        },
+        createFireParticles: function(x, y) {
+            for(let i=0; i<3; i++) {
+                this.particles.push({
+                    x: x, y: y,
+                    vx: -3 + Math.random()*2,
+                    vy: (Math.random()-0.5)*3,
+                    life: 30,
+                    color: Math.random() < 0.5 ? '#FF4500' : '#FFFF00',
+                    size: Math.random() * 4 + 2,
+                    type: 'fire'
+                });
+            }
+        },
+        createTrail: function(x, y, color) {
+            if(Math.random() > 0.4) return;
+            this.particles.push({
+                x: x, y: y, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2, life: 40, color: color, size: Math.random()*3+1, type: 'bubble'
             });
         },
         update: function(dt) { 
@@ -515,7 +823,7 @@
                 let p = this.particles[i]; 
                 p.x += p.vx * dt; 
                 p.y += p.vy * dt; 
-                if(p.type !== 'bubble') p.vy += 0.5 * dt; 
+                if(p.type !== 'bubble' && p.type !== 'fire') p.vy += 0.5 * dt; 
                 p.life -= dt; 
                 if(p.life <= 0) { this.particles.splice(i, 1); i--; } 
             } 
@@ -523,6 +831,8 @@
         draw: function() { 
             for(let p of this.particles) { 
                 if(p.type === 'bubble') {
+                    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                } else if(p.type === 'fire') {
                     ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
                 } else {
                     ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); 
@@ -562,6 +872,58 @@
         reset: function() { this.points = []; }
     };
 
+    // Dragon Fireball System
+    const fireballSystem = {
+        projectiles: [],
+        cooldown: 0,
+        update: function(dt) {
+            if ((userData.equippedSkin !== 'dragon' && userData.equippedSkin !== 'sniper') || state.current !== state.game) return;
+            
+            // Auto-fire every 2 seconds (approx 120 frames)
+            this.cooldown += dt;
+            if (this.cooldown > (userData.equippedSkin==='sniper' ? 60 : 120)) {
+                this.cooldown = 0;
+                this.projectiles.push({x: bird.x + 20, y: bird.y, r: 8, active: true, type: userData.equippedSkin==='sniper'?'bullet':'fire'});
+                playSound('fire');
+            }
+
+            for(let p of this.projectiles) {
+                if(!p.active) continue;
+                p.x += (p.type==='bullet'?10:5) * dt; 
+                if(p.type==='fire') debrisSystem.createFireParticles(p.x, p.y);
+                
+                // Collision with pipes
+                for(let pipe of pipes.position) {
+                    if (pipe.broken) continue;
+                    let pX = pipe.x; let pW = pipes.w; 
+                    if (p.x > pX && p.x < pX + pW) {
+                        let topY = pipe.y; 
+                        let bottomY = pipe.y + 320 + pipes.gap;
+                        if (p.y - p.r < topY + 320 || p.y + p.r > bottomY) {
+                             pipe.broken = true;
+                             p.active = false;
+                             screenShake = 5;
+                             playSound('break');
+                             debrisSystem.create(pX + pW/2, pipe.y + 320);
+                             break;
+                        }
+                    }
+                }
+                if (p.x > logicalWidth) p.active = false;
+            }
+            this.projectiles = this.projectiles.filter(p => p.active);
+        },
+        draw: function() {
+            if (userData.equippedSkin !== 'dragon' && userData.equippedSkin !== 'sniper') return;
+            for(let p of this.projectiles) {
+                ctx.fillStyle = p.type==='bullet' ? '#000' : '#FFA500';
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+                if(p.type==='fire'){ ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r/2, 0, Math.PI*2); ctx.fill(); }
+            }
+        },
+        reset: function() { this.projectiles = []; this.cooldown = 0; }
+    };
+
     // --- GAME DRAWING LAYERS ---
     const bg = {
         draw: function() {
@@ -570,9 +932,13 @@
             
             // Background Colors
             if (userData.equippedSkin === 'mario') { ctx.fillStyle = '#6b8cff'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); } 
-            else if (userData.equippedSkin === 'glitch') { ctx.fillStyle = '#000'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
-            else if (userData.equippedSkin === 'submarine') { ctx.fillStyle = '#001d3d'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
-            else if (userData.equippedSkin === 'ghost') { ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'crossy') { ctx.fillStyle = '#a2d6f9'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); } 
+            else if (userData.equippedSkin === 'glitch' || userData.equippedSkin === 'alien' || userData.equippedSkin === 'hacker') { ctx.fillStyle = '#000'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'submarine' || userData.equippedSkin === 'ufo' || userData.equippedSkin === 'fish') { ctx.fillStyle = '#001d3d'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'ghost' || userData.equippedSkin === 'bat' || userData.equippedSkin === 'moon' || userData.equippedSkin === 'owl' || userData.equippedSkin === 'vampire') { ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'dragon') { ctx.fillStyle = '#2c3e50'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'cyborg' || userData.equippedSkin === 'meteor' || userData.equippedSkin === 'robot') { ctx.fillStyle = '#2F3640'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'sun') { ctx.fillStyle = '#f39c12'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
             else { 
                 let cur = images.bg; 
                 if (userData.equippedSkin === 'amongus' || userData.equippedSkin === 'santa') cur = images.bgSpace; 
@@ -583,13 +949,14 @@
             }
             
             // Glitch Background Effect
-            if(userData.equippedSkin === 'glitch') {
+            if(userData.equippedSkin === 'glitch' || userData.equippedSkin === 'alien' || userData.equippedSkin === 'hacker') {
                 ctx.fillStyle = '#0F0';
                 ctx.font = '10px monospace';
                 for(let i=0; i<10; i++) {
                     if(Math.random()>0.9) ctx.fillText(Math.random()>0.5?'1':'0', Math.random()*logicalWidth, Math.random()*LOGICAL_HEIGHT);
                 }
             }
+            
             ctx.restore(); 
         }
     };
@@ -612,16 +979,18 @@
                 }
                 return;
             }
+            if (userData.equippedSkin === 'crossy') return; 
+
             let floorY = LOGICAL_HEIGHT - 112;
-            // Submarine has no floor
-            if (userData.equippedSkin === 'submarine') return;
+            if (userData.equippedSkin === 'submarine' || userData.equippedSkin === 'ufo' || userData.equippedSkin === 'cyborg' || userData.equippedSkin === 'fish') return;
 
             const baseW = 336; const count = Math.ceil(logicalWidth / baseW) + 1;
             ctx.save();
             if (images.base) {
                 if (userData.equippedSkin === 'amongus') ctx.filter = 'hue-rotate(220deg) saturate(1.5) brightness(0.8)';
                 if (userData.equippedSkin === 'glitch') ctx.filter = 'invert(1)';
-                if (userData.equippedSkin === 'ghost') ctx.globalAlpha = 0.5;
+                if (userData.equippedSkin === 'ghost' || userData.equippedSkin === 'bat') ctx.globalAlpha = 0.5;
+                if (userData.equippedSkin === 'dragon') ctx.filter = 'sepia(1) hue-rotate(-50deg) saturate(2)';
                 for(let i=0; i<count; i++) ctx.drawImage(images.base, this.x + (i * baseW), floorY);
             } else {
                 ctx.fillStyle = "#DED895"; ctx.fillRect(0, floorY, logicalWidth, 112);
@@ -630,7 +999,7 @@
             if (crackParams.active) { ctx.fillStyle = "#000"; ctx.fillRect(crackParams.x - crackParams.width/2, floorY, crackParams.width, 112); }
             ctx.restore();
         },
-        update: function(dt) { if (userData.equippedSkin !== 'mario' && (state.current === state.game || state.current === state.getReady)) this.x = (this.x - getGameSpeed() * dt) % 336; }
+        update: function(dt) { if (userData.equippedSkin !== 'mario' && userData.equippedSkin !== 'crossy' && (state.current === state.game || state.current === state.getReady)) this.x = (this.x - getGameSpeed() * dt) % 336; }
     };
 
     const marioObjects = {
@@ -694,9 +1063,263 @@
         }
     };
 
+    const crossyObjects = {
+        draw: function() {
+            if (userData.equippedSkin !== 'crossy') return;
+            
+            // Draw Tiles relative to groundY
+            let gy = crossyState.groundY;
+
+            for(let t of crossyState.tiles) {
+                let dx = t.x - crossyState.camX;
+                if (dx > -100 && dx < logicalWidth) {
+                    if (t.type === 'grass') {
+                        ctx.fillStyle = '#8bc34a'; // Light Green
+                        ctx.fillRect(dx, 0, 40, LOGICAL_HEIGHT);
+                        ctx.fillStyle = '#7cb342'; // Darker strip (Top surface visual)
+                        ctx.fillRect(dx, gy - 20, 40, 40);
+                    } else if (t.type === 'road') {
+                        ctx.fillStyle = '#555'; // Asphalt
+                        ctx.fillRect(dx, 0, 40, LOGICAL_HEIGHT);
+                        // Line
+                        ctx.strokeStyle = '#FFF'; ctx.setLineDash([5, 10]); 
+                        ctx.beginPath(); ctx.moveTo(dx+20, 0); ctx.lineTo(dx+20, LOGICAL_HEIGHT); ctx.stroke(); ctx.setLineDash([]);
+                    } else if (t.type === 'river') {
+                        ctx.fillStyle = '#42a5f5'; // Water
+                        ctx.fillRect(dx, 0, 40, LOGICAL_HEIGHT);
+                    } else if (t.type === 'rail') {
+                        ctx.fillStyle = '#8d6e63'; // Dirt/Gravel
+                        ctx.fillRect(dx, 0, 40, LOGICAL_HEIGHT);
+                        // Rails
+                        ctx.fillStyle = '#Silver';
+                        ctx.fillRect(dx+10, 0, 5, LOGICAL_HEIGHT);
+                        ctx.fillRect(dx+25, 0, 5, LOGICAL_HEIGHT);
+                        // Ties
+                        ctx.fillStyle = '#3e2723';
+                        for(let y=0; y<LOGICAL_HEIGHT; y+=20) ctx.fillRect(dx+5, y, 30, 5);
+                        
+                        // Warning Light
+                        if (t.trainTimer > 300) {
+                            ctx.fillStyle = (Math.floor(frames/5)%2===0) ? '#F00' : '#300';
+                            ctx.beginPath(); ctx.arc(dx+20, gy, 10, 0, Math.PI*2); ctx.fill();
+                        }
+                    }
+                }
+            }
+
+            // Draw Objects
+            for (let o of crossyState.objects) {
+                let dx = o.tileX - crossyState.camX;
+                if (dx > -100 && dx < logicalWidth) {
+                    // Center object in tile
+                    let centerX = dx + 20;
+                    
+                    if (o.type === 'coin') {
+                        if(!o.collected) {
+                            ctx.fillStyle = '#FFD700'; 
+                            ctx.beginPath(); ctx.arc(centerX, o.y, 8, 0, Math.PI*2); ctx.fill(); 
+                            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+                            // Bobbing effect
+                            let bob = Math.sin(frames * 0.1) * 3;
+                            ctx.fillStyle = '#FFF'; ctx.font = '10px FlappyFont'; ctx.fillText("$", centerX-3, o.y+3+bob); 
+                        }
+                        continue;
+                    }
+
+                    ctx.save();
+                    ctx.translate(centerX, o.y);
+                    if (o.type === 'car') {
+                        ctx.rotate(Math.PI/2); 
+                        if(o.speed < 0) ctx.rotate(Math.PI);
+                        if(images.voxelCar) ctx.drawImage(images.voxelCar, -20, -10);
+                        else { ctx.fillStyle='blue'; ctx.fillRect(-15,-10,30,20); }
+                    } else if (o.type === 'log') {
+                        if(images.log) {
+                            ctx.rotate(Math.PI/2);
+                            ctx.drawImage(images.log, -30, -10);
+                        } else { ctx.fillStyle='#5D4037'; ctx.fillRect(-10,-30,20,60); }
+                    }
+                    ctx.restore();
+                }
+            }
+            
+            // Draw Trains
+            for(let t of crossyState.tiles) {
+                if(t.type === 'rail' && t.trainActive) {
+                    let dx = t.x - crossyState.camX;
+                    if(dx > -100 && dx < logicalWidth) {
+                        ctx.fillStyle = '#c0392b';
+                        ctx.fillRect(dx + 5, 0, 30, LOGICAL_HEIGHT); 
+                        ctx.fillStyle = '#FFF';
+                        ctx.fillRect(dx + 10, Math.random()*LOGICAL_HEIGHT, 2, 50);
+                    }
+                }
+            }
+        },
+        update: function(dt) {
+            if (state.current !== state.game || userData.equippedSkin !== 'crossy') return;
+            updateCrossyLevel(dt);
+            
+            // Calc current tile index based on bird center
+            let birdCenterX = crossyState.birdWorldX + 20; 
+            
+            // Check Collisions
+            let currentTile = crossyState.tiles.find(t => Math.abs(t.x - crossyState.birdWorldX) < 10);
+            
+            if (currentTile) {
+                // Collect coins
+                for(let o of crossyState.objects) {
+                    if(o.type === 'coin' && !o.collected && o.tileX === currentTile.x) {
+                        // Bird Y is relative to ground? No bird.y is absolute screen Y.
+                        // Coin Y is groundY.
+                        if (Math.abs(bird.y - o.y) < 30) {
+                            o.collected = true;
+                            userData.coins++;
+                            playSound('coin');
+                            document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; 
+                            saveData();
+                        }
+                    }
+                }
+
+                if (currentTile.type === 'road') {
+                    for(let o of crossyState.objects) {
+                        if(o.type === 'car' && o.tileX === currentTile.x) {
+                            if (Math.abs(bird.y - o.y) < 25) {
+                                state.current = state.over; playSound('hit');
+                            }
+                        }
+                    }
+                }
+                else if (currentTile.type === 'river') {
+                    let onLog = false;
+                    for(let o of crossyState.objects) {
+                        if(o.type === 'log' && o.tileX === currentTile.x) {
+                            if (Math.abs(bird.y - o.y) < 30) {
+                                onLog = true;
+                                if(!bird.inAir) bird.y += o.speed * dt;
+                            }
+                        }
+                    }
+                    if (!onLog && !bird.inAir) {
+                        state.current = state.over; playSound('hit');
+                    }
+                }
+                else if (currentTile.type === 'rail') {
+                    if (currentTile.trainActive) {
+                        state.current = state.over; playSound('hit');
+                    }
+                }
+            }
+        }
+    };
+
     const bird = {
-        animation: [0, 1, 2, 1], x: 50, y: 150, w: 34, h: 24, radius: 12, frame: 0, speed: 0, gravity: 0.25, jump: 4.6, rotation: 0, onGround: false,
+        animation: [0, 1, 2, 1], x: 50, y: 150, w: 34, h: 24, radius: 12, frame: 0, speed: 0, gravity: 0.25, jump: 4.6, rotation: 0, onGround: false, inAir: false,
+        jumpStartPos: 0, jumpEndPos: 0, jumpTimer: 0, jumpStartY: 0, jumpEndY: 0, jumps: 0,
+        
+        moveCrossy: function(dir) {
+            if (this.inAir) return; // Wait for landing
+            
+            this.inAir = true;
+            this.jumpTimer = 0;
+            this.jumpStartPos = crossyState.birdWorldX;
+            this.jumpStartY = this.y;
+            this.jumpEndY = this.y; // Default no Y change
+            
+            if (dir === 'right') {
+                this.jumpEndPos = this.jumpStartPos + 40;
+                score.value++;
+                userData.highScore = Math.max(score.value, userData.highScore);
+                saveData();
+            } else if (dir === 'left') {
+                this.jumpEndPos = this.jumpStartPos - 40;
+            } else if (dir === 'up') {
+                this.jumpEndPos = this.jumpStartPos;
+                this.jumpEndY = this.jumpStartY - 40; // Inverted Y
+            } else if (dir === 'down') {
+                this.jumpEndPos = this.jumpStartPos;
+                this.jumpEndY = this.jumpStartY + 40;
+            }
+            
+            // Bounds check Y
+            if (this.jumpEndY < 20) this.jumpEndY = 20;
+            if (this.jumpEndY > LOGICAL_HEIGHT - 20) this.jumpEndY = LOGICAL_HEIGHT - 20;
+            
+            playSound('flap'); 
+        },
+
         flap: function() {
+            if (userData.equippedSkin === 'crossy') {
+                if (state.current === state.game && !this.inAir) {
+                    this.moveCrossy('right'); // Default tap behavior
+                    return true;
+                }
+                return false;
+            }
+            // NEW MECHANICS
+            if (userData.equippedSkin === 'rabbit') {
+                // Double Jump
+                if (this.jumps < 2) { 
+                    this.speed = -this.jump; this.rotation = -25 * DEGREE; 
+                    this.jumps++; return true; 
+                }
+                return false;
+            }
+            if (userData.equippedSkin === 'gravbot') {
+                // Gravity Flip
+                this.gravity = -this.gravity;
+                this.speed = 0; 
+                return true;
+            }
+            if (userData.equippedSkin === 'phantom') {
+                // Phase Shift (only go up, invincible logic handled in pipe collision)
+                this.speed = -this.jump; 
+                return true;
+            }
+            if (userData.equippedSkin === 'ender') {
+                // Teleport
+                this.y -= 60; this.speed = 0;
+                return true;
+            }
+            if (userData.equippedSkin === 'invert') {
+                // Reverse Flap
+                this.speed = 4.6; // Push down
+                return true;
+            }
+            if (userData.equippedSkin === 'freezer') {
+                lastFlapFrame = frames;
+                this.speed = -this.jump; return true;
+            }
+            if (userData.equippedSkin === 'gambler') {
+                // Random Gravity
+                this.gravity = (Math.random() * 0.5) + 0.1;
+                this.speed = -this.jump; return true;
+            }
+            if (userData.equippedSkin === 'hover') {
+                this.speed = -3; // Move Up
+                return true;
+            }
+            if (userData.equippedSkin === 'spring') {
+               // Only jumps on ground, but let user flap in air?
+               // Standard flap allowed for gameplay
+               this.speed = -this.jump; return true;
+            }
+            if (userData.equippedSkin === 'cursor') {
+                // Follow mouse, no flap needed, but return true for sound
+                return true; 
+            }
+            if (userData.equippedSkin === 'boat') {
+                if(this.y > LOGICAL_HEIGHT - 120) { // On ground
+                    this.speed = -this.jump; return true;
+                }
+                return false;
+            }
+            if (userData.equippedSkin === 'snake') return false; // No control
+
+            if (userData.equippedSkin === 'cyborg') return false; // Cyborg uses hold-to-fly
+
+            // Standard logic
             if (userData.equippedSkin === 'gd') { 
                 if (this.onGround) { this.speed = -8.8; this.onGround = false; return true; } 
                 return false;
@@ -710,8 +1333,20 @@
                 this.rotation = 25 * DEGREE;
                 return true;
             }
-            else if (userData.equippedSkin === 'bee') {
+            else if (userData.equippedSkin === 'ufo') {
+                this.speed = 4.6; // Flap Down (Gravity is negative)
+                return true;
+            }
+            else if (userData.equippedSkin === 'bee' || userData.equippedSkin === 'bat') {
                 this.speed = -3.0; // Small flutter
+                return true;
+            }
+            else if (userData.equippedSkin === 'rock' || userData.equippedSkin === 'robot' || userData.equippedSkin === 'bomb' || userData.equippedSkin === 'heavy') {
+                this.speed = -3.5; // Heavy jump
+                return true;
+            }
+            else if (userData.equippedSkin === 'balloon' || userData.equippedSkin === 'paper' || userData.equippedSkin === 'moon' || userData.equippedSkin === 'feather') {
+                this.speed = -3.0;
                 return true;
             }
             else { 
@@ -720,9 +1355,32 @@
             }
         },
         draw: function() {
-            if (state.current === state.over && userData.equippedSkin === 'gd') return; // Exploded
+            if (state.current === state.over && (userData.equippedSkin === 'gd' || userData.equippedSkin === 'grenade')) return; 
+            if (state.current === state.over && userData.equippedSkin === 'clown') return;
+
+            // Flashlight Effect
+            if (userData.equippedSkin === 'owl' && state.current === state.game) {
+                // Draw darkness
+                ctx.fillStyle = 'rgba(0,0,0,0.95)';
+                ctx.beginPath();
+                ctx.rect(0,0,logicalWidth, LOGICAL_HEIGHT);
+                ctx.arc(this.x, this.y, 80, 0, Math.PI*2, true);
+                ctx.fill();
+            }
 
             let sprite;
+            if (userData.equippedSkin === 'crossy') {
+                sprite = images.voxelChicken;
+                if(!sprite) return;
+                ctx.save();
+                let jumpY = 0;
+                if (this.inAir) jumpY = -Math.sin(this.jumpTimer * Math.PI) * 20;
+                ctx.translate(this.x, this.y + jumpY);
+                ctx.drawImage(sprite, -16, -16);
+                ctx.restore();
+                return;
+            }
+
             if (state.current === state.over && userData.equippedSkin === 'amongus') { if (images.birdDeadAU) { const img = new Image(); img.src = images.birdDeadAU.toDataURL(); sprite = img; } } 
             else if (userData.equippedSkin === 'mario') {
                 if (state.current === state.over) sprite = images.marioDead; 
@@ -737,17 +1395,56 @@
             if (userData.equippedSkin === 'bigo') { drawW = 44; drawH = 34; }
             if (userData.equippedSkin === 'gd') { drawW = 30; drawH = 30; }
             if (userData.equippedSkin === 'santa') { drawW = 48; drawH = 30; }
-            if (userData.equippedSkin === 'mario') { drawW = 32; drawH = 32; } 
+            if (userData.equippedSkin === 'mario') { drawW = 32; drawH = 32; }
+            if (userData.equippedSkin === 'ninja') { drawW = 30; drawH = 24; }
+            if (userData.equippedSkin === 'ufo') { drawW = 36; drawH = 26; }
+            if (userData.equippedSkin === 'dragon') { drawW = 40; drawH = 30; }
             
+            // New skins dims
+            if (['bat','plane'].includes(userData.equippedSkin)) { drawW = 36; drawH = 20; }
+            if (['pig','fish','turtle','cheetah'].includes(userData.equippedSkin)) { drawW = 34; drawH = 24; }
+            if (userData.equippedSkin === 'fairy') { drawW = 24; drawH = 24; }
+            if (userData.equippedSkin === 'balloon') { drawW = 26; drawH = 36; }
+            if (['cat','dog','slime','pumpkin'].includes(userData.equippedSkin)) { drawW = 32; drawH = 28; }
+            if (['rock','meteor','robot','paper','eye','bomb','ball','vampire','zombie','skeleton','clown','earth','moon','cookie','rabbit','gravbot','paladin','phantom','drunkard','rubber','invert','flash','twin','freezer','gambler','drill','cloud','hover','cursor','hacker','tesla','void','sniper'].includes(userData.equippedSkin)) { drawW = 30; drawH = 30; }
+            if (userData.equippedSkin === 'snowman') { drawW = 30; drawH = 40; }
+            if (['sun','magneto'].includes(userData.equippedSkin)) { drawW = 34; drawH = 34; }
+            if (userData.equippedSkin === 'alien') { drawW = 34; drawH = 30; }
+            if (userData.equippedSkin === 'melon') { drawW = 34; drawH = 26; }
+            if (userData.equippedSkin === 'bulldozer') { drawW = 40; drawH = 24; }
+            if (userData.equippedSkin === 'ender') { drawW = 20; drawH = 40; }
+            if (userData.equippedSkin === 'serpent') { drawW = 40; drawH = 10; }
+            if (userData.equippedSkin === 'racer') { drawW = 40; drawH = 16; }
+            if (userData.equippedSkin === 'windy') { drawW = 30; drawH = 20; }
+            if (userData.equippedSkin === 'spring') { drawW = 20; drawH = 30; }
+            if (userData.equippedSkin === 'cursor') { drawW = 20; drawH = 20; }
+            if (userData.equippedSkin === 'grenade') { drawW = 24; drawH = 30; }
+            if (userData.equippedSkin === 'boat') { drawW = 40; drawH = 20; }
+            if (userData.equippedSkin === 'chopper') { drawW = 40; drawH = 30; }
+            if (userData.equippedSkin === 'glider') { drawW = 40; drawH = 20; }
+
             ctx.save(); ctx.translate(this.x, this.y); let rot = this.rotation; 
             if (state.current === state.over && userData.equippedSkin === 'amongus') rot = 0; 
             if (state.current === state.falling) rot = 0; 
-            if (userData.equippedSkin === 'mario') rot = 0; 
+            if (userData.equippedSkin === 'mario') rot = 0;
+            
+            // Plane/Glider rotation
+            if (userData.equippedSkin === 'plane' || userData.equippedSkin === 'glider') {
+                rot = Math.atan2(this.speed, 5); 
+            }
+            if (userData.equippedSkin === 'earth' || userData.equippedSkin === 'moon' || userData.equippedSkin === 'sun' || userData.equippedSkin === 'ball' || userData.equippedSkin === 'rubber') {
+                rot = (frames * 0.1) % (Math.PI*2);
+            }
+            if (userData.equippedSkin === 'eye') rot = 0;
+
             ctx.rotate(rot);
             
             if (sprite.complete || sprite instanceof HTMLCanvasElement) { 
                 if (userData.equippedSkin === 'mario') {
                      ctx.drawImage(sprite, -16, -16, 32, 32); 
+                } else if (userData.equippedSkin === 'twin') {
+                     ctx.drawImage(sprite, -drawW/2, -drawH/2, drawW, drawH);
+                     ctx.drawImage(sprite, -drawW/2, -drawH/2 - 30, drawW, drawH); // Second bird
                 } else {
                      ctx.drawImage(sprite, -drawW/2, -drawH/2, drawW, drawH); 
                 }
@@ -758,13 +1455,23 @@
             if (flashOpacity > 0) flashOpacity -= dt * 0.05;
             let period = state.current === state.getReady ? 10 : 5; this.frame += frames % period === 0 ? 1 : 0; this.frame %= this.animation.length;
             
+            // Radii
             if (userData.equippedSkin === 'bigo') this.radius = 18; 
             else if (userData.equippedSkin === 'gd') this.radius = 15; 
             else if (userData.equippedSkin === 'santa') this.radius = 14; 
-            else if (userData.equippedSkin === 'mario') this.radius = 14; 
+            else if (userData.equippedSkin === 'mario') this.radius = 14;
+            else if (userData.equippedSkin === 'ninja') this.radius = 10;
+            else if (userData.equippedSkin === 'ufo') this.radius = 14;
+            else if (userData.equippedSkin === 'fairy') this.radius = 8;
+            else if (userData.equippedSkin === 'balloon') this.radius = 14;
+            else if (userData.equippedSkin === 'sun') this.radius = 16;
+            else if (userData.equippedSkin === 'puffer') this.radius = (this.speed < 0) ? 20 : 12; // Expands on flap
             else this.radius = 12;
 
             if(state.current === state.getReady) { 
+                // Reset Logic for special skins
+                this.jumps = 0;
+                
                 if (userData.equippedSkin === 'gd') { this.y = LOGICAL_HEIGHT - 112 - 15; this.rotation = 0; this.speed = 0; }
                 else if (userData.equippedSkin === 'mario') { 
                     this.y = LOGICAL_HEIGHT - 112 - 16; 
@@ -772,28 +1479,116 @@
                     this.speed = 0; 
                     updateMarioLevel(dt);
                 } 
+                else if (userData.equippedSkin === 'crossy') {
+                    this.x = 50;
+                    this.y = crossyState.groundY;
+                    this.rotation = 0;
+                    this.speed = 0;
+                    initCrossyLevel();
+                }
+                else if (userData.equippedSkin === 'ufo') { this.y = 100; this.rotation = 0; this.speed = 0; }
                 else { this.y = 150; this.rotation = 0; this.speed = 0; } 
             } 
-            else if (state.current === state.falling) { this.speed += (this.gravity * 1.5) * dt; this.y += this.speed * dt; crackParams.width += 3 * dt; if (this.y > LOGICAL_HEIGHT + 60) { state.current = state.over; flashOpacity = 1; playSound('hit'); } } 
+            else if (state.current === state.falling) { 
+                this.speed += (this.gravity * 1.5) * dt; this.y += this.speed * dt; crackParams.width += 3 * dt; 
+                if (this.y > LOGICAL_HEIGHT + 60) { state.current = state.over; flashOpacity = 1; playSound('hit'); } 
+            } 
             else if (state.current === state.game) {
+                
+                // CROSSY ROAD PHYSICS (Strict Lerp)
+                if (userData.equippedSkin === 'crossy') {
+                    if (this.inAir) {
+                        this.jumpTimer += 0.1 * dt; 
+                        if (this.jumpTimer >= 1) {
+                            this.jumpTimer = 1;
+                            this.inAir = false;
+                        }
+                        crossyState.birdWorldX = this.jumpStartPos + (this.jumpEndPos - this.jumpStartPos) * this.jumpTimer;
+                        this.y = this.jumpStartY + (this.jumpEndY - this.jumpStartY) * this.jumpTimer;
+                    }
+                    this.x = (crossyState.birdWorldX + 20) - crossyState.camX;
+                    return; 
+                }
+
                 // GAME LOGIC ONLY
                 let g = this.gravity;
                 if (userData.equippedSkin === 'gd' || userData.equippedSkin === 'mario') g = 0.45;
                 if (userData.equippedSkin === 'submarine') g = -0.15; // Buoyancy
-                if (userData.equippedSkin === 'bee') g = 0.15; // Low grav
+                if (userData.equippedSkin === 'ufo') g = -0.25; // Negative Gravity (Up)
+                if (userData.equippedSkin === 'bee' || userData.equippedSkin === 'bat') g = 0.15; // Low grav
                 if (userData.equippedSkin === 'ghost') g = 0.1; // Float
-
-                this.speed += g * dt; this.y += this.speed * dt;
+                if (userData.equippedSkin === 'cyborg') g = 0; // No gravity
                 
-                // SUBMARINE BUBBLES
-                if (userData.equippedSkin === 'submarine' && state.current === state.game) {
+                // New physics
+                if (['rock','robot','bomb','heavy','paladin','bulldozer'].includes(userData.equippedSkin)) g = 0.35; // Heavy
+                if (userData.equippedSkin === 'sun') g = 0.4; // Very Heavy
+                if (['balloon','paper','moon','feather','cloud','glider','fairy'].includes(userData.equippedSkin)) g = 0.15; // Floaty
+                if (userData.equippedSkin === 'plane') g = 0.18; // Glide
+                if (userData.equippedSkin === 'meteor') g = 0.25;
+                if (userData.equippedSkin === 'fish') g = 0.25; 
+                if (userData.equippedSkin === 'invert') g = -0.25; // Inverted Gravity
+                if (userData.equippedSkin === 'hover') g = 0; // Hover
+                if (userData.equippedSkin === 'boat') g = 0.4; // Heavy but slides
+
+                // Mechanic: Glider Hold
+                if (userData.equippedSkin === 'glider' && Input.held && this.speed > 0) {
+                    g = 0.05; // Slow fall
+                }
+
+                // Mechanic: Hover
+                if (userData.equippedSkin === 'hover') {
+                    if (Input.held) this.speed = 3; // Down (Input logic reuse?) No, held goes UP in cyborg.
+                    // Wait, standard cyborg is held=up. Hover we want manual control? 
+                    // Let's stick to Cyborg logic for Hover but visual differs.
+                    if (Input.held) this.speed = -3; else this.speed = 3;
+                }
+                
+                // Mechanic: Snake
+                if (userData.equippedSkin === 'snake') {
+                    g = 0;
+                    this.speed = Math.cos(frames * 0.1) * 3;
+                }
+                
+                // Mechanic: Drunkard
+                if (userData.equippedSkin === 'drunkard') {
+                    this.x = 50 + Math.sin(frames * 0.1) * 20;
+                }
+                
+                // Mechanic: Windy
+                if (userData.equippedSkin === 'windy' && Math.random() < 0.05) {
+                    this.speed += (Math.random() - 0.5) * 5;
+                }
+
+                // Mechanic: Cursor
+                if (userData.equippedSkin === 'cursor') {
+                    g = 0;
+                    // Need mouse pos tracking. For now just floaty.
+                    if (Input.held) this.speed = -5; else this.speed = 5;
+                }
+
+                // CYBORG LOGIC (Jetpack)
+                if (userData.equippedSkin === 'cyborg') {
+                    if (Input.held) this.speed = -4; // Fly Up
+                    else this.speed = 4; // Fall Down
+                } else {
+                    this.speed += g * dt; 
+                }
+                
+                this.y += this.speed * dt;
+                
+                // PARTICLE EFFECTS
+                if ((userData.equippedSkin === 'submarine' || userData.equippedSkin === 'fish') && state.current === state.game) {
                     debrisSystem.createBubbles(this.x - 10, this.y);
                 }
-                
-                // NYAN TRAIL
-                if (userData.equippedSkin === 'nyan' && state.current === state.game) {
-                    trailSystem.update(this.x, this.y);
-                }
+                if (userData.equippedSkin === 'nyan' && state.current === state.game) trailSystem.update(this.x, this.y);
+                if (userData.equippedSkin === 'fairy' && state.current === state.game) debrisSystem.createTrail(this.x, this.y, '#FFF');
+                if ((userData.equippedSkin === 'meteor' || userData.equippedSkin === 'sun' || userData.equippedSkin === 'rocket') && state.current === state.game) debrisSystem.createFireParticles(this.x, this.y);
+                if (userData.equippedSkin === 'snowman' && state.current === state.game) debrisSystem.createTrail(this.x, this.y, '#FFF');
+                if (userData.equippedSkin === 'zombie' && state.current === state.game) debrisSystem.createTrail(this.x, this.y, '#2ecc71');
+                if (userData.equippedSkin === 'slime' && state.current === state.game) debrisSystem.createTrail(this.x, this.y, '#00FF00');
+                if (userData.equippedSkin === 'cookie' && state.current === state.game) debrisSystem.createTrail(this.x, this.y, '#d35400');
+                if (userData.equippedSkin === 'pumpkin' && state.current === state.game) debrisSystem.createTrail(this.x, this.y, '#d35400');
+                if (userData.equippedSkin === 'melon' && state.current === state.game) debrisSystem.createTrail(this.x, this.y, '#c0392b');
 
                 if (userData.equippedSkin === 'mario') {
                     if (state.current === state.over && marioState.died) return;
@@ -813,7 +1608,28 @@
                     this.onGround = grounded;
                     if (this.y > LOGICAL_HEIGHT + 50 && state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; flashOpacity = 1; stopBGM(); playSound('mario_die'); }
                 } else {
-                    if (userData.equippedSkin !== 'submarine' && this.y < 0) { this.y = 0; this.speed = 0; } // Ceiling
+                    if (userData.equippedSkin !== 'submarine' && userData.equippedSkin !== 'ufo' && userData.equippedSkin !== 'cyborg' && this.y < 0) { this.y = 0; this.speed = 0; } // Ceiling
+
+                    // Mechanic: Rubber Ball bounce
+                    if (userData.equippedSkin === 'rubber') {
+                        let floorY = LOGICAL_HEIGHT - 112 - this.h/2;
+                        if (this.y >= floorY) { this.y = floorY; this.speed = -Math.abs(this.speed)*0.8; }
+                        if (this.y <= 0) { this.y = 0; this.speed = Math.abs(this.speed)*0.8; }
+                    }
+                    // Mechanic: Spring Jump
+                    if (userData.equippedSkin === 'spring') {
+                        let floorY = LOGICAL_HEIGHT - 112 - this.h/2;
+                        if (this.y >= floorY) {
+                            this.y = floorY;
+                            this.speed = -this.jump * 1.2; // Auto jump high
+                        }
+                    }
+                    // Mechanic: Boat Slide
+                    if (userData.equippedSkin === 'boat') {
+                        let floorY = LOGICAL_HEIGHT - 112 - 10;
+                        if (this.y >= floorY) { this.y = floorY; this.speed = 0; this.onGround = true; } 
+                        else this.onGround = false;
+                    }
 
                     if (this.speed >= this.jump) { 
                         if (userData.equippedSkin !== 'gd') { this.rotation = 90 * DEGREE; this.frame = 1; }
@@ -828,15 +1644,17 @@
                     } else {
                         // DEATH CONDITIONS
                         let floorY = LOGICAL_HEIGHT - 112 - this.h/2;
-                        if (userData.equippedSkin === 'submarine') {
-                            // Submarine death logic: Hitting bottom or top of screen
+                        
+                        if (userData.equippedSkin === 'submarine' || userData.equippedSkin === 'ufo' || userData.equippedSkin === 'cyborg') {
                             if (this.y < 0 || this.y > LOGICAL_HEIGHT - this.h) { 
                                 state.current = state.over; flashOpacity = 1; playSound('hit');
                             }
-                        } else {
+                        } 
+                        // Rubber doesn't die on floor
+                        else if (userData.equippedSkin !== 'rubber' && userData.equippedSkin !== 'spring' && userData.equippedSkin !== 'boat') {
                             if(this.y >= floorY) {
                                 if (userData.equippedSkin === 'bigo') { if (state.current === state.game) { state.current = state.falling; screenShake = 25; crackParams.active = true; crackParams.x = this.x; crackParams.width = 10; playSound('hit'); } } 
-                                else { this.y = floorY; if(state.current === state.game) { state.current = state.over; flashOpacity = 1; if(userData.equippedSkin === 'amongus') playSound('die'); else playSound('hit'); } }
+                                else { this.y = floorY; if(state.current === state.game) { state.current = state.over; flashOpacity = 1; if(userData.equippedSkin === 'amongus') playSound('die'); else playSound('hit'); if(userData.equippedSkin==='clown' || userData.equippedSkin==='grenade')debrisSystem.createConfetti(this.x,this.y); } }
                             }
                         }
                     }
@@ -845,13 +1663,15 @@
                 // GAME OVER PHYSICS
                 let g = this.gravity;
                 if (userData.equippedSkin === 'submarine') g = -0.15;
+                if (userData.equippedSkin === 'ufo') g = -0.25;
                 if (userData.equippedSkin === 'mario' && marioState.died) g = 0.45;
+                if (userData.equippedSkin === 'cyborg') g = 0.25; // Reset gravity for death
                 
                 this.speed += g * dt; 
                 this.y += this.speed * dt;
 
                 // FIX: Clamp to ground for standard skins
-                if (userData.equippedSkin !== 'mario' && userData.equippedSkin !== 'submarine' && userData.equippedSkin !== 'ghost' && userData.equippedSkin !== 'bigo') {
+                if (userData.equippedSkin !== 'mario' && userData.equippedSkin !== 'crossy' && userData.equippedSkin !== 'submarine' && userData.equippedSkin !== 'ufo' && userData.equippedSkin !== 'ghost' && userData.equippedSkin !== 'bigo' && userData.equippedSkin !== 'cyborg') {
                      let floorY = LOGICAL_HEIGHT - 112 - this.h/2;
                      if (this.y >= floorY) {
                          this.y = floorY;
@@ -863,88 +1683,143 @@
         }
     };
 
-    const pipes = { position: [], w: 52, gap: 100, lastSpawn: 0, update: function(dt) { if (userData.equippedSkin === 'mario') return; if(state.current !== state.game) return; let spawnRate = 100; this.lastSpawn += dt; if(this.lastSpawn > spawnRate) { this.lastSpawn = 0; let spikeCount = 0; if (userData.equippedSkin === 'gd') spikeCount = Math.floor(Math.random() * 3) + 1; 
+    const pipes = { position: [], w: 52, gap: 100, lastSpawn: 0, update: function(dt) { if (userData.equippedSkin === 'mario' || userData.equippedSkin === 'crossy') return; if(state.current !== state.game) return; let spawnRate = 100; this.lastSpawn += dt; if(this.lastSpawn > spawnRate) { this.lastSpawn = 0; let spikeCount = 0; if (userData.equippedSkin === 'gd') spikeCount = Math.floor(Math.random() * 3) + 1; 
         
         // COIN LOGIC
         let spawnCoin = false;
         // Big O now gets coins 100% of the time alongside random burgers
         if (userData.equippedSkin === 'bigo') spawnCoin = true; 
         else if (userData.equippedSkin === 'gd') spawnCoin = Math.random() < 0.5; // GD gets coins
+        else if (userData.equippedSkin === 'magneto' || userData.equippedSkin === 'void') spawnCoin = Math.random() < 0.6;
         else if (userData.equippedSkin !== 'bigo' && userData.equippedSkin !== 'gd') spawnCoin = Math.random() < 0.4;
 
         this.position.push({ x: logicalWidth, y: -150 * (Math.random() + 1), passed: false, hasCoin: spawnCoin, hasBurger: userData.equippedSkin === 'bigo' && Math.random() < 0.6, collected: false, broken: false, spikes: spikeCount, timeOffset: Math.random() * 10 }); } for(let i=0; i<this.position.length; i++) { let p = this.position[i]; 
         
         // GLITCH MODE: MOVING PIPES
         let yOffset = 0;
-        if(userData.equippedSkin === 'glitch') {
+        if(userData.equippedSkin === 'glitch' || userData.equippedSkin === 'alien' || userData.equippedSkin === 'hacker') {
             yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
         }
 
-        let bY = p.y + yOffset + 320 + this.gap; let collided = false; 
+        // Hacker Mechanic
+        let currentGap = this.gap;
+        if (userData.equippedSkin === 'hacker') currentGap = 160;
+
+        let bY = p.y + yOffset + 320 + currentGap; let collided = false; 
         
         if (userData.equippedSkin === 'gd') { 
             let spikeY = LOGICAL_HEIGHT - 112; let birdBottom = bird.y + bird.radius; let birdRight = bird.x + bird.radius; let birdLeft = bird.x - bird.radius; let spikesW = p.spikes * 30; if (birdRight > p.x + 10 && birdLeft < p.x + spikesW - 10) { if (birdBottom > spikeY - 20) collided = true; } 
         } else { 
             if (!p.broken) { 
-                if(bird.x+bird.radius > p.x && bird.x-bird.radius < p.x+this.w && (bird.y-bird.radius < p.y + yOffset +320 || bird.y+bird.radius > bY)) { collided = true; } 
+                let bTop = p.y + yOffset +320;
+                let bBot = bY;
+                if (userData.equippedSkin === 'drill') bBot += 999; // Ignore bottom
+                if (userData.equippedSkin === 'cloud') bTop -= 999; // Ignore top
+                if (userData.equippedSkin === 'chopper') {
+                    // Blade is top
+                    if(bird.y+bird.radius > p.x && bird.x-bird.radius < p.x+this.w && bird.y+bird.radius > bY) collided = true;
+                    // If hit top, destroy pipe?
+                    if(bird.x+bird.radius > p.x && bird.x-bird.radius < p.x+this.w && bird.y-bird.radius < bTop) {
+                        p.broken = true; debrisSystem.create(p.x+this.w/2, p.y+320); playSound('break');
+                    }
+                } else {
+                    if(bird.x+bird.radius > p.x && bird.x-bird.radius < p.x+this.w && (bird.y-bird.radius < bTop || bird.y+bird.radius > bBot)) { collided = true; } 
+                }
             } 
         } 
         
-        if (collided) { if (userData.equippedSkin === 'bigo') { if (!p.broken) { p.broken = true; debrisSystem.create(p.x + this.w/2, p.y + 320); playSound('hit'); screenShake = 10; } } else { state.current = state.over; flashOpacity = 1; playSound('hit'); if(userData.equippedSkin === 'gd') { debrisSystem.createGDExplosion(bird.x, bird.y); } if (userData.equippedSkin !== 'amongus' && userData.equippedSkin !== 'gd') setTimeout(() => playSound('die'), 300); } } 
+        // TESLA MECHANIC
+        if (userData.equippedSkin === 'tesla' && !p.broken && p.x < bird.x + 100 && Math.random() < 0.02) {
+            p.broken = true;
+            debrisSystem.createGDExplosion(p.x, p.y + 320);
+            playSound('break');
+        }
+
+        if (collided) { 
+            if (userData.equippedSkin === 'bigo') { 
+                if (!p.broken) { p.broken = true; debrisSystem.create(p.x + this.w/2, p.y + 320); playSound('hit'); screenShake = 10; } 
+            } 
+            else if (userData.equippedSkin === 'paladin' && userData.shield > 0) {
+                userData.shield = 0; p.broken = true; debrisSystem.create(p.x + this.w/2, p.y+320); playSound('break'); screenShake = 5;
+            }
+            else if (userData.equippedSkin === 'bulldozer' && userData.coins >= 5) {
+                userData.coins -= 5; p.broken = true; debrisSystem.create(p.x + this.w/2, p.y+320); playSound('break'); document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; saveData();
+            }
+            else if (userData.equippedSkin === 'phantom' && bird.speed < 0) {
+                // Intangible while flying up
+            }
+            else { 
+                state.current = state.over; flashOpacity = 1; playSound('hit'); 
+                if(userData.equippedSkin === 'gd') { debrisSystem.createGDExplosion(bird.x, bird.y); } 
+                if(userData.equippedSkin === 'clown' || userData.equippedSkin === 'grenade') { debrisSystem.createConfetti(bird.x, bird.y); } 
+                if (userData.equippedSkin !== 'amongus' && userData.equippedSkin !== 'gd') setTimeout(() => playSound('die'), 300); 
+            } 
+        } 
         
-        let scoreCondition = false; if (userData.equippedSkin === 'bigo') { if (p.hasBurger && !p.burgerCollected) { let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; if(Math.hypot(bird.x-cx, bird.y-cy) < 35) { p.burgerCollected = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('chomp'); saveData(); } } } else if (userData.equippedSkin === 'gd') { if(!p.passed && bird.x > p.x + (p.spikes*30)) scoreCondition = true; } else { if(!p.passed && bird.x - bird.radius > p.x + this.w) scoreCondition = true; } if(scoreCondition) { p.passed = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('point'); saveData(); } 
+        let scoreCondition = false; if (userData.equippedSkin === 'bigo') { if (p.hasBurger && !p.burgerCollected) { let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; if(Math.hypot(bird.x-cx, bird.y-cy) < 35) { p.burgerCollected = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('chomp'); saveData(); } } } else if (userData.equippedSkin === 'gd') { if(!p.passed && bird.x > p.x + (p.spikes*30)) scoreCondition = true; } else { if(!p.passed && bird.x - bird.radius > p.x + this.w) scoreCondition = true; } if(scoreCondition) { p.passed = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('point'); saveData(); if(userData.equippedSkin==='rabbit') bird.jumps = 0; } 
         
         if(p.hasCoin && !p.coinCollected) { 
             let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; 
             
-            // GD COIN POSITION: ON GROUND AFTER SPIKES
-            if (userData.equippedSkin === 'gd') { 
-                cx = p.x + (p.spikes*30) + 60; // 60px after spikes
-                cy = LOGICAL_HEIGHT - 112 - 20; // On floor
-            } 
+            if (userData.equippedSkin === 'gd') { cx = p.x + (p.spikes*30) + 60; cy = LOGICAL_HEIGHT - 112 - 20; } 
             
-            // BIG O COIN POSITION: Horizontal Gap between pipes (STILL, no sine wave)
             if (userData.equippedSkin === 'bigo') {
-                cx = p.x + 120; // Offset into the open air after the pipe
-                cy = LOGICAL_HEIGHT / 2; // FIXED CENTER POSITION
+                cx = p.x + 120; 
+                cy = LOGICAL_HEIGHT / 2; 
             }
 
-            if(Math.hypot(bird.x-cx, bird.y-cy) < 30) { p.coinCollected = true; userData.coins++; saveData(); playSound('coin'); document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; } 
+            // Magnet Logic
+            let dist = 30;
+            if (userData.equippedSkin === 'magneto') dist = 150;
+            if (userData.equippedSkin === 'void') dist = 400;
+
+            if(Math.hypot(bird.x-cx, bird.y-cy) < dist) { 
+                // Lerp coin to bird if magnet
+                if(dist > 30) {
+                    p.coinCollected = true; // Instant collect for simplicity or add visual travel? Instant for now.
+                    userData.coins++; saveData(); playSound('coin'); 
+                } else {
+                    p.coinCollected = true; userData.coins++; saveData(); playSound('coin'); 
+                }
+                document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; 
+            } 
         } 
         
-        p.x -= getGameSpeed() * dt; if(p.x + 150 <= 0) { this.position.shift(); i--; } } }, draw: function() { if (userData.equippedSkin === 'mario') return; let isAU = userData.equippedSkin === 'amongus'; let isGD = userData.equippedSkin === 'gd'; let isSanta = userData.equippedSkin === 'santa'; for(let p of this.position) { if (!p.broken) { 
+        p.x -= getGameSpeed() * dt; if(p.x + 150 <= 0) { this.position.shift(); i--; } } }, draw: function() { if (userData.equippedSkin === 'mario' || userData.equippedSkin === 'crossy') return; let isAU = userData.equippedSkin === 'amongus'; let isGD = userData.equippedSkin === 'gd'; let isSanta = userData.equippedSkin === 'santa'; for(let p of this.position) { if (!p.broken) { 
             
             let yOffset = 0;
-            if(userData.equippedSkin === 'glitch') yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
+            if(userData.equippedSkin === 'glitch' || userData.equippedSkin === 'alien' || userData.equippedSkin === 'hacker') yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
+
+            let currentGap = this.gap;
+            if (userData.equippedSkin === 'hacker') currentGap = 160;
 
             if (isGD) { 
                 let floorY = LOGICAL_HEIGHT - 112; ctx.fillStyle = '#333'; ctx.beginPath(); for(let i=0; i<p.spikes; i++) { let sx = p.x + (i * 30); ctx.moveTo(sx, floorY); ctx.lineTo(sx + 15, floorY - 30); ctx.lineTo(sx + 30, floorY); } ctx.fill(); ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.stroke(); 
             } else if (isSanta) { 
-                let topY = p.y + yOffset; let bottomY = p.y + yOffset + 320 + this.gap; ctx.save(); ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.chimney, -this.w/2, -160, this.w, 320); ctx.fillStyle='#FFF'; ctx.fillRect(-this.w/2 - 2, 160-15, this.w+4, 15); ctx.restore(); ctx.save(); ctx.drawImage(images.chimney, p.x, bottomY); ctx.fillStyle='#FFF'; ctx.fillRect(p.x - 2, bottomY, this.w+4, 15); ctx.restore(); 
+                let topY = p.y + yOffset; let bottomY = p.y + yOffset + 320 + currentGap; ctx.save(); ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.chimney, -this.w/2, -160, this.w, 320); ctx.fillStyle='#FFF'; ctx.fillRect(-this.w/2 - 2, 160-15, this.w+4, 15); ctx.restore(); ctx.save(); ctx.drawImage(images.chimney, p.x, bottomY); ctx.fillStyle='#FFF'; ctx.fillRect(p.x - 2, bottomY, this.w+4, 15); ctx.restore(); 
             } else { 
-                let topY = p.y + yOffset; let bottomY = p.y + yOffset + 320 + this.gap;
+                let topY = p.y + yOffset; let bottomY = p.y + yOffset + 320 + currentGap;
                 if (images.pipe) { 
                     ctx.save(); if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)'; 
                     if(userData.equippedSkin === 'glitch') ctx.filter = 'invert(1)';
-                    ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.pipe, -this.w/2, -160, this.w, 320); ctx.restore(); ctx.save(); if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)'; if(userData.equippedSkin === 'glitch') ctx.filter = 'invert(1)'; ctx.drawImage(images.pipe, p.x, bottomY); ctx.restore(); 
+                    if(userData.equippedSkin === 'alien') ctx.filter = 'hue-rotate(90deg)';
+                    if (userData.equippedSkin === 'dragon') ctx.filter = 'sepia(1) hue-rotate(-50deg) saturate(2)';
+                    ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.pipe, -this.w/2, -160, this.w, 320); ctx.restore(); ctx.save(); if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)'; if(userData.equippedSkin === 'glitch') ctx.filter = 'invert(1)'; if(userData.equippedSkin === 'alien') ctx.filter = 'hue-rotate(90deg)'; if (userData.equippedSkin === 'dragon') ctx.filter = 'sepia(1) hue-rotate(-50deg) saturate(2)'; ctx.drawImage(images.pipe, p.x, bottomY); ctx.restore(); 
                 } else { ctx.fillStyle = "green"; ctx.fillRect(p.x, topY, this.w, 320); ctx.fillRect(p.x, bottomY, this.w, 320); } 
             } } 
             
-            let yOffset = 0; if(userData.equippedSkin === 'glitch') yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
+            let yOffset = 0; if(userData.equippedSkin === 'glitch' || userData.equippedSkin === 'alien' || userData.equippedSkin === 'hacker') yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
+            let currentGap = this.gap; if(userData.equippedSkin === 'hacker') currentGap = 160;
+
             if(p.hasBurger && !p.burgerCollected && images.burger) { 
-                // Draw burger inside the pipe gap
                 let bx = p.x + this.w/2 - 12;
-                let by = p.y + yOffset + 320 + this.gap/2 - 10;
+                let by = p.y + yOffset + 320 + currentGap/2 - 10;
                 ctx.drawImage(images.burger, bx, by); 
             } 
             if(p.hasCoin && !p.coinCollected) { 
-                let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; 
+                let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + currentGap/2; 
                 if (isGD) { cx = p.x + (p.spikes*30) + 60; cy = LOGICAL_HEIGHT - 112 - 20; } 
-                if (userData.equippedSkin === 'bigo') {
-                    // Coin in the air gap
-                    cx = p.x + 120;
-                    cy = LOGICAL_HEIGHT / 2; // FIXED CENTER
-                }
+                if (userData.equippedSkin === 'bigo') { cx = p.x + 120; cy = LOGICAL_HEIGHT / 2; }
 
                 ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFF'; ctx.font = '12px FlappyFont'; ctx.fillText("$", cx-3, cy+3); 
             } 
@@ -954,9 +1829,14 @@
 
     // --- INPUT ---
     const Input = {
-        active: 'mouse', focusIndex: 1, navContext: 'menu', lastAxis: 0, btnPressed: false,
+        active: 'mouse', focusIndex: 1, navContext: 'menu', lastAxis: 0, btnPressed: false, held: false,
         update: function() { const pads = navigator.getGamepads ? navigator.getGamepads() : []; const pad = pads[0]; if (pad) this.handleGamepad(pad); },
-        handleGamepad: function(pad) { const axisX = pad.axes[0]; const axisY = pad.axes[1]; const btnA = pad.buttons[0].pressed; const btnB = pad.buttons[1].pressed; const dpadLeft = pad.buttons[14].pressed; const dpadRight = pad.buttons[15].pressed; const dpadUp = pad.buttons[12].pressed; const dpadDown = pad.buttons[13].pressed; let move = 0; if (axisX < -0.5 || dpadLeft) move = -1; else if (axisX > 0.5 || dpadRight) move = 1; if (this.navContext === 'menu' || this.navContext === 'shop') { if (move !== 0 && this.lastAxis === 0) { this.moveFocus(move); this.active = 'gamepad'; resumeAudio(); } } else if (this.navContext === 'settings') { let vMove = 0; if (axisY < -0.5 || dpadUp) vMove = -1; else if (axisY > 0.5 || dpadDown) vMove = 1; if (vMove !== 0 && this.lastAxis === 0) { this.moveFocus(vMove); this.active = 'gamepad'; resumeAudio(); } if (move !== 0 && this.lastAxis === 0) { this.changeSetting(move); } } this.lastAxis = (Math.abs(axisX) > 0.5 || Math.abs(axisY) > 0.5 || dpadLeft || dpadRight || dpadUp || dpadDown) ? 1 : 0; if (btnA && !this.btnPressed) { this.btnPressed = true; this.active = 'gamepad'; resumeAudio(); this.triggerAction(); } else if (!btnA) { this.btnPressed = false; } if (btnB && (this.navContext === 'shop' || this.navContext === 'settings')) { this.closeModal(); } },
+        handleGamepad: function(pad) { const axisX = pad.axes[0]; const axisY = pad.axes[1]; const btnA = pad.buttons[0].pressed; const btnB = pad.buttons[1].pressed; const dpadLeft = pad.buttons[14].pressed; const dpadRight = pad.buttons[15].pressed; const dpadUp = pad.buttons[12].pressed; const dpadDown = pad.buttons[13].pressed; let move = 0; if (axisX < -0.5 || dpadLeft) move = -1; else if (axisX > 0.5 || dpadRight) move = 1; if (this.navContext === 'menu' || this.navContext === 'shop') { if (move !== 0 && this.lastAxis === 0) { this.moveFocus(move); this.active = 'gamepad'; resumeAudio(); } } else if (this.navContext === 'settings') { let vMove = 0; if (axisY < -0.5 || dpadUp) vMove = -1; else if (axisY > 0.5 || dpadDown) vMove = 1; if (vMove !== 0 && this.lastAxis === 0) { this.moveFocus(vMove); this.active = 'gamepad'; resumeAudio(); } if (move !== 0 && this.lastAxis === 0) { this.changeSetting(move); } } this.lastAxis = (Math.abs(axisX) > 0.5 || Math.abs(axisY) > 0.5 || dpadLeft || dpadRight || dpadUp || dpadDown) ? 1 : 0; 
+        
+        // Handle Holding for Cyborg
+        this.held = btnA;
+
+        if (btnA && !this.btnPressed) { this.btnPressed = true; this.active = 'gamepad'; resumeAudio(); this.triggerAction(); } else if (!btnA) { this.btnPressed = false; } if (btnB && (this.navContext === 'shop' || this.navContext === 'settings')) { this.closeModal(); } },
         moveFocus: function(dir) { let max = 0; if (this.navContext === 'menu') max = 2; if (this.navContext === 'shop') max = shopConfig.length - 1; if (this.navContext === 'settings') max = 2; this.focusIndex += dir; if (this.focusIndex < 0) this.focusIndex = max; if (this.focusIndex > max) this.focusIndex = 0; this.renderFocus(); },
         renderFocus: function() { document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused')); if (this.navContext === 'menu') { const btns = [ document.getElementById('shopTriggerBtn'), document.getElementById('startTriggerBtn'), document.getElementById('settingsTriggerBtn') ]; if(btns[this.focusIndex]) btns[this.focusIndex].classList.add('focused'); } else if (this.navContext === 'shop') { const items = document.querySelectorAll('.shop-item'); if(items[this.focusIndex]) { items[this.focusIndex].classList.add('focused'); items[this.focusIndex].scrollIntoView({block: 'center', behavior: 'smooth'}); } } else if (this.navContext === 'settings') { if(this.focusIndex===0) document.querySelector('.custom-select').classList.add('focused'); if(this.focusIndex===1) document.getElementById('fullscreenToggle').classList.add('focused'); if(this.focusIndex===2) document.getElementById('exportDataBtn').classList.add('focused'); } },
         triggerAction: function() { 
@@ -1069,6 +1949,29 @@
         }
     };
 
+    // D-PAD EVENTS
+    const dpadUp = document.getElementById('c-up');
+    const dpadDown = document.getElementById('c-down');
+    const dpadLeft = document.getElementById('c-left');
+    const dpadRight = document.getElementById('c-right');
+
+    function handleDpad(e, dir) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (state.current === state.game && userData.equippedSkin === 'crossy') {
+            bird.moveCrossy(dir);
+        }
+    }
+
+    dpadUp.addEventListener('touchstart', (e) => handleDpad(e, 'up'));
+    dpadDown.addEventListener('touchstart', (e) => handleDpad(e, 'down'));
+    dpadLeft.addEventListener('touchstart', (e) => handleDpad(e, 'left'));
+    dpadRight.addEventListener('touchstart', (e) => handleDpad(e, 'right'));
+    dpadUp.addEventListener('mousedown', (e) => handleDpad(e, 'up'));
+    dpadDown.addEventListener('mousedown', (e) => handleDpad(e, 'down'));
+    dpadLeft.addEventListener('mousedown', (e) => handleDpad(e, 'left'));
+    dpadRight.addEventListener('mousedown', (e) => handleDpad(e, 'right'));
+
     window.addEventListener('keydown', (e) => {
         resumeAudio();
         if (e.repeat) return;
@@ -1088,6 +1991,17 @@
             }
             return;
         }
+        
+        // CROSSY KEYBOARD CONTROLS
+        if (state.current === state.game && userData.equippedSkin === 'crossy') {
+            switch(e.code) {
+                case 'ArrowUp': case 'KeyW': bird.moveCrossy('up'); return;
+                case 'ArrowDown': case 'KeyS': bird.moveCrossy('down'); return;
+                case 'ArrowLeft': case 'KeyA': bird.moveCrossy('left'); return;
+                case 'ArrowRight': case 'KeyD': bird.moveCrossy('right'); return;
+            }
+        }
+
         if (state.current === state.game) { if (['Space','ArrowUp','Enter','KeyW'].includes(e.code)) { if(bird.flap()) playSound('flap'); } return; }
         Input.active = 'gamepad';
         switch(e.code) {
@@ -1107,6 +2021,8 @@
             pipes.draw(); 
             trailSystem.draw();
             marioObjects.draw();
+            crossyObjects.draw();
+            fireballSystem.draw();
             debrisSystem.draw(); 
             fg.draw(); 
             bird.draw(); 
@@ -1114,6 +2030,14 @@
             if (userData.equippedSkin === 'santa') snowSystem.draw();
             if (flashOpacity > 0) { ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`; ctx.fillRect(0, 0, logicalWidth, LOGICAL_HEIGHT); }
         } catch(e) { console.error("Draw error:", e); }
+
+        // D-Pad Visibility Logic
+        const dpad = document.getElementById('crossy-controls');
+        if (userData.equippedSkin === 'crossy' && state.current === state.game && isTouch) {
+            dpad.style.display = 'flex';
+        } else {
+            dpad.style.display = 'none';
+        }
 
         if (state.current === state.getReady) {
             if (images.msg) ctx.drawImage(images.msg, logicalWidth/2 - images.msg.width/2, 100);
@@ -1146,12 +2070,20 @@
     }
 
     function update(dt) {
-        bird.update(dt); fg.update(dt); pipes.update(dt); marioObjects.update(dt); debrisSystem.update(dt);
+        bird.update(dt); 
+        fg.update(dt); 
+        pipes.update(dt); 
+        marioObjects.update(dt); 
+        crossyObjects.update(dt);
+        debrisSystem.update(dt);
+        fireballSystem.update(dt);
+        
         if (userData.equippedSkin === 'santa') snowSystem.update(dt);
         Input.update(); frames++; 
     }
 
     let lastTime = performance.now();
+    let lastFlapFrame = -100;
     const targetFPS = 60;
     function loop(timestamp) {
         if (!timestamp) timestamp = performance.now();
@@ -1164,7 +2096,10 @@
         stopBGM(); bird.speed = 0; bird.y = 150; pipes.position = []; score.value = 0; frames = 0; 
         debrisSystem.particles = []; crackParams={active:false,width:0,x:0}; pipes.lastSpawn = 0; flashOpacity = 0;
         trailSystem.reset();
+        fireballSystem.reset();
         if (userData.equippedSkin === 'mario') initMarioLevel();
+        if (userData.equippedSkin === 'crossy') initCrossyLevel();
+        if (userData.equippedSkin === 'paladin') userData.shield = 1; else userData.shield = 0;
         Input.focusIndex = 1; Input.renderFocus();
     }
     
@@ -1172,6 +2107,22 @@
 
     const shopConfig = [ 
         { id: 'yellow', name: 'Original', price: 0 }, 
+        { id: 'rock', name: 'Rock', price: 15 },
+        { id: 'balloon', name: 'Balloon', price: 15 },
+        { id: 'bat', name: 'Bat', price: 20 },
+        { id: 'plane', name: 'Plane', price: 20 },
+        { id: 'fish', name: 'Fish', price: 20 },
+        { id: 'pig', name: 'Pig', price: 25 },
+        { id: 'ninja', name: 'Ninja', price: 25 },
+        { id: 'glitch', name: 'Glitch', price: 25 },
+        { id: 'cat', name: 'Cat', price: 30 },
+        { id: 'dog', name: 'Dog', price: 30 },
+        { id: 'cyborg', name: 'Cyborg', price: 30 },
+        { id: 'fairy', name: 'Fairy', price: 35 },
+        { id: 'ufo', name: 'UFO', price: 40 },
+        { id: 'meteor', name: 'Meteor', price: 45 },
+        { id: 'dragon', name: 'Dragon', price: 50 },
+        
         { id: 'amongus', name: 'Among Us', price: 5 },
         { id: 'bee', name: 'Bee', price: 5 }, 
         { id: 'bigo', name: 'Big O', price: 10 }, 
@@ -1179,12 +2130,69 @@
         { id: 'santa', name: 'Santa', price: 15 }, 
         { id: 'nyan', name: 'Nyan', price: 15 },
         { id: 'gd', name: 'Dash', price: 25 }, 
-        { id: 'glitch', name: 'Glitch', price: 25 },
         { id: 'submarine', name: 'Submarine', price: 30 },
-        { id: 'mario', name: 'Mario', price: 40 }
+        { id: 'mario', name: 'Mario', price: 40 },
+
+        { id: 'slime', name: 'Slime', price: 35 },
+        { id: 'robot', name: 'Robot', price: 35 },
+        { id: 'paper', name: 'Paper', price: 10 },
+        { id: 'eye', name: 'Eye', price: 10 },
+        { id: 'turtle', name: 'Turtle', price: 20 },
+        { id: 'bomb', name: 'Bomb', price: 45 },
+        { id: 'crossy', name: 'Crossy', price: 75 },
+        { id: 'ball', name: 'Ball', price: 15 },
+        { id: 'snowman', name: 'Snowman', price: 20 },
+        { id: 'vampire', name: 'Vampire', price: 40 },
+        { id: 'zombie', name: 'Zombie', price: 25 },
+        { id: 'skeleton', name: 'Skeleton', price: 25 },
+        { id: 'alien', name: 'Alien', price: 50 },
+        { id: 'clown', name: 'Clown', price: 30 },
+        { id: 'pumpkin', name: 'Pumpkin', price: 10 },
+        { id: 'earth', name: 'Earth', price: 30 },
+        { id: 'moon', name: 'Moon', price: 30 },
+        { id: 'sun', name: 'Sun', price: 50 },
+        { id: 'melon', name: 'Melon', price: 10 },
+        { id: 'cookie', name: 'Cookie', price: 15 },
+        { id: 'cheetah', name: 'Cheetah', price: 40 },
+
+        // 30 NEW SKINS
+        { id: 'rabbit', name: 'Rabbit', price: 30 },
+        { id: 'gravbot', name: 'GravBot', price: 40 },
+        { id: 'magneto', name: 'Magneto', price: 60 },
+        { id: 'paladin', name: 'Paladin', price: 50 },
+        { id: 'bulldozer', name: 'Bulldozer', price: 55 },
+        { id: 'phantom', name: 'Phantom', price: 45 },
+        { id: 'drunkard', name: 'Drunkard', price: 15 },
+        { id: 'rubber', name: 'Rubber', price: 25 },
+        { id: 'puffer', name: 'Puffer', price: 20 },
+        { id: 'ender', name: 'Ender', price: 50 },
+        { id: 'serpent', name: 'Serpent', price: 40 },
+        { id: 'invert', name: 'Invert', price: 35 },
+        { id: 'flash', name: 'Flash', price: 20 },
+        { id: 'racer', name: 'Racer', price: 30 },
+        { id: 'windy', name: 'Windy', price: 25 },
+        { id: 'twin', name: 'Twin', price: 40 },
+        { id: 'freezer', name: 'Freezer', price: 60 },
+        { id: 'gambler', name: 'Gambler', price: 30 },
+        { id: 'drill', name: 'Drill', price: 45 },
+        { id: 'cloud', name: 'Cloud', price: 45 },
+        { id: 'hover', name: 'Hover', price: 35 },
+        { id: 'spring', name: 'Spring', price: 25 },
+        { id: 'cursor', name: 'Cursor', price: 80 },
+        { id: 'grenade', name: 'Grenade', price: 30 },
+        { id: 'hacker', name: 'Hacker', price: 70 },
+        { id: 'boat', name: 'Boat', price: 35 },
+        { id: 'chopper', name: 'Chopper', price: 50 },
+        { id: 'tesla', name: 'Tesla', price: 55 },
+        { id: 'void', name: 'Void', price: 80 },
+        { id: 'glider', name: 'Glider', price: 25 },
+        { id: 'sniper', name: 'Sniper', price: 60 }
     ];
 
     function initShop() {
+        // SORT BY PRICE
+        shopConfig.sort((a,b) => a.price - b.price);
+
         const container = document.getElementById('shopItemsContainer'); container.innerHTML = '';
         shopConfig.forEach((item, index) => {
             const div = document.createElement('div'); div.className = 'shop-item'; div.id = `shop-item-${item.id}`;
@@ -1200,6 +2208,80 @@
             else if(item.id === 'glitch') img.src = createGlitchAsset().toDataURL();
             else if(item.id === 'nyan') img.src = createNyanAsset().toDataURL();
             else if(item.id === 'ghost') img.src = createGhostAsset().toDataURL();
+            
+            else if(item.id === 'dragon') img.src = createDragonAsset().toDataURL();
+            else if(item.id === 'ufo') img.src = createUFOAsset().toDataURL();
+            else if(item.id === 'ninja') img.src = createNinjaAsset().toDataURL();
+            else if(item.id === 'cyborg') img.src = createCyborgAsset().toDataURL();
+
+            // 10 PREV SKINS
+            else if(item.id === 'bat') img.src = createBatAsset().toDataURL();
+            else if(item.id === 'pig') img.src = createPigAsset().toDataURL();
+            else if(item.id === 'fairy') img.src = createFairyAsset().toDataURL();
+            else if(item.id === 'rock') img.src = createRockAsset().toDataURL();
+            else if(item.id === 'balloon') img.src = createBalloonAsset().toDataURL();
+            else if(item.id === 'plane') img.src = createPlaneAsset().toDataURL();
+            else if(item.id === 'fish') img.src = createFishAsset().toDataURL();
+            else if(item.id === 'cat') img.src = createCatAsset().toDataURL();
+            else if(item.id === 'dog') img.src = createDogAsset().toDataURL();
+            else if(item.id === 'meteor') img.src = createMeteorAsset().toDataURL();
+
+            // 20 PREV SKINS
+            else if(item.id === 'slime') img.src = createSlimeAsset().toDataURL();
+            else if(item.id === 'robot') img.src = createRobotAsset().toDataURL();
+            else if(item.id === 'paper') img.src = createPaperAsset().toDataURL();
+            else if(item.id === 'eye') img.src = createEyeAsset().toDataURL();
+            else if(item.id === 'turtle') img.src = createTurtleAsset().toDataURL();
+            else if(item.id === 'bomb') img.src = createBombAsset().toDataURL();
+            else if(item.id === 'crossy') img.src = createVoxelChicken().toDataURL();
+            else if(item.id === 'ball') img.src = createBallAsset().toDataURL();
+            else if(item.id === 'snowman') img.src = createSnowmanAsset().toDataURL();
+            else if(item.id === 'vampire') img.src = createVampireAsset().toDataURL();
+            else if(item.id === 'zombie') img.src = createZombieAsset().toDataURL();
+            else if(item.id === 'skeleton') img.src = createSkeletonAsset().toDataURL();
+            else if(item.id === 'alien') img.src = createAlienAsset().toDataURL();
+            else if(item.id === 'clown') img.src = createClownAsset().toDataURL();
+            else if(item.id === 'pumpkin') img.src = createPumpkinAsset().toDataURL();
+            else if(item.id === 'earth') img.src = createEarthAsset().toDataURL();
+            else if(item.id === 'moon') img.src = createMoonAsset().toDataURL();
+            else if(item.id === 'sun') img.src = createSunAsset().toDataURL();
+            else if(item.id === 'melon') img.src = createMelonAsset().toDataURL();
+            else if(item.id === 'cookie') img.src = createCookieAsset().toDataURL();
+            else if(item.id === 'cheetah') img.src = createCheetahAsset().toDataURL();
+
+            // 30 NEW SKINS
+            else if(item.id === 'rabbit') img.src = createRabbitAsset().toDataURL();
+            else if(item.id === 'gravbot') img.src = createGravBotAsset().toDataURL();
+            else if(item.id === 'magneto') img.src = createMagnetoAsset().toDataURL();
+            else if(item.id === 'paladin') img.src = createPaladinAsset().toDataURL();
+            else if(item.id === 'bulldozer') img.src = createBulldozerAsset().toDataURL();
+            else if(item.id === 'phantom') img.src = createPhantomAsset().toDataURL();
+            else if(item.id === 'drunkard') img.src = createDrunkardAsset().toDataURL();
+            else if(item.id === 'rubber') img.src = createRubberAsset().toDataURL();
+            else if(item.id === 'puffer') img.src = createPufferAsset().toDataURL();
+            else if(item.id === 'ender') img.src = createEnderAsset().toDataURL();
+            else if(item.id === 'serpent') img.src = createSerpentAsset().toDataURL();
+            else if(item.id === 'invert') img.src = createInvertAsset().toDataURL();
+            else if(item.id === 'flash') img.src = createFlashAsset().toDataURL();
+            else if(item.id === 'racer') img.src = createRacerAsset().toDataURL();
+            else if(item.id === 'windy') img.src = createWindyAsset().toDataURL();
+            else if(item.id === 'twin') img.src = createTwinAsset().toDataURL();
+            else if(item.id === 'freezer') img.src = createFreezerAsset().toDataURL();
+            else if(item.id === 'gambler') img.src = createGamblerAsset().toDataURL();
+            else if(item.id === 'drill') img.src = createDrillAsset().toDataURL();
+            else if(item.id === 'cloud') img.src = createCloudAsset().toDataURL();
+            else if(item.id === 'hover') img.src = createHoverAsset().toDataURL();
+            else if(item.id === 'spring') img.src = createSpringAsset().toDataURL();
+            else if(item.id === 'cursor') img.src = createCursorAsset().toDataURL();
+            else if(item.id === 'grenade') img.src = createGrenadeAsset().toDataURL();
+            else if(item.id === 'hacker') img.src = createHackerAsset().toDataURL();
+            else if(item.id === 'boat') img.src = createBoatAsset().toDataURL();
+            else if(item.id === 'chopper') img.src = createChopperAsset().toDataURL();
+            else if(item.id === 'tesla') img.src = createTeslaAsset().toDataURL();
+            else if(item.id === 'void') img.src = createVoidAsset().toDataURL();
+            else if(item.id === 'glider') img.src = createGliderAsset().toDataURL();
+            else if(item.id === 'sniper') img.src = createSniperAsset().toDataURL();
+
             else if(ASSETS.sprites.birdYellow && ASSETS.sprites.birdYellow[0]) img.src = ASSETS.sprites.birdYellow[0];
             const name = document.createElement('div'); name.innerText = item.name; name.style.fontSize = '12px'; name.style.marginTop = '5px';
             const cost = document.createElement('div'); cost.className = 'item-cost';
@@ -1208,6 +2290,7 @@
         updateShopUI();
     }
 
+    // ... (rest of code logic matches previous logic for updateShopUI, etc.)
     function updateShopUI() {
         document.getElementById('shopCoinCount').innerText = userData.coins;
         shopConfig.forEach((item, index) => {
@@ -1225,11 +2308,15 @@
     function handleShopClick(item) {
         if (userData.unlockedSkins.includes(item.id)) {
             userData.equippedSkin = item.id; playSound('flap');
-            if(item.id === 'mario') { initMarioLevel(); } else { stopBGM(); }
+            if(item.id === 'mario') { initMarioLevel(); } 
+            else if(item.id === 'crossy') { initCrossyLevel(); }
+            else { stopBGM(); }
         } else {
             if (userData.coins >= item.price) {
                 userData.coins -= item.price; userData.unlockedSkins.push(item.id); userData.equippedSkin = item.id; playSound('point');
-                if(item.id === 'mario') { initMarioLevel(); } else { stopBGM(); }
+                if(item.id === 'mario') { initMarioLevel(); } 
+                else if(item.id === 'crossy') { initCrossyLevel(); }
+                else { stopBGM(); }
             } else playSound('hit');
         }
         saveData(); updateShopUI();
@@ -1244,7 +2331,10 @@
     document.getElementById('closeSettingsX').onclick = (e) => { e.stopPropagation(); settingsModal.style.display = 'none'; Input.closeModal(); };
     
     function getGameCoords(e) { let rect = canvas.getBoundingClientRect(); let rawX = (e.clientX - rect.left) * (canvas.width / rect.width); let rawY = (e.clientY - rect.top) * (canvas.height / rect.height); return { x: rawX / globalScale, y: rawY / globalScale }; }
-    canvas.addEventListener('pointerdown', (e) => {
+    
+    // Updated Input Handler for Mouse/Touch
+    const handleInputDown = (e) => {
+        Input.held = true;
         if (shopModal.style.display === 'flex' || settingsModal.style.display === 'flex') return;
         if (state.current === state.over) {
             let coords = getGameCoords(e); let centerX = logicalWidth / 2;
@@ -1252,8 +2342,19 @@
             return;
         }
         if (state.current === state.getReady) { state.current = state.game; if(userData.equippedSkin === 'mario') startBGM(); }
-        if (state.current === state.game) { if(bird.flap()) playSound('flap'); }
-    });
+        if (state.current === state.game) { 
+            if(bird.flap()) {
+                 playSound('flap'); 
+                 lastFlapFrame = frames;
+            }
+        }
+    };
+    
+    const handleInputUp = () => { Input.held = false; };
+
+    canvas.addEventListener('pointerdown', handleInputDown);
+    canvas.addEventListener('pointerup', handleInputUp);
+    canvas.addEventListener('pointerleave', handleInputUp);
 
     async function initGame() {
         const audioProms = Object.keys(ASSETS.audio).map(k => loadSound(ASSETS.audio[k], k));
@@ -1278,6 +2379,52 @@
         const glitchAsset = createGlitchAsset();
         const ghostAsset = createGhostAsset();
 
+        // SURPRISE ASSETS
+        const dragonAsset = createDragonAsset();
+        const ufoAsset = createUFOAsset();
+        const ninjaAsset = createNinjaAsset();
+        const cyborgAsset = createCyborgAsset();
+        
+        // 10 NEW SKINS ASSETS
+        const batAsset = createBatAsset();
+        const pigAsset = createPigAsset();
+        const fairyAsset = createFairyAsset();
+        const rockAsset = createRockAsset();
+        const balloonAsset = createBalloonAsset();
+        const planeAsset = createPlaneAsset();
+        const fishAsset = createFishAsset();
+        const catAsset = createCatAsset();
+        const dogAsset = createDogAsset();
+        const meteorAsset = createMeteorAsset();
+
+        // 20 MORE SKINS ASSETS
+        const slimeAsset = createSlimeAsset();
+        const robotAsset = createRobotAsset();
+        const paperAsset = createPaperAsset();
+        const eyeAsset = createEyeAsset();
+        const turtleAsset = createTurtleAsset();
+        const bombAsset = createBombAsset();
+        const crossyAsset = createVoxelChicken(); // Chicken replaced
+        const ballAsset = createBallAsset();
+        const snowmanAsset = createSnowmanAsset();
+        const vampireAsset = createVampireAsset();
+        const zombieAsset = createZombieAsset();
+        const skeletonAsset = createSkeletonAsset();
+        const alienAsset = createAlienAsset();
+        const clownAsset = createClownAsset();
+        const pumpkinAsset = createPumpkinAsset();
+        const earthAsset = createEarthAsset();
+        const moonAsset = createMoonAsset();
+        const sunAsset = createSunAsset();
+        const melonAsset = createMelonAsset();
+        const cookieAsset = createCookieAsset();
+        const cheetahAsset = createCheetahAsset();
+
+        // CROSSY ASSETS
+        images.voxelChicken = crossyAsset;
+        images.voxelCar = createVoxelCar();
+        images.log = createLogAsset();
+
         images.marioBrick = await loadImg(ASSETS.sprites.marioBrick);
         images.marioGround = await loadImg(ASSETS.sprites.marioGround);
         images.marioJump = await loadImg(ASSETS.sprites.marioJump);
@@ -1288,7 +2435,7 @@
         images.marioGoomba = []; for(let url of ASSETS.sprites.marioGoomba) images.marioGoomba.push(await loadImg(url));
 
         images.birds = {};
-        for(let c of ['yellow', 'blue', 'red', 'amongus', 'bigo', 'gd', 'santa', 'mario', 'submarine', 'bee', 'glitch', 'nyan', 'ghost']) {
+        for(let c of ['yellow', 'blue', 'red', 'amongus', 'bigo', 'gd', 'santa', 'mario', 'submarine', 'bee', 'glitch', 'nyan', 'ghost', 'dragon', 'ufo', 'ninja', 'cyborg', 'bat', 'pig', 'fairy', 'rock', 'balloon', 'plane', 'fish', 'cat', 'dog', 'meteor', 'slime', 'robot', 'paper', 'eye', 'turtle', 'bomb', 'crossy', 'ball', 'snowman', 'vampire', 'zombie', 'skeleton', 'alien', 'clown', 'pumpkin', 'earth', 'moon', 'sun', 'melon', 'cookie', 'cheetah', 'rabbit', 'gravbot', 'magneto', 'paladin', 'bulldozer', 'phantom', 'drunkard', 'rubber', 'puffer', 'ender', 'serpent', 'invert', 'flash', 'racer', 'windy', 'twin', 'freezer', 'gambler', 'drill', 'cloud', 'hover', 'spring', 'cursor', 'grenade', 'hacker', 'boat', 'chopper', 'tesla', 'void', 'glider', 'sniper']) {
             images.birds[c] = [];
             if(c === 'amongus') { const img = new Image(); img.src = auAlive.toDataURL(); images.birds[c] = [img, img, img]; }
             else if (c === 'bigo') { const img = new Image(); img.src = bigOAlive.toDataURL(); images.birds[c] = [img, img, img]; }
@@ -1299,6 +2446,79 @@
             else if(c === 'glitch') { const img = new Image(); img.src = glitchAsset.toDataURL(); images.birds[c] = [img, img, img]; }
             else if(c === 'nyan') { const img = new Image(); img.src = nyanAsset.toDataURL(); images.birds[c] = [img, img, img]; }
             else if(c === 'ghost') { const img = new Image(); img.src = ghostAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'dragon') { const img = new Image(); img.src = dragonAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'ufo') { const img = new Image(); img.src = ufoAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'ninja') { const img = new Image(); img.src = ninjaAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'cyborg') { const img = new Image(); img.src = cyborgAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            
+            // NEW SKINS
+            else if(c === 'bat') { const img = new Image(); img.src = batAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'pig') { const img = new Image(); img.src = pigAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'fairy') { const img = new Image(); img.src = fairyAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'rock') { const img = new Image(); img.src = rockAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'balloon') { const img = new Image(); img.src = balloonAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'plane') { const img = new Image(); img.src = planeAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'fish') { const img = new Image(); img.src = fishAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'cat') { const img = new Image(); img.src = catAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'dog') { const img = new Image(); img.src = dogAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'meteor') { const img = new Image(); img.src = meteorAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+
+            // 20 NEWER SKINS
+            else if(c === 'slime') { const img = new Image(); img.src = slimeAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'robot') { const img = new Image(); img.src = robotAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'paper') { const img = new Image(); img.src = paperAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'eye') { const img = new Image(); img.src = eyeAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'turtle') { const img = new Image(); img.src = turtleAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'bomb') { const img = new Image(); img.src = bombAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'crossy') { const img = new Image(); img.src = crossyAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'ball') { const img = new Image(); img.src = ballAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'snowman') { const img = new Image(); img.src = snowmanAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'vampire') { const img = new Image(); img.src = vampireAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'zombie') { const img = new Image(); img.src = zombieAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'skeleton') { const img = new Image(); img.src = skeletonAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'alien') { const img = new Image(); img.src = alienAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'clown') { const img = new Image(); img.src = clownAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'pumpkin') { const img = new Image(); img.src = pumpkinAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'earth') { const img = new Image(); img.src = earthAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'moon') { const img = new Image(); img.src = moonAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'sun') { const img = new Image(); img.src = sunAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'melon') { const img = new Image(); img.src = melonAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'cookie') { const img = new Image(); img.src = cookieAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'cheetah') { const img = new Image(); img.src = cheetahAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+
+            // 30 BRAND NEW SKINS
+            else if(c === 'rabbit') { const img = new Image(); img.src = createRabbitAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'gravbot') { const img = new Image(); img.src = createGravBotAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'magneto') { const img = new Image(); img.src = createMagnetoAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'paladin') { const img = new Image(); img.src = createPaladinAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'bulldozer') { const img = new Image(); img.src = createBulldozerAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'phantom') { const img = new Image(); img.src = createPhantomAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'drunkard') { const img = new Image(); img.src = createDrunkardAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'rubber') { const img = new Image(); img.src = createRubberAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'puffer') { const img = new Image(); img.src = createPufferAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'ender') { const img = new Image(); img.src = createEnderAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'serpent') { const img = new Image(); img.src = createSerpentAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'invert') { const img = new Image(); img.src = createInvertAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'flash') { const img = new Image(); img.src = createFlashAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'racer') { const img = new Image(); img.src = createRacerAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'windy') { const img = new Image(); img.src = createWindyAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'twin') { const img = new Image(); img.src = createTwinAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'freezer') { const img = new Image(); img.src = createFreezerAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'gambler') { const img = new Image(); img.src = createGamblerAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'drill') { const img = new Image(); img.src = createDrillAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'cloud') { const img = new Image(); img.src = createCloudAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'hover') { const img = new Image(); img.src = createHoverAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'spring') { const img = new Image(); img.src = createSpringAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'cursor') { const img = new Image(); img.src = createCursorAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'grenade') { const img = new Image(); img.src = createGrenadeAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'hacker') { const img = new Image(); img.src = createHackerAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'boat') { const img = new Image(); img.src = createBoatAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'chopper') { const img = new Image(); img.src = createChopperAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'tesla') { const img = new Image(); img.src = createTeslaAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'void') { const img = new Image(); img.src = createVoidAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'glider') { const img = new Image(); img.src = createGliderAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'sniper') { const img = new Image(); img.src = createSniperAsset().toDataURL(); images.birds[c] = [img, img, img]; }
+
             else if(c === 'mario') { images.birds[c] = images.marioWalk; }
             else if(ASSETS.sprites['bird' + c.charAt(0).toUpperCase() + c.slice(1)]) {
                 const arr = ASSETS.sprites['bird'+c.charAt(0).toUpperCase()+c.slice(1)];
@@ -1309,6 +2529,8 @@
         document.getElementById('loading-overlay').style.display = 'none';
         initShop();
         if(userData.equippedSkin === 'mario') initMarioLevel();
+        if(userData.equippedSkin === 'crossy') initCrossyLevel();
+        if(userData.equippedSkin === 'paladin') userData.shield = 1;
         lastTime = performance.now();
         requestAnimationFrame(loop);
     }
