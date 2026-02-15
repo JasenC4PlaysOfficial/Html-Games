@@ -61,7 +61,7 @@
         }
         
         .game-btn:active, .game-btn.active-press { transform: translateY(4px); box-shadow: none; }
-        .game-btn.focused, .shop-item.focused, .setting-row.focused, .close-x.focused {
+        .game-btn.focused, .shop-item.focused, .setting-row.focused, .close-x.focused, .custom-select.focused, .toggle-btn.focused {
             border-color: #FFD700; box-shadow: 0 0 15px #FFD700; transform: scale(1.05); z-index: 20;
         }
 
@@ -93,9 +93,66 @@
         .item-cost { font-size: 16px; text-align: center; }
         .setting-row { margin: 20px 0; display: flex; flex-direction: column; align-items: center; width: 100%; padding: 10px; border: 2px solid transparent; }
         .setting-label { font-size: 24px; margin-bottom: 10px; color: #EEE; }
-        select, .toggle-btn { font-family: 'FlappyFont', sans-serif; font-size: 20px; padding: 10px; border-radius: 5px; border: 2px solid #FFF; background: #E57338; color: white; cursor: pointer; width: 200px; text-align: center; }
-        .toggle-btn { background: #73BF2E; }
-        .toggle-btn.off { background: #d32f2f; }
+        
+        /* Custom Select */
+        .custom-select {
+            position: relative;
+            font-family: 'FlappyFont', sans-serif;
+            width: 250px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            z-index: 50;
+        }
+        .select-selected {
+            background-color: #E57338;
+            color: #fff;
+            padding: 10px;
+            border: 2px solid #fff;
+            border-radius: 5px;
+            box-shadow: 0 4px 0 #9e4f24;
+        }
+        .select-selected:after {
+            position: absolute;
+            content: "";
+            top: 18px;
+            right: 15px;
+            width: 0;
+            height: 0;
+            border: 6px solid transparent;
+            border-color: #fff transparent transparent transparent;
+        }
+        .select-selected.select-arrow-active:after {
+            border-color: transparent transparent #fff transparent;
+            top: 10px;
+        }
+        .select-items {
+            position: absolute;
+            background-color: #E57338;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 99;
+            border: 2px solid #fff;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .select-items div {
+            color: #fff;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+        }
+        .select-items div:hover, .same-as-selected {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+        .select-hide {
+            display: none;
+        }
+
+        .toggle-btn { font-family: 'FlappyFont', sans-serif; font-size: 20px; padding: 10px; border-radius: 5px; border: 2px solid #FFF; background: #73BF2E; color: white; cursor: pointer; width: 200px; text-align: center; box-shadow: 0 4px 0 #4d851e; }
+        .toggle-btn.off { background: #d32f2f; box-shadow: 0 4px 0 #8b0000; }
         #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #70c5ce; z-index: 200; display: flex; justify-content: center; align-items: center; color: white; font-size: 30px; text-shadow: 2px 2px 0 #000; }
     </style>
 </head>
@@ -118,8 +175,24 @@
     <div id="settings-modal" class="modal">
         <button id="closeSettingsX" class="close-x" data-nav="settings_close">X</button>
         <h2>SETTINGS</h2>
-        <div class="setting-row" id="setting-res-row" data-nav="settings" data-index="0"><div class="setting-label">RESOLUTION</div><select id="resolutionSelect" tabindex="-1"><option value="retro">Performance</option><option value="native">Native</option><option value="720">720p</option><option value="1080">1080p</option></select></div>
-        <div class="setting-row" id="setting-fs-row" data-nav="settings" data-index="1"><div class="setting-label">FULLSCREEN</div><button id="fullscreenToggle" class="toggle-btn off" tabindex="-1">OFF</button></div>
+        
+        <div class="setting-row" id="setting-res-row" data-nav="settings" data-index="0">
+            <div class="setting-label">RESOLUTION</div>
+            <div class="custom-select" id="resolutionDropdown">
+                <div class="select-selected" id="currentResDisplay">Performance</div>
+                <div class="select-items select-hide" id="resOptions">
+                    <div data-value="retro">Performance</div>
+                    <div data-value="native">Native</div>
+                    <div data-value="720">720p</div>
+                    <div data-value="1080">1080p</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-row" id="setting-fs-row" data-nav="settings" data-index="1">
+            <div class="setting-label">FULLSCREEN</div>
+            <button id="fullscreenToggle" class="toggle-btn off" tabindex="-1">OFF</button>
+        </div>
     </div>
 </div>
 
@@ -179,7 +252,6 @@
             msg: "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/message.png",
             gameover: "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/gameover.png",
             birdYellow: [ "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/yellowbird-downflap.png", "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/yellowbird-midflap.png", "https://raw.githubusercontent.com/samuelcust/flappy-bird-assets/master/sprites/yellowbird-upflap.png" ],
-            // New Mario Assets
             marioWalk: [MARIO_BASE_URL+"walk1.png", MARIO_BASE_URL+"walk2.png", MARIO_BASE_URL+"walk3.png"],
             marioJump: MARIO_BASE_URL+"jump.png",
             marioDead: MARIO_BASE_URL+"dead.png",
@@ -239,7 +311,46 @@
     // --- 4. Game Logic ---
     const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
     let gameSettings = { resolution: localStorage.getItem('fb_res') || 'retro' };
-    document.getElementById('resolutionSelect').value = gameSettings.resolution;
+    
+    // Custom Dropdown Init
+    function initDropdown() {
+        const selected = document.getElementById('currentResDisplay');
+        const items = document.getElementById('resOptions');
+        const options = items.getElementsByTagName('div');
+        
+        // Set initial value
+        for(let opt of options) {
+            if(opt.getAttribute('data-value') === gameSettings.resolution) {
+                selected.innerText = opt.innerText;
+                break;
+            }
+        }
+
+        selected.addEventListener('click', function(e) {
+            e.stopPropagation();
+            items.classList.toggle('select-hide');
+            this.classList.toggle('select-arrow-active');
+        });
+
+        for(let opt of options) {
+            opt.addEventListener('click', function(e) {
+                e.stopPropagation();
+                gameSettings.resolution = this.getAttribute('data-value');
+                localStorage.setItem('fb_res', gameSettings.resolution);
+                selected.innerText = this.innerText;
+                items.classList.add('select-hide');
+                selected.classList.remove('select-arrow-active');
+                resize();
+            });
+        }
+        
+        document.addEventListener('click', function() {
+            items.classList.add('select-hide');
+            selected.classList.remove('select-arrow-active');
+        });
+    }
+    initDropdown();
+
     const LOGICAL_HEIGHT = 480; let logicalWidth = 320; let globalScale = 1;
 
     function resize() {
@@ -263,7 +374,11 @@
         unlockedSkins: JSON.parse(localStorage.getItem('fb_skins')) || ['yellow', 'amongus', 'bigo', 'gd', 'santa', 'mario'], equippedSkin: localStorage.getItem('fb_equipped') || 'yellow'
     };
     const images = {}; let crackParams = { active: false, width: 0, x: 0 }; 
-    function getGameSpeed() { if (userData.equippedSkin === 'gd') return 5; if (userData.equippedSkin === 'mario') return 3.5; return 2; }
+    function getGameSpeed() { 
+        if (userData.equippedSkin === 'gd') return 5; 
+        if (userData.equippedSkin === 'mario') return 4.5; // FASTER MARIO SPEED
+        return 2; 
+    }
 
     // --- MARIO STATE ---
     let marioState = { timer: 0, groundSegments: [], platforms: [], enemies: [], coins: [], camX: 0, died: false };
@@ -273,6 +388,22 @@
         marioState.platforms = []; marioState.enemies = []; marioState.coins = [];
     }
     function updateMarioLevel(dt) {
+        // If getting ready, just infinite scroll ground, don't spawn logic
+        if (state.current === state.getReady) {
+             marioState.camX += getGameSpeed() * dt;
+             // Recycle ground segment for menu loop
+             if (marioState.groundSegments.length < 2) {
+                 let last = marioState.groundSegments[marioState.groundSegments.length-1];
+                 if (last.x + last.w < marioState.camX + logicalWidth + 100) {
+                     marioState.groundSegments.push({x: last.x + last.w, w: logicalWidth * 1.5});
+                 }
+             }
+             if (marioState.groundSegments[0].x + marioState.groundSegments[0].w < marioState.camX - 50) {
+                 marioState.groundSegments.shift();
+             }
+             return;
+        }
+
         let lastSeg = marioState.groundSegments[marioState.groundSegments.length - 1];
         if (lastSeg.x + lastSeg.w < marioState.camX + logicalWidth + 200) {
             let gapSize = Math.random() < 0.3 ? 70 + Math.random() * 40 : 0; 
@@ -340,7 +471,6 @@
                 for(let seg of marioState.groundSegments) {
                     let drawX = seg.x - marioState.camX;
                     if (drawX + seg.w > 0 && drawX < logicalWidth) {
-                        // MARIO SCALE UP: Draw ground tiles as 32x32
                         for (let tx = 0; tx < seg.w; tx += 32) {
                             for(let ty=0; ty<112; ty+=32) { 
                                 if(images.marioGround) ctx.drawImage(images.marioGround, drawX + tx, groundY + ty, 32, 32); 
@@ -373,7 +503,6 @@
             for (let plat of marioState.platforms) {
                 let dx = plat.x - marioState.camX;
                 if (dx > -100 && dx < logicalWidth) { 
-                    // MARIO SCALE UP: Draw bricks 32x32
                     for(let i=0; i<plat.w; i+=32) { 
                         if(images.marioBrick) ctx.drawImage(images.marioBrick, dx + i, plat.y, 32, 32); 
                         else { ctx.fillStyle='#B85000'; ctx.fillRect(dx+i, plat.y, 32, 32); } 
@@ -381,12 +510,12 @@
                 }
             }
             for (let coin of marioState.coins) {
-                // MARIO SCALE UP: Draw coins larger (24x32)
+                // MARIO SCALE UP: Draw coins slightly smaller visually (20x24) to look better
                 if (!coin.collected) { 
                     let dx = coin.x - marioState.camX; 
                     if(dx>-50&&dx<logicalWidth && images.marioCoin && images.marioCoin.length) {
                          let coinFrame = Math.floor((frames / 10) % 4);
-                         ctx.drawImage(images.marioCoin[coinFrame], dx, coin.y, 32, 32); 
+                         ctx.drawImage(images.marioCoin[coinFrame], dx + 2, coin.y + 4, 20, 24); 
                     }
                 }
             }
@@ -395,7 +524,6 @@
                 if (dx > -50 && dx < logicalWidth && !en.dead) { 
                     let frame = Math.floor(frames / 10) % 2; 
                     let sprite = (images.marioGoomba && images.marioGoomba[frame]) ? images.marioGoomba[frame] : null;
-                    // MARIO SCALE UP: Draw enemies 32x32
                     if(sprite) ctx.drawImage(sprite, dx, en.y, 32, 32); else { ctx.fillStyle='brown'; ctx.fillRect(dx, en.y, 32, 32); }
                 }
             }
@@ -405,18 +533,25 @@
             updateMarioLevel(dt);
             for (let en of marioState.enemies) {
                 if (en.dead) continue; let dx = en.x - marioState.camX;
-                // MARIO SCALE UP: Hitbox centers adjusted for 32px sprites
                 let enCenterX = dx + 16; let enCenterY = en.y + 16;
-                // Increased hit distance check from 20 to 30 for larger sprites
                 if (Math.abs(bird.x - enCenterX) < 30 && Math.abs(bird.y - enCenterY) < 30) {
                     if (bird.speed > 0 && bird.y < en.y + 10) { en.dead = true; bird.speed = -4.0; playSound('hit'); } 
-                    else { if (state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); } }
+                    else { 
+                        // MARIO DEATH TRIGGER
+                        if (state.current === state.game && !marioState.died) { 
+                            state.current = state.over; 
+                            marioState.died = true; 
+                            stopBGM(); 
+                            playSound('mario_die'); 
+                            bird.speed = -10; // Death Jump Velocity
+                            bird.onGround = false;
+                        } 
+                    }
                 }
             }
             for (let coin of marioState.coins) {
                 if (!coin.collected) {
                     let dx = coin.x - marioState.camX;
-                    // MARIO SCALE UP: Increased collection radius
                     if (Math.abs(bird.x - (dx+16)) < 30 && Math.abs(bird.y - (coin.y+16)) < 30) {
                         coin.collected = true; userData.coins++; playSound('coin'); document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; saveData();
                     }
@@ -429,7 +564,7 @@
         animation: [0, 1, 2, 1], x: 50, y: 150, w: 34, h: 24, radius: 12, frame: 0, speed: 0, gravity: 0.25, jump: 4.6, rotation: 0, onGround: false,
         flap: function() {
             if (userData.equippedSkin === 'gd') { if (this.onGround) { this.speed = -8.8; this.onGround = false; } } 
-            else if (userData.equippedSkin === 'mario') { if (this.onGround) { this.speed = -7.0; this.onGround = false; } } 
+            else if (userData.equippedSkin === 'mario') { if (this.onGround) { this.speed = -8.5; this.onGround = false; } } // HIGHER JUMP
             else { this.speed = -this.jump; this.rotation = -25 * DEGREE; }
         },
         draw: function() {
@@ -437,8 +572,9 @@
             if (state.current === state.over && userData.equippedSkin === 'amongus') { if (images.birdDeadAU) { const img = new Image(); img.src = images.birdDeadAU.toDataURL(); sprite = img; } } 
             else if (userData.equippedSkin === 'mario') {
                 if (state.current === state.over) sprite = images.marioDead; 
-                else if (!this.onGround) sprite = images.marioJump; 
+                else if (!this.onGround && state.current === state.game) sprite = images.marioJump; 
                 else { 
+                    // Animate on Get Ready screen too
                     let f = Math.floor((frames / 5) % 3); 
                     sprite = (images.marioWalk && images.marioWalk[f]) ? images.marioWalk[f] : images.marioWalk[0]; 
                 }
@@ -448,20 +584,32 @@
             if (userData.equippedSkin === 'bigo') { drawW = 44; drawH = 34; }
             if (userData.equippedSkin === 'gd') { drawW = 30; drawH = 30; }
             if (userData.equippedSkin === 'santa') { drawW = 48; drawH = 30; }
-            if (userData.equippedSkin === 'mario') { drawW = 32; drawH = 32; } // MARIO SCALE UP
+            if (userData.equippedSkin === 'mario') { drawW = 32; drawH = 32; } 
             ctx.save(); ctx.translate(this.x, this.y); let rot = this.rotation; if (state.current === state.over && userData.equippedSkin === 'amongus') rot = 0; if (state.current === state.falling) rot = 0; if (userData.equippedSkin === 'mario') rot = 0; ctx.rotate(rot);
-            if (sprite.complete || sprite instanceof HTMLCanvasElement) { ctx.drawImage(sprite, -drawW/2, -drawH/2, drawW, drawH); }
+            if (sprite.complete || sprite instanceof HTMLCanvasElement) { 
+                if (userData.equippedSkin === 'mario') {
+                     // Center it: -16 is half of 32
+                     ctx.drawImage(sprite, -16, -16, 32, 32); 
+                } else {
+                     ctx.drawImage(sprite, -drawW/2, -drawH/2, drawW, drawH); 
+                }
+            }
             ctx.restore();
         },
         update: function(dt) {
             let period = state.current === state.getReady ? 10 : 5; this.frame += frames % period === 0 ? 1 : 0; this.frame %= this.animation.length;
             if(userData.equippedSkin === 'bigo') this.radius = 18; else if(userData.equippedSkin === 'gd') this.radius = 15; else if(userData.equippedSkin === 'santa') this.radius = 14; 
-            else if(userData.equippedSkin === 'mario') this.radius = 14; // MARIO SCALE UP
+            else if(userData.equippedSkin === 'mario') this.radius = 14; 
             else this.radius = 12;
 
             if(state.current === state.getReady) { 
                 if (userData.equippedSkin === 'gd') { this.y = LOGICAL_HEIGHT - 112 - 15; this.rotation = 0; this.speed = 0; }
-                else if (userData.equippedSkin === 'mario') { this.y = LOGICAL_HEIGHT - 112 - 16; this.rotation = 0; this.speed = 0; } 
+                else if (userData.equippedSkin === 'mario') { 
+                    this.y = LOGICAL_HEIGHT - 112 - 16; 
+                    this.rotation = 0; 
+                    this.speed = 0; 
+                    updateMarioLevel(dt);
+                } 
                 else { this.y = 150; this.rotation = 0; this.speed = 0; } 
             } 
             else if (state.current === state.falling) { this.speed += (this.gravity * 1.5) * dt; this.y += this.speed * dt; crackParams.width += 3 * dt; if (this.y > LOGICAL_HEIGHT + 60) { state.current = state.over; playSound('hit'); } } 
@@ -473,53 +621,87 @@
                 if (this.y < 0) { this.y = 0; this.speed = 0; }
 
                 if (userData.equippedSkin === 'mario') {
+                    
+                    // --- MARIO DEATH ANIMATION LOGIC ---
+                    if (state.current === state.over && marioState.died) {
+                        // Simply let him fall through physics, but disable collisions below
+                        return;
+                    }
+
                     let floorY = LOGICAL_HEIGHT - 112; let grounded = false; let absoluteX = marioState.camX + this.x;
                     
                     // Platform Collision
                     for(let i=0; i<marioState.platforms.length; i++) {
                         let plat = marioState.platforms[i];
                         let px = plat.x - marioState.camX;
-                        // X Overlap
                         if (this.x + this.radius > px && this.x - this.radius < px + plat.w) {
-                            // MARIO SCALE UP: Platform bottom check + 32
                             let platBottom = plat.y + 32;
-                            // 1. Land on top (Allow slightly deeper overlap for smoothness)
                             if (this.y + this.radius >= plat.y && this.y + this.radius <= plat.y + 16 && this.speed >= 0) { 
                                 this.y = plat.y - this.radius; this.speed = 0; grounded = true; 
                             }
-                            // 2. Break from below (Hit Bottom)
                             else if (this.y - this.radius <= platBottom && this.y - this.radius >= platBottom - 16 && this.speed < 0) {
                                 marioState.platforms.splice(i, 1); i--;
                                 this.speed = 0;
                                 debrisSystem.createBrickDebris(px + plat.w/2, plat.y + 16);
                                 playSound('break');
                             }
-                            // 3. Side Hit (Death)
                             else if (this.y - this.radius < platBottom && this.y + this.radius > plat.y + 12) {
-                                if (state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); }
+                                // DEATH BY SIDE HIT
+                                if (state.current === state.game && !marioState.died) { 
+                                    state.current = state.over; 
+                                    marioState.died = true; 
+                                    stopBGM(); 
+                                    playSound('mario_die');
+                                    bird.speed = -10; bird.onGround = false; 
+                                }
                             }
                         }
                     }
                     
-                    let overGround = false; for (let seg of marioState.groundSegments) { if (absoluteX >= seg.x && absoluteX <= seg.x + seg.w) { overGround = true; break; } }
-                    if (overGround) { if (this.y >= floorY - 16 && this.y <= floorY + 16 && this.speed >= 0) { this.y = floorY - 16; this.speed = 0; grounded = true; } } 
-                    else { if (this.y > floorY && state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); } }
-                    this.onGround = grounded;
-                    if (this.y > LOGICAL_HEIGHT + 50 && state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); }
-                } else {
-                    if (this.speed >= this.jump) { this.rotation = 90 * DEGREE; this.frame = 1; } else { this.rotation = -25 * DEGREE; }
+                    // Ground Collision
+                    let overGround = false; 
+                    for (let seg of marioState.groundSegments) { 
+                        if (absoluteX + this.radius > seg.x && absoluteX - this.radius < seg.x + seg.w) { 
+                            overGround = true; break; 
+                        } 
+                    }
                     
-                    // --- GEOMETRY DASH COLLISION FIX ---
+                    if (overGround) { 
+                        if (this.y >= floorY - 16 && this.y <= floorY + 16 && this.speed >= 0) { 
+                            this.y = floorY - 16; this.speed = 0; grounded = true; 
+                        } 
+                    } else { 
+                        // PIT DEATH
+                        if (this.y > floorY && state.current === state.game && !marioState.died) { 
+                            state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); 
+                            bird.speed = -10; bird.onGround = false;
+                        } 
+                    }
+                    this.onGround = grounded;
+                    // FALL OFF SCREEN DEATH
+                    if (this.y > LOGICAL_HEIGHT + 50 && state.current === state.game && !marioState.died) { 
+                        state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); 
+                    }
+
+                } else {
+                    if (this.speed >= this.jump) { 
+                        if (userData.equippedSkin !== 'gd') { this.rotation = 90 * DEGREE; this.frame = 1; }
+                    } else { 
+                        if (userData.equippedSkin !== 'gd') this.rotation = -25 * DEGREE; 
+                    }
+                    
                     if (userData.equippedSkin === 'gd') {
-                        let floorY = LOGICAL_HEIGHT - 112 - 15; // 30px height / 2
+                        let floorY = LOGICAL_HEIGHT - 112 - 15;
                         if (this.y >= floorY) {
                             this.y = floorY;
                             this.speed = 0;
                             this.onGround = true;
-                            this.rotation = 0;
+                            let r = this.rotation / (Math.PI/2);
+                            this.rotation = Math.round(r) * (Math.PI/2);
+                        } else {
+                            this.rotation += dt * 0.04;
                         }
                     } else {
-                        // Standard Flappy Bird Floor Death
                         let floorY = LOGICAL_HEIGHT - 112 - this.h/2;
                         if(this.y >= floorY) {
                             if (userData.equippedSkin === 'bigo') { if (state.current === state.game) { state.current = state.falling; screenShake = 25; crackParams.active = true; crackParams.x = this.x; crackParams.width = 10; playSound('hit'); } } 
@@ -541,24 +723,61 @@
         update: function() { const pads = navigator.getGamepads ? navigator.getGamepads() : []; const pad = pads[0]; if (pad) this.handleGamepad(pad); },
         handleGamepad: function(pad) { const axisX = pad.axes[0]; const axisY = pad.axes[1]; const btnA = pad.buttons[0].pressed; const btnB = pad.buttons[1].pressed; const dpadLeft = pad.buttons[14].pressed; const dpadRight = pad.buttons[15].pressed; const dpadUp = pad.buttons[12].pressed; const dpadDown = pad.buttons[13].pressed; let move = 0; if (axisX < -0.5 || dpadLeft) move = -1; else if (axisX > 0.5 || dpadRight) move = 1; if (this.navContext === 'menu' || this.navContext === 'shop') { if (move !== 0 && this.lastAxis === 0) { this.moveFocus(move); this.active = 'gamepad'; resumeAudio(); } } else if (this.navContext === 'settings') { let vMove = 0; if (axisY < -0.5 || dpadUp) vMove = -1; else if (axisY > 0.5 || dpadDown) vMove = 1; if (vMove !== 0 && this.lastAxis === 0) { this.moveFocus(vMove); this.active = 'gamepad'; resumeAudio(); } if (move !== 0 && this.lastAxis === 0) { this.changeSetting(move); } } this.lastAxis = (Math.abs(axisX) > 0.5 || Math.abs(axisY) > 0.5 || dpadLeft || dpadRight || dpadUp || dpadDown) ? 1 : 0; if (btnA && !this.btnPressed) { this.btnPressed = true; this.active = 'gamepad'; resumeAudio(); this.triggerAction(); } else if (!btnA) { this.btnPressed = false; } if (btnB && (this.navContext === 'shop' || this.navContext === 'settings')) { this.closeModal(); } },
         moveFocus: function(dir) { let max = 0; if (this.navContext === 'menu') max = 2; if (this.navContext === 'shop') max = shopConfig.length - 1; if (this.navContext === 'settings') max = 1; this.focusIndex += dir; if (this.focusIndex < 0) this.focusIndex = max; if (this.focusIndex > max) this.focusIndex = 0; this.renderFocus(); },
-        renderFocus: function() { document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused')); if (this.navContext === 'menu') { const btns = [ document.getElementById('shopTriggerBtn'), document.getElementById('startTriggerBtn'), document.getElementById('settingsTriggerBtn') ]; if(btns[this.focusIndex]) btns[this.focusIndex].classList.add('focused'); } else if (this.navContext === 'shop') { const items = document.querySelectorAll('.shop-item'); if(items[this.focusIndex]) { items[this.focusIndex].classList.add('focused'); items[this.focusIndex].scrollIntoView({block: 'center', behavior: 'smooth'}); } } else if (this.navContext === 'settings') { const rows = document.querySelectorAll('.setting-row'); if(rows[this.focusIndex]) rows[this.focusIndex].classList.add('focused'); } },
+        renderFocus: function() { document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused')); if (this.navContext === 'menu') { const btns = [ document.getElementById('shopTriggerBtn'), document.getElementById('startTriggerBtn'), document.getElementById('settingsTriggerBtn') ]; if(btns[this.focusIndex]) btns[this.focusIndex].classList.add('focused'); } else if (this.navContext === 'shop') { const items = document.querySelectorAll('.shop-item'); if(items[this.focusIndex]) { items[this.focusIndex].classList.add('focused'); items[this.focusIndex].scrollIntoView({block: 'center', behavior: 'smooth'}); } } else if (this.navContext === 'settings') { if(this.focusIndex===0) document.querySelector('.custom-select').classList.add('focused'); if(this.focusIndex===1) document.getElementById('fullscreenToggle').classList.add('focused'); } },
         triggerAction: function() { 
             // PREVENT GAME FLAP IF IN MODAL
             if (this.navContext === 'shop') { const item = shopConfig[this.focusIndex]; handleShopClick(item); return; }
-            if (this.navContext === 'settings') { if (this.focusIndex === 1) document.getElementById('fullscreenToggle').click(); return; }
+            if (this.navContext === 'settings') { 
+                if (this.focusIndex === 1) document.getElementById('fullscreenToggle').click(); 
+                if (this.focusIndex === 0) {
+                     // Simulate dropdown open for gamepad? complex.
+                     // Simple cycle for now:
+                     const arr = ['retro', 'native', '720', '1080'];
+                     let idx = arr.indexOf(gameSettings.resolution); idx = (idx+1)%arr.length;
+                     gameSettings.resolution = arr[idx]; localStorage.setItem('fb_res', gameSettings.resolution);
+                     document.getElementById('currentResDisplay').innerText = document.querySelector(`div[data-value="${gameSettings.resolution}"]`).innerText;
+                     resize();
+                }
+                return; 
+            }
 
             if (state.current === state.game) { bird.flap(); playSound('flap'); return; } 
             if (state.current === state.over) { resetGame(); state.current = state.getReady; return; } 
             
             if (this.navContext === 'menu') { if (this.focusIndex === 0) document.getElementById('shopTriggerBtn').click(); else if (this.focusIndex === 1) { state.current = state.game; bird.flap(); playSound('flap'); if (userData.equippedSkin === 'mario') startBGM(); } else if (this.focusIndex === 2) document.getElementById('settingsTriggerBtn').click(); } 
         },
-        changeSetting: function(dir) { if (this.focusIndex === 0) { const sel = document.getElementById('resolutionSelect'); let idx = sel.selectedIndex + dir; if (idx >= 0 && idx < sel.options.length) { sel.selectedIndex = idx; sel.dispatchEvent(new Event('change')); } } },
+        changeSetting: function(dir) { 
+            if (this.focusIndex === 0) { 
+                const arr = ['retro', 'native', '720', '1080'];
+                let idx = arr.indexOf(gameSettings.resolution) + dir; 
+                if(idx < 0) idx = arr.length-1; if(idx >= arr.length) idx = 0;
+                gameSettings.resolution = arr[idx]; localStorage.setItem('fb_res', gameSettings.resolution);
+                document.getElementById('currentResDisplay').innerText = document.querySelector(`div[data-value="${gameSettings.resolution}"]`).innerText;
+                resize();
+            } 
+        },
         openModal: function(context) { this.navContext = context; this.focusIndex = 0; setTimeout(() => this.renderFocus(), 50); },
         closeModal: function() { if (this.navContext === 'shop') document.getElementById('closeShopX').click(); if (this.navContext === 'settings') document.getElementById('closeSettingsX').click(); this.navContext = 'menu'; this.focusIndex = 1; this.renderFocus(); }
     };
 
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log(err));
+            document.getElementById('fullscreenToggle').innerText = "ON";
+            document.getElementById('fullscreenToggle').classList.remove('off');
+        } else {
+            document.exitFullscreen();
+            document.getElementById('fullscreenToggle').innerText = "OFF";
+            document.getElementById('fullscreenToggle').classList.add('off');
+        }
+    }
+    document.getElementById('fullscreenToggle').onclick = (e) => { e.stopPropagation(); toggleFullscreen(); };
+
     window.addEventListener('keydown', (e) => {
         resumeAudio();
+        // HOLD TO FLAP FIX: Prevent repeat events
+        if (e.repeat) return;
+
         // 1. MODAL NAVIGATION - STRICT PRIORITY
         if (Input.navContext === 'shop' || Input.navContext === 'settings') {
             Input.active = 'gamepad';
@@ -608,7 +827,14 @@
             // Safety: Only draw Mario Objects if textures are ready
             // if (images.marioBrick) marioObjects.draw(); 
             marioObjects.draw();
-            debrisSystem.draw(); bird.draw(); fg.draw(); score.draw(); 
+            debrisSystem.draw(); 
+            
+            // DRAW ORDER CHANGE: Ground First, Then Bird
+            // This ensures Mario appears ON TOP of the ground when running and when dying
+            fg.draw(); 
+            bird.draw(); 
+            
+            score.draw(); 
             if (userData.equippedSkin === 'santa') snowSystem.draw();
         } catch(e) { console.error("Draw error:", e); }
 
@@ -752,7 +978,6 @@
         const bigOAlive = createBigOAsset();
         const gdAlive = createGDAsset();
         images.chimney = createChimneyAsset();
-        // REMOVED: createBrickSprite, createGroundSprite, createMarioSprite, createGoombaSprite, createMarioCoin
         
         // Load NEW Mario Assets
         images.marioBrick = await loadImg(ASSETS.sprites.marioBrick);
@@ -778,8 +1003,7 @@
             else if (c === 'gd') { const img = new Image(); img.src = gdAlive.toDataURL(); images.birds[c] = [img, img, img]; }
             else if(c === 'santa') { const img = new Image(); img.src = createSantaAsset().toDataURL(); images.birds[c] = [img, img, img]; }
             else if(c === 'mario') { 
-                // Just use the first walk frame for the Shop icon if needed, or fill array
-                 images.birds[c] = images.marioWalk; // The bird.draw function handles the animation frames specifically for Mario
+                 images.birds[c] = images.marioWalk; 
             }
             else if(ASSETS.sprites['bird' + c.charAt(0).toUpperCase() + c.slice(1)]) {
                 const arr = ASSETS.sprites['bird'+c.charAt(0).toUpperCase()+c.slice(1)];
