@@ -61,7 +61,7 @@
         }
         
         .game-btn:active, .game-btn.active-press { transform: translateY(4px); box-shadow: none; }
-        .game-btn.focused, .shop-item.focused, .setting-row.focused, .close-x.focused, .custom-select.focused, .toggle-btn.focused {
+        .game-btn.focused, .shop-item.focused, .setting-row.focused, .close-x.focused, .custom-select.focused, .toggle-btn.focused, .data-btn.focused {
             border-color: #FFD700; box-shadow: 0 0 15px #FFD700; transform: scale(1.05); z-index: 20;
         }
 
@@ -153,6 +153,16 @@
 
         .toggle-btn { font-family: 'FlappyFont', sans-serif; font-size: 20px; padding: 10px; border-radius: 5px; border: 2px solid #FFF; background: #73BF2E; color: white; cursor: pointer; width: 200px; text-align: center; box-shadow: 0 4px 0 #4d851e; }
         .toggle-btn.off { background: #d32f2f; box-shadow: 0 4px 0 #8b0000; }
+        
+        .data-btn-container { display: flex; gap: 20px; }
+        .data-btn { font-family: 'FlappyFont', sans-serif; font-size: 18px; padding: 8px; border-radius: 5px; border: 2px solid #FFF; background: #4ec0ca; color: white; cursor: pointer; width: 110px; text-align: center; box-shadow: 0 4px 0 #2e8b94; }
+        .data-btn:active { transform: translateY(2px); box-shadow: none; }
+
+        /* Data Modal */
+        #data-io-modal { z-index: 150; display: none; }
+        .io-area { width: 80%; height: 150px; background: #FFF; color: #333; font-family: monospace; padding: 10px; border-radius: 5px; margin-bottom: 20px; resize: none; }
+        .io-actions { display: flex; gap: 20px; }
+
         #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #70c5ce; z-index: 200; display: flex; justify-content: center; align-items: center; color: white; font-size: 30px; text-shadow: 2px 2px 0 #000; }
     </style>
 </head>
@@ -192,6 +202,24 @@
         <div class="setting-row" id="setting-fs-row" data-nav="settings" data-index="1">
             <div class="setting-label">FULLSCREEN</div>
             <button id="fullscreenToggle" class="toggle-btn off" tabindex="-1">OFF</button>
+        </div>
+
+        <div class="setting-row" id="setting-data-row" data-nav="settings" data-index="2">
+            <div class="setting-label">GAME DATA</div>
+            <div class="data-btn-container">
+                <button id="exportDataBtn" class="data-btn" tabindex="-1">EXPORT</button>
+                <button id="importDataBtn" class="data-btn" tabindex="-1">IMPORT</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="data-io-modal" class="modal">
+        <button id="closeDataX" class="close-x">X</button>
+        <h2 id="io-title">EXPORT DATA</h2>
+        <div style="font-size: 16px; margin-bottom: 10px; color: #DDD;">COPY OR PASTE CODE BELOW</div>
+        <textarea id="io-textarea" class="io-area"></textarea>
+        <div class="io-actions">
+            <button id="io-action-btn" class="game-btn" style="position: relative; bottom: auto; display: block;">COPY</button>
         </div>
     </div>
 </div>
@@ -308,6 +336,51 @@
     function createSantaAsset() { const cvs = document.createElement('canvas'); cvs.width = 48; cvs.height = 30; const cx = cvs.getContext('2d'); cx.fillStyle='#8B0000'; cx.beginPath(); cx.moveTo(10,20); cx.lineTo(35,20); cx.lineTo(38,15); cx.lineTo(8,15); cx.fill(); cx.strokeStyle='#C0C0C0'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(5,25); cx.lineTo(40,25); cx.quadraticCurveTo(45,20,42,15); cx.stroke(); cx.fillStyle='#2E8B57'; cx.beginPath(); cx.arc(15,12,8,0,Math.PI*2); cx.fill(); cx.fillStyle='#D32F2F'; cx.beginPath(); cx.arc(28,14,6,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFCCBC'; cx.beginPath(); cx.arc(28,8,4,0,Math.PI*2); cx.fill(); cx.fillStyle='#FFF'; cx.beginPath(); cx.arc(28,10,4,0,Math.PI,false); cx.fill(); cx.fillStyle='#D32F2F'; cx.beginPath(); cx.moveTo(24,6); cx.lineTo(32,6); cx.lineTo(28,0); cx.fill(); return cvs; }
     function createChimneyAsset() { const cvs = document.createElement('canvas'); cvs.width=52; cvs.height=320; const cx=cvs.getContext('2d'); cx.fillStyle='#8D6E63'; cx.fillRect(0,0,52,320); cx.fillStyle='#5D4037'; for(let y=0; y<320; y+=20) { cx.fillRect(0,y,52,2); for(let x=(y%40===0?0:26); x<52; x+=52) cx.fillRect(x,y,2,20); } cx.strokeStyle='#3E2723'; cx.lineWidth=4; cx.strokeRect(0,0,52,320); return cvs; }
 
+    // --- NEW PROCEDURAL ASSETS ---
+    function createSubmarineAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=40; cvs.height=30; const cx=cvs.getContext('2d');
+        cx.fillStyle = '#F1C40F'; cx.beginPath(); cx.ellipse(20, 18, 18, 10, 0, 0, Math.PI*2); cx.fill(); // Body
+        cx.fillStyle = '#2980B9'; cx.beginPath(); cx.arc(20, 18, 5, 0, Math.PI*2); cx.fill(); // Window
+        cx.fillStyle = '#F1C40F'; cx.fillRect(15, 0, 10, 10); // Periscope
+        cx.fillStyle = '#E74C3C'; cx.fillRect(0, 15, 5, 6); // Propeller
+        cx.strokeStyle = '#000'; cx.lineWidth=2; cx.stroke();
+        return cvs;
+    }
+    
+    function createBeeAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=30; cvs.height=24; const cx=cvs.getContext('2d');
+        cx.fillStyle = '#F1C40F'; cx.beginPath(); cx.ellipse(15, 12, 12, 8, 0, 0, Math.PI*2); cx.fill(); // Body
+        cx.fillStyle = '#000'; 
+        cx.fillRect(12, 5, 3, 14); cx.fillRect(18, 5, 3, 14); // Stripes
+        cx.fillStyle = '#FFF'; cx.globalAlpha=0.7; cx.beginPath(); cx.arc(15, 5, 8, 0, Math.PI*2); cx.fill(); cx.globalAlpha=1; // Wing
+        cx.fillStyle = '#000'; cx.beginPath(); cx.arc(22, 10, 2, 0, Math.PI*2); cx.fill(); // Eye
+        return cvs;
+    }
+
+    function createGhostAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=30; cvs.height=30; const cx=cvs.getContext('2d');
+        cx.fillStyle = 'rgba(255,255,255,0.7)'; 
+        cx.beginPath(); cx.arc(15,12,12,Math.PI,0); cx.lineTo(27,30); cx.lineTo(15,22); cx.lineTo(3,30); cx.closePath(); cx.fill();
+        cx.fillStyle = '#000'; cx.beginPath(); cx.arc(11,12,2,0,Math.PI*2); cx.arc(19,12,2,0,Math.PI*2); cx.fill();
+        return cvs;
+    }
+
+    function createNyanAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=36; cvs.height=24; const cx=cvs.getContext('2d');
+        cx.fillStyle = '#999'; cx.fillRect(0,0,36,24); // Placeholder body
+        cx.fillStyle = '#FF99CC'; cx.fillRect(5,5,26,14); // Pop tart
+        cx.fillStyle = '#999'; cx.fillRect(28,2,8,8); // Head
+        cx.fillStyle = '#000'; cx.fillRect(30,4,2,2); cx.fillRect(34,4,2,2); // Eyes
+        return cvs;
+    }
+
+    function createGlitchAsset() {
+        const cvs = document.createElement('canvas'); cvs.width=32; cvs.height=32; const cx=cvs.getContext('2d');
+        cx.fillStyle = '#0F0'; cx.font='20px monospace'; cx.fillText('10',0,15); cx.fillText('01',10,30);
+        cx.strokeStyle = '#0F0'; cx.lineWidth=2; cx.strokeRect(0,0,32,32);
+        return cvs;
+    }
+
     // --- 4. Game Logic ---
     const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
     let gameSettings = { resolution: localStorage.getItem('fb_res') || 'retro' };
@@ -317,37 +390,15 @@
         const selected = document.getElementById('currentResDisplay');
         const items = document.getElementById('resOptions');
         const options = items.getElementsByTagName('div');
-        
-        // Set initial value
-        for(let opt of options) {
-            if(opt.getAttribute('data-value') === gameSettings.resolution) {
-                selected.innerText = opt.innerText;
-                break;
-            }
-        }
-
-        selected.addEventListener('click', function(e) {
-            e.stopPropagation();
-            items.classList.toggle('select-hide');
-            this.classList.toggle('select-arrow-active');
-        });
-
+        for(let opt of options) { if(opt.getAttribute('data-value') === gameSettings.resolution) { selected.innerText = opt.innerText; break; } }
+        selected.addEventListener('click', function(e) { e.stopPropagation(); items.classList.toggle('select-hide'); this.classList.toggle('select-arrow-active'); });
         for(let opt of options) {
             opt.addEventListener('click', function(e) {
-                e.stopPropagation();
-                gameSettings.resolution = this.getAttribute('data-value');
-                localStorage.setItem('fb_res', gameSettings.resolution);
-                selected.innerText = this.innerText;
-                items.classList.add('select-hide');
-                selected.classList.remove('select-arrow-active');
-                resize();
+                e.stopPropagation(); gameSettings.resolution = this.getAttribute('data-value'); localStorage.setItem('fb_res', gameSettings.resolution);
+                selected.innerText = this.innerText; items.classList.add('select-hide'); selected.classList.remove('select-arrow-active'); resize();
             });
         }
-        
-        document.addEventListener('click', function() {
-            items.classList.add('select-hide');
-            selected.classList.remove('select-arrow-active');
-        });
+        document.addEventListener('click', function() { items.classList.add('select-hide'); selected.classList.remove('select-arrow-active'); });
     }
     initDropdown();
 
@@ -367,16 +418,22 @@
     window.addEventListener('resize', resize);
     resize();
 
-    let frames = 0; let screenShake = 0; const DEGREE = Math.PI / 180;
+    let frames = 0; let screenShake = 0; let flashOpacity = 0;
+    const DEGREE = Math.PI / 180;
     const state = { current: 0, getReady: 0, game: 1, over: 2, falling: 3 };
     let userData = {
         highScore: parseInt(localStorage.getItem('fb_highScore')) || 0, coins: parseInt(localStorage.getItem('fb_coins')) || 0,
-        unlockedSkins: JSON.parse(localStorage.getItem('fb_skins')) || ['yellow', 'amongus', 'bigo', 'gd', 'santa', 'mario'], equippedSkin: localStorage.getItem('fb_equipped') || 'yellow'
+        unlockedSkins: JSON.parse(localStorage.getItem('fb_skins')) || ['yellow'], equippedSkin: localStorage.getItem('fb_equipped') || 'yellow'
     };
+    // Ensure default unlocked
+    if(!userData.unlockedSkins.includes('yellow')) userData.unlockedSkins.push('yellow');
+
     const images = {}; let crackParams = { active: false, width: 0, x: 0 }; 
     function getGameSpeed() { 
         if (userData.equippedSkin === 'gd') return 5; 
-        if (userData.equippedSkin === 'mario') return 4.5; // FASTER MARIO SPEED
+        if (userData.equippedSkin === 'mario') return 4.5; 
+        if (userData.equippedSkin === 'nyan') return 3.0;
+        if (userData.equippedSkin === 'ghost') return 1.5;
         return 2; 
     }
 
@@ -388,10 +445,8 @@
         marioState.platforms = []; marioState.enemies = []; marioState.coins = [];
     }
     function updateMarioLevel(dt) {
-        // If getting ready, just infinite scroll ground, don't spawn logic
         if (state.current === state.getReady) {
              marioState.camX += getGameSpeed() * dt;
-             // Recycle ground segment for menu loop
              if (marioState.groundSegments.length < 2) {
                  let last = marioState.groundSegments[marioState.groundSegments.length-1];
                  if (last.x + last.w < marioState.camX + logicalWidth + 100) {
@@ -410,15 +465,12 @@
             let newW = 200 + Math.random() * 400; let nextX = lastSeg.x + lastSeg.w + gapSize;
             marioState.groundSegments.push({x: nextX, w: newW});
             
-            // CLEANUP OBJECTS
             marioState.groundSegments = marioState.groundSegments.filter(s => s.x + s.w > marioState.camX - 100);
             marioState.platforms = marioState.platforms.filter(p => p.x + p.w > marioState.camX - 100);
             marioState.enemies = marioState.enemies.filter(e => e.x > marioState.camX - 100);
             marioState.coins = marioState.coins.filter(c => c.x > marioState.camX - 100);
 
-            // MARIO SCALE UP: Spawn things at appropriate heights for 32px sprites
             if (gapSize === 0) {
-                // Enemy spawn: floor is HEIGHT - 112. Sprite is 32px high.
                 if (Math.random() < 0.5) marioState.enemies.push({x: nextX + 50 + Math.random() * (newW-100), y: LOGICAL_HEIGHT - 112 - 32, type: 'goomba', dead: false});
                 if (Math.random() < 0.3) marioState.coins.push({x: nextX + Math.random() * newW, y: LOGICAL_HEIGHT - 112 - 32, collected: false});
             } else { marioState.coins.push({x: nextX - gapSize/2, y: LOGICAL_HEIGHT - 112 - 60, collected: false}); }
@@ -440,17 +492,87 @@
             this.particles.push({x:x, y:y, vx:-2, vy:-8, life:40, color:'#B85000', size:12});
             this.particles.push({x:x, y:y, vx:2, vy:-8, life:40, color:'#B85000', size:12});
         },
-        update: function(dt) { for(let i=0; i<this.particles.length; i++) { let p = this.particles[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 0.5 * dt; p.life -= dt; if(p.life <= 0) { this.particles.splice(i, 1); i--; } } }, 
-        draw: function() { for(let p of this.particles) { ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); } } 
+        createGDExplosion: function(x, y) {
+            for(let i=0; i<30; i++) {
+                this.particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15,
+                    life: 60,
+                    color: Math.random() < 0.7 ? '#FFD700' : '#000', 
+                    size: Math.random() * 6 + 4
+                });
+            }
+        },
+        createBubbles: function(x, y) {
+            if(Math.random() > 0.3) return;
+            this.particles.push({
+                x: x, y: y, vx: -2, vy: -Math.random()*2, life: 100, color: 'rgba(255,255,255,0.6)', size: Math.random()*4+2, type: 'bubble'
+            });
+        },
+        update: function(dt) { 
+            for(let i=0; i<this.particles.length; i++) { 
+                let p = this.particles[i]; 
+                p.x += p.vx * dt; 
+                p.y += p.vy * dt; 
+                if(p.type !== 'bubble') p.vy += 0.5 * dt; 
+                p.life -= dt; 
+                if(p.life <= 0) { this.particles.splice(i, 1); i--; } 
+            } 
+        }, 
+        draw: function() { 
+            for(let p of this.particles) { 
+                if(p.type === 'bubble') {
+                    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                } else {
+                    ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); 
+                }
+            } 
+        } 
     };
     const snowSystem = { particles: [], update: function(dt) { if (this.particles.length < 50) { this.particles.push({ x: Math.random() * logicalWidth, y: -10, size: Math.random() * 2 + 1, speed: Math.random() * 1 + 0.5 }); } for (let i=0; i<this.particles.length; i++) { let p = this.particles[i]; p.y += p.speed * dt; p.x += Math.sin(frames / 50 + i) * 0.5 * dt; if (p.y > LOGICAL_HEIGHT) { p.y = -10; p.x = Math.random() * logicalWidth; } } }, draw: function() { ctx.fillStyle = '#FFF'; for(let p of this.particles) { ctx.fillRect(p.x, p.y, p.size, p.size); } } };
+    
+    // Nyan Trail System
+    const trailSystem = {
+        points: [],
+        update: function(x, y) {
+            if (userData.equippedSkin !== 'nyan') return;
+            if (frames % 5 === 0) {
+                this.points.push({x: x, y: y});
+                if(this.points.length > 20) this.points.shift();
+            }
+            for(let p of this.points) p.x -= getGameSpeed();
+        },
+        draw: function() {
+            if (userData.equippedSkin !== 'nyan') return;
+            if (this.points.length < 2) return;
+            const colors = ['#FF0000', '#FF9900', '#FFFF00', '#33FF00', '#0099FF', '#6633FF'];
+            for(let i=0; i<colors.length; i++) {
+                ctx.strokeStyle = colors[i];
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for(let j=0; j<this.points.length; j++) {
+                    let offY = (i - 3) * 3;
+                    if(j===0) ctx.moveTo(this.points[j].x, this.points[j].y + offY);
+                    else ctx.lineTo(this.points[j].x, this.points[j].y + offY);
+                }
+                ctx.stroke();
+            }
+        },
+        reset: function() { this.points = []; }
+    };
 
     // --- GAME DRAWING LAYERS ---
     const bg = {
         draw: function() {
             ctx.save();
             if(screenShake > 0) { let dx = (Math.random()-0.5)*screenShake; let dy = (Math.random()-0.5)*screenShake; ctx.translate(dx, dy); screenShake *= 0.9; if(screenShake < 0.5) screenShake = 0; }
+            
+            // Background Colors
             if (userData.equippedSkin === 'mario') { ctx.fillStyle = '#6b8cff'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); } 
+            else if (userData.equippedSkin === 'glitch') { ctx.fillStyle = '#000'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'submarine') { ctx.fillStyle = '#001d3d'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
+            else if (userData.equippedSkin === 'ghost') { ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0,0, logicalWidth, LOGICAL_HEIGHT); }
             else { 
                 let cur = images.bg; 
                 if (userData.equippedSkin === 'amongus' || userData.equippedSkin === 'santa') cur = images.bgSpace; 
@@ -458,6 +580,15 @@
                     const bgW = 276; const count = Math.ceil(logicalWidth / bgW) + 1; 
                     for(let i=0; i<count; i++) ctx.drawImage(cur, i * bgW, LOGICAL_HEIGHT - 512); 
                 } else { ctx.fillStyle = "#70c5ce"; ctx.fillRect(0, 0, logicalWidth, LOGICAL_HEIGHT); }
+            }
+            
+            // Glitch Background Effect
+            if(userData.equippedSkin === 'glitch') {
+                ctx.fillStyle = '#0F0';
+                ctx.font = '10px monospace';
+                for(let i=0; i<10; i++) {
+                    if(Math.random()>0.9) ctx.fillText(Math.random()>0.5?'1':'0', Math.random()*logicalWidth, Math.random()*LOGICAL_HEIGHT);
+                }
             }
             ctx.restore(); 
         }
@@ -482,10 +613,15 @@
                 return;
             }
             let floorY = LOGICAL_HEIGHT - 112;
+            // Submarine has no floor
+            if (userData.equippedSkin === 'submarine') return;
+
             const baseW = 336; const count = Math.ceil(logicalWidth / baseW) + 1;
             ctx.save();
             if (images.base) {
                 if (userData.equippedSkin === 'amongus') ctx.filter = 'hue-rotate(220deg) saturate(1.5) brightness(0.8)';
+                if (userData.equippedSkin === 'glitch') ctx.filter = 'invert(1)';
+                if (userData.equippedSkin === 'ghost') ctx.globalAlpha = 0.5;
                 for(let i=0; i<count; i++) ctx.drawImage(images.base, this.x + (i * baseW), floorY);
             } else {
                 ctx.fillStyle = "#DED895"; ctx.fillRect(0, floorY, logicalWidth, 112);
@@ -510,7 +646,6 @@
                 }
             }
             for (let coin of marioState.coins) {
-                // MARIO SCALE UP: Draw coins slightly smaller visually (20x24) to look better
                 if (!coin.collected) { 
                     let dx = coin.x - marioState.camX; 
                     if(dx>-50&&dx<logicalWidth && images.marioCoin && images.marioCoin.length) {
@@ -537,14 +672,13 @@
                 if (Math.abs(bird.x - enCenterX) < 30 && Math.abs(bird.y - enCenterY) < 30) {
                     if (bird.speed > 0 && bird.y < en.y + 10) { en.dead = true; bird.speed = -4.0; playSound('hit'); } 
                     else { 
-                        // MARIO DEATH TRIGGER
                         if (state.current === state.game && !marioState.died) { 
                             state.current = state.over; 
                             marioState.died = true; 
+                            flashOpacity = 1;
                             stopBGM(); 
                             playSound('mario_die'); 
-                            bird.speed = -10; // Death Jump Velocity
-                            bird.onGround = false;
+                            bird.speed = -10; bird.onGround = false;
                         } 
                     }
                 }
@@ -563,18 +697,37 @@
     const bird = {
         animation: [0, 1, 2, 1], x: 50, y: 150, w: 34, h: 24, radius: 12, frame: 0, speed: 0, gravity: 0.25, jump: 4.6, rotation: 0, onGround: false,
         flap: function() {
-            if (userData.equippedSkin === 'gd') { if (this.onGround) { this.speed = -8.8; this.onGround = false; } } 
-            else if (userData.equippedSkin === 'mario') { if (this.onGround) { this.speed = -8.5; this.onGround = false; } } // HIGHER JUMP
-            else { this.speed = -this.jump; this.rotation = -25 * DEGREE; }
+            if (userData.equippedSkin === 'gd') { 
+                if (this.onGround) { this.speed = -8.8; this.onGround = false; return true; } 
+                return false;
+            } 
+            else if (userData.equippedSkin === 'mario') { 
+                if (this.onGround) { this.speed = -8.5; this.onGround = false; return true; } 
+                return false;
+            }
+            else if (userData.equippedSkin === 'submarine') {
+                this.speed = 4.0; // Dive down
+                this.rotation = 25 * DEGREE;
+                return true;
+            }
+            else if (userData.equippedSkin === 'bee') {
+                this.speed = -3.0; // Small flutter
+                return true;
+            }
+            else { 
+                this.speed = -this.jump; this.rotation = -25 * DEGREE; 
+                return true;
+            }
         },
         draw: function() {
+            if (state.current === state.over && userData.equippedSkin === 'gd') return; // Exploded
+
             let sprite;
             if (state.current === state.over && userData.equippedSkin === 'amongus') { if (images.birdDeadAU) { const img = new Image(); img.src = images.birdDeadAU.toDataURL(); sprite = img; } } 
             else if (userData.equippedSkin === 'mario') {
                 if (state.current === state.over) sprite = images.marioDead; 
                 else if (!this.onGround && state.current === state.game) sprite = images.marioJump; 
                 else { 
-                    // Animate on Get Ready screen too
                     let f = Math.floor((frames / 5) % 3); 
                     sprite = (images.marioWalk && images.marioWalk[f]) ? images.marioWalk[f] : images.marioWalk[0]; 
                 }
@@ -585,10 +738,15 @@
             if (userData.equippedSkin === 'gd') { drawW = 30; drawH = 30; }
             if (userData.equippedSkin === 'santa') { drawW = 48; drawH = 30; }
             if (userData.equippedSkin === 'mario') { drawW = 32; drawH = 32; } 
-            ctx.save(); ctx.translate(this.x, this.y); let rot = this.rotation; if (state.current === state.over && userData.equippedSkin === 'amongus') rot = 0; if (state.current === state.falling) rot = 0; if (userData.equippedSkin === 'mario') rot = 0; ctx.rotate(rot);
+            
+            ctx.save(); ctx.translate(this.x, this.y); let rot = this.rotation; 
+            if (state.current === state.over && userData.equippedSkin === 'amongus') rot = 0; 
+            if (state.current === state.falling) rot = 0; 
+            if (userData.equippedSkin === 'mario') rot = 0; 
+            ctx.rotate(rot);
+            
             if (sprite.complete || sprite instanceof HTMLCanvasElement) { 
                 if (userData.equippedSkin === 'mario') {
-                     // Center it: -16 is half of 32
                      ctx.drawImage(sprite, -16, -16, 32, 32); 
                 } else {
                      ctx.drawImage(sprite, -drawW/2, -drawH/2, drawW, drawH); 
@@ -597,9 +755,13 @@
             ctx.restore();
         },
         update: function(dt) {
+            if (flashOpacity > 0) flashOpacity -= dt * 0.05;
             let period = state.current === state.getReady ? 10 : 5; this.frame += frames % period === 0 ? 1 : 0; this.frame %= this.animation.length;
-            if(userData.equippedSkin === 'bigo') this.radius = 18; else if(userData.equippedSkin === 'gd') this.radius = 15; else if(userData.equippedSkin === 'santa') this.radius = 14; 
-            else if(userData.equippedSkin === 'mario') this.radius = 14; 
+            
+            if (userData.equippedSkin === 'bigo') this.radius = 18; 
+            else if (userData.equippedSkin === 'gd') this.radius = 15; 
+            else if (userData.equippedSkin === 'santa') this.radius = 14; 
+            else if (userData.equippedSkin === 'mario') this.radius = 14; 
             else this.radius = 12;
 
             if(state.current === state.getReady) { 
@@ -612,78 +774,47 @@
                 } 
                 else { this.y = 150; this.rotation = 0; this.speed = 0; } 
             } 
-            else if (state.current === state.falling) { this.speed += (this.gravity * 1.5) * dt; this.y += this.speed * dt; crackParams.width += 3 * dt; if (this.y > LOGICAL_HEIGHT + 60) { state.current = state.over; playSound('hit'); } } 
-            else {
-                let g = (userData.equippedSkin === 'gd' || userData.equippedSkin === 'mario') ? 0.45 : this.gravity;
+            else if (state.current === state.falling) { this.speed += (this.gravity * 1.5) * dt; this.y += this.speed * dt; crackParams.width += 3 * dt; if (this.y > LOGICAL_HEIGHT + 60) { state.current = state.over; flashOpacity = 1; playSound('hit'); } } 
+            else if (state.current === state.game) {
+                // GAME LOGIC ONLY
+                let g = this.gravity;
+                if (userData.equippedSkin === 'gd' || userData.equippedSkin === 'mario') g = 0.45;
+                if (userData.equippedSkin === 'submarine') g = -0.15; // Buoyancy
+                if (userData.equippedSkin === 'bee') g = 0.15; // Low grav
+                if (userData.equippedSkin === 'ghost') g = 0.1; // Float
+
                 this.speed += g * dt; this.y += this.speed * dt;
                 
-                // CEILING COLLISION
-                if (this.y < 0) { this.y = 0; this.speed = 0; }
+                // SUBMARINE BUBBLES
+                if (userData.equippedSkin === 'submarine' && state.current === state.game) {
+                    debrisSystem.createBubbles(this.x - 10, this.y);
+                }
+                
+                // NYAN TRAIL
+                if (userData.equippedSkin === 'nyan' && state.current === state.game) {
+                    trailSystem.update(this.x, this.y);
+                }
 
                 if (userData.equippedSkin === 'mario') {
-                    
-                    // --- MARIO DEATH ANIMATION LOGIC ---
-                    if (state.current === state.over && marioState.died) {
-                        // Simply let him fall through physics, but disable collisions below
-                        return;
-                    }
-
+                    if (state.current === state.over && marioState.died) return;
                     let floorY = LOGICAL_HEIGHT - 112; let grounded = false; let absoluteX = marioState.camX + this.x;
-                    
-                    // Platform Collision
                     for(let i=0; i<marioState.platforms.length; i++) {
-                        let plat = marioState.platforms[i];
-                        let px = plat.x - marioState.camX;
+                        let plat = marioState.platforms[i]; let px = plat.x - marioState.camX;
                         if (this.x + this.radius > px && this.x - this.radius < px + plat.w) {
                             let platBottom = plat.y + 32;
-                            if (this.y + this.radius >= plat.y && this.y + this.radius <= plat.y + 16 && this.speed >= 0) { 
-                                this.y = plat.y - this.radius; this.speed = 0; grounded = true; 
-                            }
-                            else if (this.y - this.radius <= platBottom && this.y - this.radius >= platBottom - 16 && this.speed < 0) {
-                                marioState.platforms.splice(i, 1); i--;
-                                this.speed = 0;
-                                debrisSystem.createBrickDebris(px + plat.w/2, plat.y + 16);
-                                playSound('break');
-                            }
-                            else if (this.y - this.radius < platBottom && this.y + this.radius > plat.y + 12) {
-                                // DEATH BY SIDE HIT
-                                if (state.current === state.game && !marioState.died) { 
-                                    state.current = state.over; 
-                                    marioState.died = true; 
-                                    stopBGM(); 
-                                    playSound('mario_die');
-                                    bird.speed = -10; bird.onGround = false; 
-                                }
-                            }
+                            if (this.y + this.radius >= plat.y && this.y + this.radius <= plat.y + 16 && this.speed >= 0) { this.y = plat.y - this.radius; this.speed = 0; grounded = true; }
+                            else if (this.y - this.radius <= platBottom && this.y - this.radius >= platBottom - 16 && this.speed < 0) { marioState.platforms.splice(i, 1); i--; this.speed = 0; debrisSystem.createBrickDebris(px + plat.w/2, plat.y + 16); playSound('break'); }
+                            else if (this.y - this.radius < platBottom && this.y + this.radius > plat.y + 12) { if (state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; flashOpacity = 1; stopBGM(); playSound('mario_die'); bird.speed = -10; bird.onGround = false; } }
                         }
                     }
-                    
-                    // Ground Collision
-                    let overGround = false; 
-                    for (let seg of marioState.groundSegments) { 
-                        if (absoluteX + this.radius > seg.x && absoluteX - this.radius < seg.x + seg.w) { 
-                            overGround = true; break; 
-                        } 
-                    }
-                    
-                    if (overGround) { 
-                        if (this.y >= floorY - 16 && this.y <= floorY + 16 && this.speed >= 0) { 
-                            this.y = floorY - 16; this.speed = 0; grounded = true; 
-                        } 
-                    } else { 
-                        // PIT DEATH
-                        if (this.y > floorY && state.current === state.game && !marioState.died) { 
-                            state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); 
-                            bird.speed = -10; bird.onGround = false;
-                        } 
-                    }
+                    let overGround = false; for (let seg of marioState.groundSegments) { if (absoluteX + this.radius > seg.x && absoluteX - this.radius < seg.x + seg.w) { overGround = true; break; } }
+                    if (overGround) { if (this.y >= floorY - 16 && this.y <= floorY + 16 && this.speed >= 0) { this.y = floorY - 16; this.speed = 0; grounded = true; } } 
+                    else { if (this.y > floorY && state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; flashOpacity = 1; stopBGM(); playSound('mario_die'); bird.speed = -10; bird.onGround = false; } }
                     this.onGround = grounded;
-                    // FALL OFF SCREEN DEATH
-                    if (this.y > LOGICAL_HEIGHT + 50 && state.current === state.game && !marioState.died) { 
-                        state.current = state.over; marioState.died = true; stopBGM(); playSound('mario_die'); 
-                    }
-
+                    if (this.y > LOGICAL_HEIGHT + 50 && state.current === state.game && !marioState.died) { state.current = state.over; marioState.died = true; flashOpacity = 1; stopBGM(); playSound('mario_die'); }
                 } else {
+                    if (userData.equippedSkin !== 'submarine' && this.y < 0) { this.y = 0; this.speed = 0; } // Ceiling
+
                     if (this.speed >= this.jump) { 
                         if (userData.equippedSkin !== 'gd') { this.rotation = 90 * DEGREE; this.frame = 1; }
                     } else { 
@@ -692,28 +823,132 @@
                     
                     if (userData.equippedSkin === 'gd') {
                         let floorY = LOGICAL_HEIGHT - 112 - 15;
-                        if (this.y >= floorY) {
-                            this.y = floorY;
-                            this.speed = 0;
-                            this.onGround = true;
-                            let r = this.rotation / (Math.PI/2);
-                            this.rotation = Math.round(r) * (Math.PI/2);
-                        } else {
-                            this.rotation += dt * 0.04;
-                        }
+                        if (this.y >= floorY) { this.y = floorY; this.speed = 0; this.onGround = true; let r = this.rotation / (Math.PI/2); this.rotation = Math.round(r) * (Math.PI/2); } 
+                        else { this.rotation += dt * 0.04; }
                     } else {
+                        // DEATH CONDITIONS
                         let floorY = LOGICAL_HEIGHT - 112 - this.h/2;
-                        if(this.y >= floorY) {
-                            if (userData.equippedSkin === 'bigo') { if (state.current === state.game) { state.current = state.falling; screenShake = 25; crackParams.active = true; crackParams.x = this.x; crackParams.width = 10; playSound('hit'); } } 
-                            else { this.y = floorY; if(state.current === state.game) { state.current = state.over; if(userData.equippedSkin === 'amongus') playSound('die'); else playSound('hit'); } }
+                        if (userData.equippedSkin === 'submarine') {
+                            // Submarine death logic: Hitting bottom or top of screen
+                            if (this.y < 0 || this.y > LOGICAL_HEIGHT - this.h) { 
+                                state.current = state.over; flashOpacity = 1; playSound('hit');
+                            }
+                        } else {
+                            if(this.y >= floorY) {
+                                if (userData.equippedSkin === 'bigo') { if (state.current === state.game) { state.current = state.falling; screenShake = 25; crackParams.active = true; crackParams.x = this.x; crackParams.width = 10; playSound('hit'); } } 
+                                else { this.y = floorY; if(state.current === state.game) { state.current = state.over; flashOpacity = 1; if(userData.equippedSkin === 'amongus') playSound('die'); else playSound('hit'); } }
+                            }
                         }
                     }
+                }
+            } else if (state.current === state.over) {
+                // GAME OVER PHYSICS
+                let g = this.gravity;
+                if (userData.equippedSkin === 'submarine') g = -0.15;
+                if (userData.equippedSkin === 'mario' && marioState.died) g = 0.45;
+                
+                this.speed += g * dt; 
+                this.y += this.speed * dt;
+
+                // FIX: Clamp to ground for standard skins
+                if (userData.equippedSkin !== 'mario' && userData.equippedSkin !== 'submarine' && userData.equippedSkin !== 'ghost' && userData.equippedSkin !== 'bigo') {
+                     let floorY = LOGICAL_HEIGHT - 112 - this.h/2;
+                     if (this.y >= floorY) {
+                         this.y = floorY;
+                         this.speed = 0;
+                         this.rotation = 90 * DEGREE; 
+                     }
                 }
             }
         }
     };
 
-    const pipes = { position: [], w: 52, gap: 100, lastSpawn: 0, update: function(dt) { if (userData.equippedSkin === 'mario') return; if(state.current !== state.game) return; let spawnRate = 100; this.lastSpawn += dt; if(this.lastSpawn > spawnRate) { this.lastSpawn = 0; let spikeCount = 0; if (userData.equippedSkin === 'gd') spikeCount = Math.floor(Math.random() * 3) + 1; this.position.push({ x: logicalWidth, y: -150 * (Math.random() + 1), passed: false, hasCoin: userData.equippedSkin !== 'bigo' && userData.equippedSkin !== 'gd' && Math.random() < 0.4, hasBurger: userData.equippedSkin === 'bigo', collected: false, broken: false, spikes: spikeCount }); } for(let i=0; i<this.position.length; i++) { let p = this.position[i]; let bY = p.y + 320 + this.gap; let collided = false; if (userData.equippedSkin === 'gd') { let spikeY = LOGICAL_HEIGHT - 112; let birdBottom = bird.y + bird.radius; let birdRight = bird.x + bird.radius; let birdLeft = bird.x - bird.radius; let spikesW = p.spikes * 30; if (birdRight > p.x + 10 && birdLeft < p.x + spikesW - 10) { if (birdBottom > spikeY - 20) collided = true; } } else { if (!p.broken) { if(bird.x+bird.radius > p.x && bird.x-bird.radius < p.x+this.w && (bird.y-bird.radius < p.y+320 || bird.y+bird.radius > bY)) { collided = true; } } } if (collided) { if (userData.equippedSkin === 'bigo') { if (!p.broken) { p.broken = true; debrisSystem.create(p.x + this.w/2, p.y + 320); playSound('hit'); screenShake = 10; } } else { state.current = state.over; playSound('hit'); if (userData.equippedSkin !== 'amongus' && userData.equippedSkin !== 'gd') setTimeout(() => playSound('die'), 300); } } let scoreCondition = false; if (userData.equippedSkin === 'bigo') { if (p.hasBurger && !p.collected) { let cx = p.x + this.w/2, cy = p.y + 320 + this.gap/2; if(Math.hypot(bird.x-cx, bird.y-cy) < 35) { p.collected = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('chomp'); saveData(); } } } else if (userData.equippedSkin === 'gd') { if(!p.passed && bird.x > p.x + (p.spikes*30)) scoreCondition = true; } else { if(!p.passed && bird.x - bird.radius > p.x + this.w) scoreCondition = true; } if(scoreCondition) { p.passed = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('point'); saveData(); } if(p.hasCoin && !p.collected) { let cx = p.x + this.w/2, cy = p.y + 320 + this.gap/2; if (userData.equippedSkin === 'gd') { cx = p.x + (p.spikes*30) + 100; cy = LOGICAL_HEIGHT - 112 - 20; } if(Math.hypot(bird.x-cx, bird.y-cy) < 30) { p.collected = true; userData.coins++; saveData(); playSound('coin'); document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; } } p.x -= getGameSpeed() * dt; if(p.x + 150 <= 0) { this.position.shift(); i--; } } }, draw: function() { if (userData.equippedSkin === 'mario') return; let isAU = userData.equippedSkin === 'amongus'; let isGD = userData.equippedSkin === 'gd'; let isSanta = userData.equippedSkin === 'santa'; for(let p of this.position) { if (!p.broken) { if (isGD) { let floorY = LOGICAL_HEIGHT - 112; ctx.fillStyle = '#333'; ctx.beginPath(); for(let i=0; i<p.spikes; i++) { let sx = p.x + (i * 30); ctx.moveTo(sx, floorY); ctx.lineTo(sx + 15, floorY - 30); ctx.lineTo(sx + 30, floorY); } ctx.fill(); ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.stroke(); } else if (isSanta) { let topY = p.y; let bottomY = p.y + 320 + this.gap; ctx.save(); ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.chimney, -this.w/2, -160, this.w, 320); ctx.fillStyle='#FFF'; ctx.fillRect(-this.w/2 - 2, 160-15, this.w+4, 15); ctx.restore(); ctx.save(); ctx.drawImage(images.chimney, p.x, bottomY); ctx.fillStyle='#FFF'; ctx.fillRect(p.x - 2, bottomY, this.w+4, 15); ctx.restore(); } else { if (images.pipe) { let topY = p.y; let bottomY = p.y + 320 + this.gap; ctx.save(); if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)'; ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.pipe, -this.w/2, -160, this.w, 320); ctx.restore(); ctx.save(); if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)'; ctx.drawImage(images.pipe, p.x, bottomY); ctx.restore(); } else { ctx.fillStyle = "green"; ctx.fillRect(p.x, p.y, this.w, 320); ctx.fillRect(p.x, p.y + 320 + this.gap, this.w, 320); } } } if(p.hasBurger && !p.collected && images.burger) { ctx.drawImage(images.burger, p.x + this.w/2 - 12, p.y + 320 + this.gap/2 - 10); } if(p.hasCoin && !p.collected) { let cx = p.x + this.w/2, cy = p.y + 320 + this.gap/2; if (isGD) { cx = p.x + (p.spikes*30) + 100; cy = LOGICAL_HEIGHT - 112 - 20; } ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFF'; ctx.font = '12px FlappyFont'; ctx.fillText("$", cx-3, cy+3); } } } };
+    const pipes = { position: [], w: 52, gap: 100, lastSpawn: 0, update: function(dt) { if (userData.equippedSkin === 'mario') return; if(state.current !== state.game) return; let spawnRate = 100; this.lastSpawn += dt; if(this.lastSpawn > spawnRate) { this.lastSpawn = 0; let spikeCount = 0; if (userData.equippedSkin === 'gd') spikeCount = Math.floor(Math.random() * 3) + 1; 
+        
+        // COIN LOGIC
+        let spawnCoin = false;
+        // Big O now gets coins 100% of the time alongside random burgers
+        if (userData.equippedSkin === 'bigo') spawnCoin = true; 
+        else if (userData.equippedSkin === 'gd') spawnCoin = Math.random() < 0.5; // GD gets coins
+        else if (userData.equippedSkin !== 'bigo' && userData.equippedSkin !== 'gd') spawnCoin = Math.random() < 0.4;
+
+        this.position.push({ x: logicalWidth, y: -150 * (Math.random() + 1), passed: false, hasCoin: spawnCoin, hasBurger: userData.equippedSkin === 'bigo' && Math.random() < 0.6, collected: false, broken: false, spikes: spikeCount, timeOffset: Math.random() * 10 }); } for(let i=0; i<this.position.length; i++) { let p = this.position[i]; 
+        
+        // GLITCH MODE: MOVING PIPES
+        let yOffset = 0;
+        if(userData.equippedSkin === 'glitch') {
+            yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
+        }
+
+        let bY = p.y + yOffset + 320 + this.gap; let collided = false; 
+        
+        if (userData.equippedSkin === 'gd') { 
+            let spikeY = LOGICAL_HEIGHT - 112; let birdBottom = bird.y + bird.radius; let birdRight = bird.x + bird.radius; let birdLeft = bird.x - bird.radius; let spikesW = p.spikes * 30; if (birdRight > p.x + 10 && birdLeft < p.x + spikesW - 10) { if (birdBottom > spikeY - 20) collided = true; } 
+        } else { 
+            if (!p.broken) { 
+                if(bird.x+bird.radius > p.x && bird.x-bird.radius < p.x+this.w && (bird.y-bird.radius < p.y + yOffset +320 || bird.y+bird.radius > bY)) { collided = true; } 
+            } 
+        } 
+        
+        if (collided) { if (userData.equippedSkin === 'bigo') { if (!p.broken) { p.broken = true; debrisSystem.create(p.x + this.w/2, p.y + 320); playSound('hit'); screenShake = 10; } } else { state.current = state.over; flashOpacity = 1; playSound('hit'); if(userData.equippedSkin === 'gd') { debrisSystem.createGDExplosion(bird.x, bird.y); } if (userData.equippedSkin !== 'amongus' && userData.equippedSkin !== 'gd') setTimeout(() => playSound('die'), 300); } } 
+        
+        let scoreCondition = false; if (userData.equippedSkin === 'bigo') { if (p.hasBurger && !p.burgerCollected) { let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; if(Math.hypot(bird.x-cx, bird.y-cy) < 35) { p.burgerCollected = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('chomp'); saveData(); } } } else if (userData.equippedSkin === 'gd') { if(!p.passed && bird.x > p.x + (p.spikes*30)) scoreCondition = true; } else { if(!p.passed && bird.x - bird.radius > p.x + this.w) scoreCondition = true; } if(scoreCondition) { p.passed = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('point'); saveData(); } 
+        
+        if(p.hasCoin && !p.coinCollected) { 
+            let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; 
+            
+            // GD COIN POSITION: ON GROUND AFTER SPIKES
+            if (userData.equippedSkin === 'gd') { 
+                cx = p.x + (p.spikes*30) + 60; // 60px after spikes
+                cy = LOGICAL_HEIGHT - 112 - 20; // On floor
+            } 
+            
+            // BIG O COIN POSITION: Horizontal Gap between pipes (STILL, no sine wave)
+            if (userData.equippedSkin === 'bigo') {
+                cx = p.x + 120; // Offset into the open air after the pipe
+                cy = LOGICAL_HEIGHT / 2; // FIXED CENTER POSITION
+            }
+
+            if(Math.hypot(bird.x-cx, bird.y-cy) < 30) { p.coinCollected = true; userData.coins++; saveData(); playSound('coin'); document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; } 
+        } 
+        
+        p.x -= getGameSpeed() * dt; if(p.x + 150 <= 0) { this.position.shift(); i--; } } }, draw: function() { if (userData.equippedSkin === 'mario') return; let isAU = userData.equippedSkin === 'amongus'; let isGD = userData.equippedSkin === 'gd'; let isSanta = userData.equippedSkin === 'santa'; for(let p of this.position) { if (!p.broken) { 
+            
+            let yOffset = 0;
+            if(userData.equippedSkin === 'glitch') yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
+
+            if (isGD) { 
+                let floorY = LOGICAL_HEIGHT - 112; ctx.fillStyle = '#333'; ctx.beginPath(); for(let i=0; i<p.spikes; i++) { let sx = p.x + (i * 30); ctx.moveTo(sx, floorY); ctx.lineTo(sx + 15, floorY - 30); ctx.lineTo(sx + 30, floorY); } ctx.fill(); ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2; ctx.stroke(); 
+            } else if (isSanta) { 
+                let topY = p.y + yOffset; let bottomY = p.y + yOffset + 320 + this.gap; ctx.save(); ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.chimney, -this.w/2, -160, this.w, 320); ctx.fillStyle='#FFF'; ctx.fillRect(-this.w/2 - 2, 160-15, this.w+4, 15); ctx.restore(); ctx.save(); ctx.drawImage(images.chimney, p.x, bottomY); ctx.fillStyle='#FFF'; ctx.fillRect(p.x - 2, bottomY, this.w+4, 15); ctx.restore(); 
+            } else { 
+                let topY = p.y + yOffset; let bottomY = p.y + yOffset + 320 + this.gap;
+                if (images.pipe) { 
+                    ctx.save(); if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)'; 
+                    if(userData.equippedSkin === 'glitch') ctx.filter = 'invert(1)';
+                    ctx.translate(p.x + this.w/2, topY + 160); ctx.rotate(Math.PI); ctx.drawImage(images.pipe, -this.w/2, -160, this.w, 320); ctx.restore(); ctx.save(); if(isAU) ctx.filter = 'grayscale(1) contrast(1.5) brightness(0.8)'; if(userData.equippedSkin === 'glitch') ctx.filter = 'invert(1)'; ctx.drawImage(images.pipe, p.x, bottomY); ctx.restore(); 
+                } else { ctx.fillStyle = "green"; ctx.fillRect(p.x, topY, this.w, 320); ctx.fillRect(p.x, bottomY, this.w, 320); } 
+            } } 
+            
+            let yOffset = 0; if(userData.equippedSkin === 'glitch') yOffset = Math.sin(frames * 0.05 + p.timeOffset) * 50;
+            if(p.hasBurger && !p.burgerCollected && images.burger) { 
+                // Draw burger inside the pipe gap
+                let bx = p.x + this.w/2 - 12;
+                let by = p.y + yOffset + 320 + this.gap/2 - 10;
+                ctx.drawImage(images.burger, bx, by); 
+            } 
+            if(p.hasCoin && !p.coinCollected) { 
+                let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; 
+                if (isGD) { cx = p.x + (p.spikes*30) + 60; cy = LOGICAL_HEIGHT - 112 - 20; } 
+                if (userData.equippedSkin === 'bigo') {
+                    // Coin in the air gap
+                    cx = p.x + 120;
+                    cy = LOGICAL_HEIGHT / 2; // FIXED CENTER
+                }
+
+                ctx.fillStyle = '#FFD700'; ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFF'; ctx.font = '12px FlappyFont'; ctx.fillText("$", cx-3, cy+3); 
+            } 
+        } } };
 
     const score = { value: 0, draw: function() { ctx.fillStyle = '#FFF'; ctx.strokeStyle = '#000'; if (state.current === state.game) { ctx.lineWidth = 2; ctx.font = '35px FlappyFont'; let text = this.value; if (userData.equippedSkin === 'mario') text = marioState.timer.toFixed(2); ctx.fillText(text, logicalWidth / 2, 50); ctx.strokeText(text, logicalWidth / 2, 50); } }, reset: function() { this.value = 0; } };
 
@@ -722,29 +957,25 @@
         active: 'mouse', focusIndex: 1, navContext: 'menu', lastAxis: 0, btnPressed: false,
         update: function() { const pads = navigator.getGamepads ? navigator.getGamepads() : []; const pad = pads[0]; if (pad) this.handleGamepad(pad); },
         handleGamepad: function(pad) { const axisX = pad.axes[0]; const axisY = pad.axes[1]; const btnA = pad.buttons[0].pressed; const btnB = pad.buttons[1].pressed; const dpadLeft = pad.buttons[14].pressed; const dpadRight = pad.buttons[15].pressed; const dpadUp = pad.buttons[12].pressed; const dpadDown = pad.buttons[13].pressed; let move = 0; if (axisX < -0.5 || dpadLeft) move = -1; else if (axisX > 0.5 || dpadRight) move = 1; if (this.navContext === 'menu' || this.navContext === 'shop') { if (move !== 0 && this.lastAxis === 0) { this.moveFocus(move); this.active = 'gamepad'; resumeAudio(); } } else if (this.navContext === 'settings') { let vMove = 0; if (axisY < -0.5 || dpadUp) vMove = -1; else if (axisY > 0.5 || dpadDown) vMove = 1; if (vMove !== 0 && this.lastAxis === 0) { this.moveFocus(vMove); this.active = 'gamepad'; resumeAudio(); } if (move !== 0 && this.lastAxis === 0) { this.changeSetting(move); } } this.lastAxis = (Math.abs(axisX) > 0.5 || Math.abs(axisY) > 0.5 || dpadLeft || dpadRight || dpadUp || dpadDown) ? 1 : 0; if (btnA && !this.btnPressed) { this.btnPressed = true; this.active = 'gamepad'; resumeAudio(); this.triggerAction(); } else if (!btnA) { this.btnPressed = false; } if (btnB && (this.navContext === 'shop' || this.navContext === 'settings')) { this.closeModal(); } },
-        moveFocus: function(dir) { let max = 0; if (this.navContext === 'menu') max = 2; if (this.navContext === 'shop') max = shopConfig.length - 1; if (this.navContext === 'settings') max = 1; this.focusIndex += dir; if (this.focusIndex < 0) this.focusIndex = max; if (this.focusIndex > max) this.focusIndex = 0; this.renderFocus(); },
-        renderFocus: function() { document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused')); if (this.navContext === 'menu') { const btns = [ document.getElementById('shopTriggerBtn'), document.getElementById('startTriggerBtn'), document.getElementById('settingsTriggerBtn') ]; if(btns[this.focusIndex]) btns[this.focusIndex].classList.add('focused'); } else if (this.navContext === 'shop') { const items = document.querySelectorAll('.shop-item'); if(items[this.focusIndex]) { items[this.focusIndex].classList.add('focused'); items[this.focusIndex].scrollIntoView({block: 'center', behavior: 'smooth'}); } } else if (this.navContext === 'settings') { if(this.focusIndex===0) document.querySelector('.custom-select').classList.add('focused'); if(this.focusIndex===1) document.getElementById('fullscreenToggle').classList.add('focused'); } },
+        moveFocus: function(dir) { let max = 0; if (this.navContext === 'menu') max = 2; if (this.navContext === 'shop') max = shopConfig.length - 1; if (this.navContext === 'settings') max = 2; this.focusIndex += dir; if (this.focusIndex < 0) this.focusIndex = max; if (this.focusIndex > max) this.focusIndex = 0; this.renderFocus(); },
+        renderFocus: function() { document.querySelectorAll('.focused').forEach(el => el.classList.remove('focused')); if (this.navContext === 'menu') { const btns = [ document.getElementById('shopTriggerBtn'), document.getElementById('startTriggerBtn'), document.getElementById('settingsTriggerBtn') ]; if(btns[this.focusIndex]) btns[this.focusIndex].classList.add('focused'); } else if (this.navContext === 'shop') { const items = document.querySelectorAll('.shop-item'); if(items[this.focusIndex]) { items[this.focusIndex].classList.add('focused'); items[this.focusIndex].scrollIntoView({block: 'center', behavior: 'smooth'}); } } else if (this.navContext === 'settings') { if(this.focusIndex===0) document.querySelector('.custom-select').classList.add('focused'); if(this.focusIndex===1) document.getElementById('fullscreenToggle').classList.add('focused'); if(this.focusIndex===2) document.getElementById('exportDataBtn').classList.add('focused'); } },
         triggerAction: function() { 
-            // PREVENT GAME FLAP IF IN MODAL
             if (this.navContext === 'shop') { const item = shopConfig[this.focusIndex]; handleShopClick(item); return; }
             if (this.navContext === 'settings') { 
                 if (this.focusIndex === 1) document.getElementById('fullscreenToggle').click(); 
                 if (this.focusIndex === 0) {
-                     // Simulate dropdown open for gamepad? complex.
-                     // Simple cycle for now:
                      const arr = ['retro', 'native', '720', '1080'];
                      let idx = arr.indexOf(gameSettings.resolution); idx = (idx+1)%arr.length;
                      gameSettings.resolution = arr[idx]; localStorage.setItem('fb_res', gameSettings.resolution);
                      document.getElementById('currentResDisplay').innerText = document.querySelector(`div[data-value="${gameSettings.resolution}"]`).innerText;
                      resize();
                 }
+                if(this.focusIndex === 2) { openDataModal('export'); }
                 return; 
             }
-
-            if (state.current === state.game) { bird.flap(); playSound('flap'); return; } 
+            if (state.current === state.game) { if(bird.flap()) playSound('flap'); return; } 
             if (state.current === state.over) { resetGame(); state.current = state.getReady; return; } 
-            
-            if (this.navContext === 'menu') { if (this.focusIndex === 0) document.getElementById('shopTriggerBtn').click(); else if (this.focusIndex === 1) { state.current = state.game; bird.flap(); playSound('flap'); if (userData.equippedSkin === 'mario') startBGM(); } else if (this.focusIndex === 2) document.getElementById('settingsTriggerBtn').click(); } 
+            if (this.navContext === 'menu') { if (this.focusIndex === 0) document.getElementById('shopTriggerBtn').click(); else if (this.focusIndex === 1) { state.current = state.game; if(bird.flap()) playSound('flap'); if (userData.equippedSkin === 'mario') startBGM(); } else if (this.focusIndex === 2) document.getElementById('settingsTriggerBtn').click(); } 
         },
         changeSetting: function(dir) { 
             if (this.focusIndex === 0) { 
@@ -773,12 +1004,78 @@
     }
     document.getElementById('fullscreenToggle').onclick = (e) => { e.stopPropagation(); toggleFullscreen(); };
 
+    // --- DATA IMPORT/EXPORT ---
+    const dataModal = document.getElementById('data-io-modal');
+    const ioTitle = document.getElementById('io-title');
+    const ioTextarea = document.getElementById('io-textarea');
+    const ioActionBtn = document.getElementById('io-action-btn');
+    let ioMode = 'export';
+
+    function openDataModal(mode) {
+        ioMode = mode;
+        dataModal.style.display = 'flex';
+        if (mode === 'export') {
+            ioTitle.innerText = "EXPORT DATA";
+            ioActionBtn.innerText = "COPY";
+            try {
+                const json = JSON.stringify(userData);
+                ioTextarea.value = btoa(json);
+            } catch(e) { ioTextarea.value = "Error generating data"; }
+            ioTextarea.readOnly = true;
+        } else {
+            ioTitle.innerText = "IMPORT DATA";
+            ioActionBtn.innerText = "LOAD";
+            ioTextarea.value = "";
+            ioTextarea.readOnly = false;
+            ioTextarea.focus();
+        }
+    }
+
+    document.getElementById('exportDataBtn').onclick = (e) => { e.stopPropagation(); openDataModal('export'); };
+    document.getElementById('importDataBtn').onclick = (e) => { e.stopPropagation(); openDataModal('import'); };
+    
+    document.getElementById('closeDataX').onclick = (e) => {
+        e.stopPropagation();
+        dataModal.style.display = 'none';
+    };
+
+    ioActionBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (ioMode === 'export') {
+            ioTextarea.select();
+            document.execCommand('copy');
+            ioActionBtn.innerText = "COPIED!";
+            setTimeout(() => ioActionBtn.innerText = "COPY", 1500);
+        } else {
+            try {
+                const str = ioTextarea.value.trim();
+                if(!str) return;
+                const json = atob(str);
+                const data = JSON.parse(json);
+                if (data && typeof data.coins === 'number') {
+                    userData = data;
+                    saveData();
+                    ioActionBtn.innerText = "LOADED!";
+                    setTimeout(() => {
+                        dataModal.style.display = 'none';
+                        location.reload(); // Reload to apply
+                    }, 1000);
+                } else {
+                    ioActionBtn.innerText = "INVALID";
+                }
+            } catch(e) {
+                ioActionBtn.innerText = "ERROR";
+            }
+        }
+    };
+
     window.addEventListener('keydown', (e) => {
         resumeAudio();
-        // HOLD TO FLAP FIX: Prevent repeat events
         if (e.repeat) return;
-
-        // 1. MODAL NAVIGATION - STRICT PRIORITY
+        if (dataModal.style.display === 'flex') {
+             if(e.code === 'Escape') dataModal.style.display = 'none';
+             return; // Stop other input
+        }
         if (Input.navContext === 'shop' || Input.navContext === 'settings') {
             Input.active = 'gamepad';
             switch(e.code) {
@@ -789,30 +1086,14 @@
                 case 'Enter': case 'Space': Input.triggerAction(); break;
                 case 'Escape': case 'Backspace': Input.closeModal(); break;
             }
-            return; // STOP HERE: Do not check game keys
+            return;
         }
-
-        // 2. GAME PLAY
-        if (state.current === state.game) { 
-            if (['Space','ArrowUp','Enter','KeyW'].includes(e.code)) { bird.flap(); playSound('flap'); } 
-            return; 
-        }
-
-        // 3. MENU NAVIGATION
+        if (state.current === state.game) { if (['Space','ArrowUp','Enter','KeyW'].includes(e.code)) { if(bird.flap()) playSound('flap'); } return; }
         Input.active = 'gamepad';
         switch(e.code) {
             case 'ArrowLeft': Input.moveFocus(-1); break;
             case 'ArrowRight': Input.moveFocus(1); break;
-            case 'Enter': case 'Space': 
-                if (Input.navContext === 'menu') { 
-                    Input.triggerAction(); 
-                } else if (state.current === state.getReady) {
-                    // Only Start if NOT in a modal (double check)
-                    if (document.getElementById('shop-modal').style.display !== 'flex' && document.getElementById('settings-modal').style.display !== 'flex') {
-                        state.current = state.game; bird.flap(); playSound('flap'); if (userData.equippedSkin === 'mario') startBGM();
-                    }
-                }
-                break;
+            case 'Enter': case 'Space': if (Input.navContext === 'menu') { Input.triggerAction(); } else if (state.current === state.getReady) { if (document.getElementById('shop-modal').style.display !== 'flex' && document.getElementById('settings-modal').style.display !== 'flex') { state.current = state.game; if(bird.flap()) playSound('flap'); if (userData.equippedSkin === 'mario') startBGM(); } } break;
             case 'Escape': case 'Backspace': Input.closeModal(); break;
         }
     });
@@ -824,18 +1105,14 @@
         bg.draw(); 
         try {
             pipes.draw(); 
-            // Safety: Only draw Mario Objects if textures are ready
-            // if (images.marioBrick) marioObjects.draw(); 
+            trailSystem.draw();
             marioObjects.draw();
             debrisSystem.draw(); 
-            
-            // DRAW ORDER CHANGE: Ground First, Then Bird
-            // This ensures Mario appears ON TOP of the ground when running and when dying
             fg.draw(); 
             bird.draw(); 
-            
             score.draw(); 
             if (userData.equippedSkin === 'santa') snowSystem.draw();
+            if (flashOpacity > 0) { ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`; ctx.fillRect(0, 0, logicalWidth, LOGICAL_HEIGHT); }
         } catch(e) { console.error("Draw error:", e); }
 
         if (state.current === state.getReady) {
@@ -885,14 +1162,27 @@
 
     function resetGame() { 
         stopBGM(); bird.speed = 0; bird.y = 150; pipes.position = []; score.value = 0; frames = 0; 
-        debrisSystem.particles = []; crackParams={active:false,width:0,x:0}; pipes.lastSpawn = 0; 
+        debrisSystem.particles = []; crackParams={active:false,width:0,x:0}; pipes.lastSpawn = 0; flashOpacity = 0;
+        trailSystem.reset();
         if (userData.equippedSkin === 'mario') initMarioLevel();
         Input.focusIndex = 1; Input.renderFocus();
     }
     
     function saveData() { localStorage.setItem('fb_highScore', userData.highScore); localStorage.setItem('fb_coins', userData.coins); localStorage.setItem('fb_skins', JSON.stringify(userData.unlockedSkins)); localStorage.setItem('fb_equipped', userData.equippedSkin); }
 
-    const shopConfig = [ { id: 'yellow', name: 'Original', price: 0 }, { id: 'amongus', name: 'Among Us', price: 0 }, { id: 'bigo', name: 'Big O', price: 0 }, { id: 'gd', name: 'Dash', price: 0 }, { id: 'santa', name: 'Santa', price: 0 }, { id: 'mario', name: 'Mario Run', price: 0 } ];
+    const shopConfig = [ 
+        { id: 'yellow', name: 'Original', price: 0 }, 
+        { id: 'amongus', name: 'Among Us', price: 5 },
+        { id: 'bee', name: 'Bee', price: 5 }, 
+        { id: 'bigo', name: 'Big O', price: 10 }, 
+        { id: 'ghost', name: 'Ghost', price: 10 },
+        { id: 'santa', name: 'Santa', price: 15 }, 
+        { id: 'nyan', name: 'Nyan', price: 15 },
+        { id: 'gd', name: 'Dash', price: 25 }, 
+        { id: 'glitch', name: 'Glitch', price: 25 },
+        { id: 'submarine', name: 'Submarine', price: 30 },
+        { id: 'mario', name: 'Mario', price: 40 }
+    ];
 
     function initShop() {
         const container = document.getElementById('shopItemsContainer'); container.innerHTML = '';
@@ -904,10 +1194,12 @@
             else if(item.id === 'bigo') img.src = createBigOAsset().toDataURL();
             else if(item.id === 'gd') img.src = createGDAsset().toDataURL();
             else if(item.id === 'santa') img.src = createSantaAsset().toDataURL();
-            else if(item.id === 'mario') {
-                if(images.marioWalk && images.marioWalk.length > 0) img.src = images.marioWalk[0].src;
-                else img.src = MARIO_BASE_URL + "walk1.png";
-            }
+            else if(item.id === 'mario') { if(images.marioWalk && images.marioWalk.length > 0) img.src = images.marioWalk[0].src; else img.src = MARIO_BASE_URL + "walk1.png"; }
+            else if(item.id === 'submarine') img.src = createSubmarineAsset().toDataURL();
+            else if(item.id === 'bee') img.src = createBeeAsset().toDataURL();
+            else if(item.id === 'glitch') img.src = createGlitchAsset().toDataURL();
+            else if(item.id === 'nyan') img.src = createNyanAsset().toDataURL();
+            else if(item.id === 'ghost') img.src = createGhostAsset().toDataURL();
             else if(ASSETS.sprites.birdYellow && ASSETS.sprites.birdYellow[0]) img.src = ASSETS.sprites.birdYellow[0];
             const name = document.createElement('div'); name.innerText = item.name; name.style.fontSize = '12px'; name.style.marginTop = '5px';
             const cost = document.createElement('div'); cost.className = 'item-cost';
@@ -946,7 +1238,7 @@
     // UI Events
     const shopModal = document.getElementById('shop-modal'); const settingsModal = document.getElementById('settings-modal');
     document.getElementById('shopTriggerBtn').onclick = (e) => { e.stopPropagation(); updateShopUI(); shopModal.style.display = 'flex'; Input.openModal('shop'); };
-    document.getElementById('startTriggerBtn').onclick = (e) => { e.stopPropagation(); state.current = state.game; bird.flap(); playSound('flap'); if(userData.equippedSkin === 'mario') startBGM(); };
+    document.getElementById('startTriggerBtn').onclick = (e) => { e.stopPropagation(); state.current = state.game; if(bird.flap()) playSound('flap'); if(userData.equippedSkin === 'mario') startBGM(); };
     document.getElementById('settingsTriggerBtn').onclick = (e) => { e.stopPropagation(); settingsModal.style.display = 'flex'; Input.openModal('settings'); };
     document.getElementById('closeShopX').onclick = (e) => { e.stopPropagation(); shopModal.style.display = 'none'; Input.closeModal(); };
     document.getElementById('closeSettingsX').onclick = (e) => { e.stopPropagation(); settingsModal.style.display = 'none'; Input.closeModal(); };
@@ -960,7 +1252,7 @@
             return;
         }
         if (state.current === state.getReady) { state.current = state.game; if(userData.equippedSkin === 'mario') startBGM(); }
-        if (state.current === state.game) { bird.flap(); playSound('flap'); }
+        if (state.current === state.game) { if(bird.flap()) playSound('flap'); }
     });
 
     async function initGame() {
@@ -979,32 +1271,35 @@
         const gdAlive = createGDAsset();
         images.chimney = createChimneyAsset();
         
-        // Load NEW Mario Assets
+        // NEW ASSETS
+        const subAsset = createSubmarineAsset();
+        const beeAsset = createBeeAsset();
+        const nyanAsset = createNyanAsset();
+        const glitchAsset = createGlitchAsset();
+        const ghostAsset = createGhostAsset();
+
         images.marioBrick = await loadImg(ASSETS.sprites.marioBrick);
         images.marioGround = await loadImg(ASSETS.sprites.marioGround);
         images.marioJump = await loadImg(ASSETS.sprites.marioJump);
         images.marioDead = await loadImg(ASSETS.sprites.marioDead);
         
-        // Load Animation Arrays
-        images.marioWalk = [];
-        for(let url of ASSETS.sprites.marioWalk) images.marioWalk.push(await loadImg(url));
-        
-        images.marioCoin = [];
-        for(let url of ASSETS.sprites.marioCoin) images.marioCoin.push(await loadImg(url));
-        
-        images.marioGoomba = [];
-        for(let url of ASSETS.sprites.marioGoomba) images.marioGoomba.push(await loadImg(url));
+        images.marioWalk = []; for(let url of ASSETS.sprites.marioWalk) images.marioWalk.push(await loadImg(url));
+        images.marioCoin = []; for(let url of ASSETS.sprites.marioCoin) images.marioCoin.push(await loadImg(url));
+        images.marioGoomba = []; for(let url of ASSETS.sprites.marioGoomba) images.marioGoomba.push(await loadImg(url));
 
         images.birds = {};
-        for(let c of ['yellow', 'blue', 'red', 'amongus', 'bigo', 'gd', 'santa', 'mario']) {
+        for(let c of ['yellow', 'blue', 'red', 'amongus', 'bigo', 'gd', 'santa', 'mario', 'submarine', 'bee', 'glitch', 'nyan', 'ghost']) {
             images.birds[c] = [];
             if(c === 'amongus') { const img = new Image(); img.src = auAlive.toDataURL(); images.birds[c] = [img, img, img]; }
             else if (c === 'bigo') { const img = new Image(); img.src = bigOAlive.toDataURL(); images.birds[c] = [img, img, img]; }
             else if (c === 'gd') { const img = new Image(); img.src = gdAlive.toDataURL(); images.birds[c] = [img, img, img]; }
             else if(c === 'santa') { const img = new Image(); img.src = createSantaAsset().toDataURL(); images.birds[c] = [img, img, img]; }
-            else if(c === 'mario') { 
-                 images.birds[c] = images.marioWalk; 
-            }
+            else if(c === 'submarine') { const img = new Image(); img.src = subAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'bee') { const img = new Image(); img.src = beeAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'glitch') { const img = new Image(); img.src = glitchAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'nyan') { const img = new Image(); img.src = nyanAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'ghost') { const img = new Image(); img.src = ghostAsset.toDataURL(); images.birds[c] = [img, img, img]; }
+            else if(c === 'mario') { images.birds[c] = images.marioWalk; }
             else if(ASSETS.sprites['bird' + c.charAt(0).toUpperCase() + c.slice(1)]) {
                 const arr = ASSETS.sprites['bird'+c.charAt(0).toUpperCase()+c.slice(1)];
                 for(let s of arr) images.birds[c].push(await loadImg(s));
