@@ -839,6 +839,7 @@
                 }
             } 
         } 
+        
     };
     const snowSystem = { particles: [], update: function(dt) { if (this.particles.length < 50) { this.particles.push({ x: Math.random() * logicalWidth, y: -10, size: Math.random() * 2 + 1, speed: Math.random() * 1 + 0.5 }); } for (let i=0; i<this.particles.length; i++) { let p = this.particles[i]; p.y += p.speed * dt; p.x += Math.sin(frames / 50 + i) * 0.5 * dt; if (p.y > LOGICAL_HEIGHT) { p.y = -10; p.x = Math.random() * logicalWidth; } } }, draw: function() { ctx.fillStyle = '#FFF'; for(let p of this.particles) { ctx.fillRect(p.x, p.y, p.size, p.size); } } };
     
@@ -1453,7 +1454,13 @@
         },
         update: function(dt) {
             if (flashOpacity > 0) flashOpacity -= dt * 0.05;
-            let period = state.current === state.getReady ? 10 : 5; this.frame += frames % period === 0 ? 1 : 0; this.frame %= this.animation.length;
+            
+            // Fixed: Changed the active game period from 5 to 9.
+            // This slows down the flapping animation during gameplay to match the 
+            // 0.6x physics speed, preventing the "double speed" visual glitch.
+            let period = state.current === state.getReady ? 10 : 9; 
+
+            this.frame += frames % period === 0 ? 1 : 0; this.frame %= this.animation.length;
             
             // Radii
             if (userData.equippedSkin === 'bigo') this.radius = 18; 
@@ -1759,7 +1766,7 @@
         let scoreCondition = false; if (userData.equippedSkin === 'bigo') { if (p.hasBurger && !p.burgerCollected) { let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; if(Math.hypot(bird.x-cx, bird.y-cy) < 35) { p.burgerCollected = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('chomp'); saveData(); } } } else if (userData.equippedSkin === 'gd') { if(!p.passed && bird.x > p.x + (p.spikes*30)) scoreCondition = true; } else { if(!p.passed && bird.x - bird.radius > p.x + this.w) scoreCondition = true; } if(scoreCondition) { p.passed = true; score.value++; userData.highScore = Math.max(score.value, userData.highScore); playSound('point'); saveData(); if(userData.equippedSkin==='rabbit') bird.jumps = 0; } 
         
         if(p.hasCoin && !p.coinCollected) { 
-            let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + this.gap/2; 
+            let cx = p.x + this.w/2, cy = p.y + yOffset + 320 + currentGap/2; 
             
             if (userData.equippedSkin === 'gd') { cx = p.x + (p.spikes*30) + 60; cy = LOGICAL_HEIGHT - 112 - 20; } 
             
@@ -1936,9 +1943,18 @@
                     userData = data;
                     saveData();
                     ioActionBtn.innerText = "LOADED!";
+                    updateShopUI(); // Add this
+                    document.getElementById('shopTriggerBtn').innerText = `SHOP (${userData.coins})`; // Add this
+                    // Reset game state to apply skin changes if any
+                    resetGame(); 
+                    // Handle special level inits
+                    if(userData.equippedSkin === 'mario') initMarioLevel();
+                    else if(userData.equippedSkin === 'crossy') initCrossyLevel();
+                    else stopBGM();
+                    
                     setTimeout(() => {
                         dataModal.style.display = 'none';
-                        location.reload(); // Reload to apply
+                        ioActionBtn.innerText = "LOAD"; // Reset text
                     }, 1000);
                 } else {
                     ioActionBtn.innerText = "INVALID";
@@ -2083,13 +2099,30 @@
     }
 
     let lastTime = performance.now();
-    let lastFlapFrame = -100;
     const targetFPS = 60;
+    const frameDelay = 1000 / targetFPS; 
+
     function loop(timestamp) {
+        requestAnimationFrame(loop);
         if (!timestamp) timestamp = performance.now();
-        const rawDelta = timestamp - lastTime; lastTime = timestamp;
-        let dt = rawDelta / (1000 / targetFPS); if (dt > 3.0) dt = 3.0; 
-        update(dt); draw(); requestAnimationFrame(loop);
+        
+        const elapsed = timestamp - lastTime;
+        
+        // Throttling to targetFPS
+        if (elapsed >= frameDelay) {
+             // Adjust lastTime to align with the frame interval (prevents drift)
+             lastTime = timestamp - (elapsed % frameDelay);
+             
+             // Calculate dt relative to 60FPS baseline.
+             // Scaled down to 0.6 to significantly slow down the gameplay speed
+             let dt = (elapsed / frameDelay) * 0.6;
+             
+             // Safety cap to prevent physics glitches during lag spikes
+             if (dt > 2.5) dt = 2.5;
+
+             update(dt); 
+             draw(); 
+        }
     }
 
     function resetGame() { 
