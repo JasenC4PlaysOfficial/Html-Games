@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Web IDE</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Ace Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ext-language_tools.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/ext-beautify.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1e1e1e; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .resizer { width: 6px; cursor: col-resize; background-color: #333; transition: background-color 0.2s; z-index: 10; }
+        .resizer:hover, .resizer.dragging { background-color: #007acc; }
+        .resizer-h { height: 6px; cursor: row-resize; background-color: #333; transition: background-color 0.2s; z-index: 10; }
+        .resizer-h:hover, .resizer-h.dragging { background-color: #007acc; }
+        
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+        
+        #editor { width: 100%; height: 100%; }
+        
+        .tab-active { border-top: 2px solid #007acc; background-color: #1e1e1e; color: #fff; }
+        .tab-inactive { border-top: 2px solid transparent; background-color: #2d2d2d; color: #9da5b4; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- Icons ---
+        const IconHtml = () => <svg className="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M9 15l-3-3 3-3"></path><path d="M15 9l3 3-3 3"></path></svg>;
+        const IconCss = () => <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M8 12h8"></path><path d="M10 16h4"></path></svg>;
+        const IconJs = () => <svg className="w-4 h-4 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M10 13l2 2-2 2"></path><path d="M14 17h4"></path></svg>;
+        const IconPlay = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+        const IconDownload = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
+        const IconPlus = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+        const IconX = () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const IconTrash = () => <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconUpload = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
+        const IconExternalLink = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>;
+        const IconRefresh = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>;
+        const IconSettings = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
+        const IconPackage = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>;
+        const IconFormat = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>;
+        const IconSparkles = ({ className="w-4 h-4" }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path></svg>;
+
+        const DEFAULT_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Web App</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Advanced IDE</h1>
+        <p>Edit HTML, add CSS, and run JavaScript dynamically.</p>
+        <button id="clickMe">Click Me!</button>
+    </div>
+</body>
+</html>`;
+
+        const DEFAULT_CSS = `body {
+    font-family: system-ui, sans-serif;
+    background-color: #f0f4f8;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+button {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background-color: #005999;
+}`;
+
+        const DEFAULT_JS = `document.getElementById('clickMe').addEventListener('click', () => {
+    console.log('Button was clicked!');
+    alert('JavaScript is working!');
+});
+
+// Test the console output
+console.log("Application loaded successfully.");
+console.warn("This is a warning message.");`;
+
+        const App = () => {
+            const [files, setFiles] = useState([
+                { id: 'html', name: 'index.html', language: 'html', content: DEFAULT_HTML, icon: IconHtml },
+            ]);
+            const [activeFileId, setActiveFileId] = useState('html');
+            const [splitRatio, setSplitRatio] = useState(50); // Left/Right split %
+            const [consoleHeight, setConsoleHeight] = useState(30); // Console height %
+            const [logs, setLogs] = useState([]);
+            const [autoRun, setAutoRun] = useState(true);
+            const [previewSrcDoc, setPreviewSrcDoc] = useState("");
+            const [isDragging, setIsDragging] = useState(false);
+            const [showResetConfirm, setShowResetConfirm] = useState(false);
+            
+            // New Feature States
+            const [showSettings, setShowSettings] = useState(false);
+            const [showLibraries, setShowLibraries] = useState(false);
+            const [libraries, setLibraries] = useState([]);
+            const [newLibUrl, setNewLibUrl] = useState("");
+            const [settings, setSettings] = useState({ theme: 'vibrant_ink', fontSize: 14, wordWrap: false });
+
+            // AI Features State
+            const [showAiPanel, setShowAiPanel] = useState(false);
+            const [chatHistory, setChatHistory] = useState([]);
+            const [aiInput, setAiInput] = useState("");
+            const [isAiLoading, setIsAiLoading] = useState(false);
+            const chatEndRef = useRef(null);
+
+            const editorRef = useRef(null);
+            const aceInstance = useRef(null);
+            const contentRef = useRef(files[0].content);
+            const iframeRef = useRef(null);
+            const fileInputRef = useRef(null);
+            
+            // Track the active file ID in a ref to bypass stale closures in the editor event listener
+            const activeFileIdRef = useRef(activeFileId);
+            useEffect(() => {
+                activeFileIdRef.current = activeFileId;
+            }, [activeFileId]);
+
+            // --- Auto-scroll AI Chat ---
+            useEffect(() => {
+                if (chatEndRef.current) {
+                    chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, [chatHistory, isAiLoading, showAiPanel]);
+
+            // --- Window Resize Drag Logic ---
+            const handleDragSplitter = useCallback((e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                const startX = e.clientX;
+                const startRatio = splitRatio;
+
+                const onMouseMove = (moveEvent) => {
+                    const deltaX = moveEvent.clientX - startX;
+                    const newRatio = Math.min(Math.max(startRatio + (deltaX / window.innerWidth) * 100, 20), 80);
+                    setSplitRatio(newRatio);
+                };
+
+                const onMouseUp = () => {
+                    setIsDragging(false);
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    if (aceInstance.current) aceInstance.current.resize();
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            }, [splitRatio]);
+
+            const handleDragConsole = useCallback((e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                const startY = e.clientY;
+                const startHeight = consoleHeight;
+                const containerHeight = window.innerHeight - 48; // minus header
+
+                const onMouseMove = (moveEvent) => {
+                    const deltaY = startY - moveEvent.clientY;
+                    const newHeight = Math.min(Math.max(startHeight + (deltaY / containerHeight) * 100, 10), 80);
+                    setConsoleHeight(newHeight);
+                };
+
+                const onMouseUp = () => {
+                    setIsDragging(false);
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            }, [consoleHeight]);
+
+            // --- Ace Editor Initialization ---
+            useEffect(() => {
+                ace.require("ace/ext/language_tools");
+                const editor = ace.edit(editorRef.current);
+                aceInstance.current = editor;
+
+                editor.setTheme(`ace/theme/${settings.theme}`);
+                editor.setOptions({
+                    enableBasicAutocompletion: true,
+                    enableLiveAutocompletion: true,
+                    enableSnippets: true,
+                    showLineNumbers: true,
+                    tabSize: 4,
+                    fontSize: `${settings.fontSize}px`,
+                    wrap: settings.wordWrap,
+                    fontFamily: "'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace"
+                });
+
+                editor.on("change", () => {
+                    const val = editor.getValue();
+                    if (val !== contentRef.current) {
+                        contentRef.current = val;
+                        // Use the ref here instead of the state directly
+                        setFiles(prev => prev.map(f => f.id === activeFileIdRef.current ? { ...f, content: val } : f));
+                    }
+                });
+
+                return () => {
+                    editor.destroy();
+                };
+            }, []); // Run once
+
+            // --- Apply Settings Dynamically ---
+            useEffect(() => {
+                if (aceInstance.current) {
+                    aceInstance.current.setTheme(`ace/theme/${settings.theme}`);
+                    aceInstance.current.setFontSize(`${settings.fontSize}px`);
+                    aceInstance.current.getSession().setUseWrapMode(settings.wordWrap);
+                }
+            }, [settings]);
+
+            // --- Handle File Switching ---
+            useEffect(() => {
+                if (aceInstance.current) {
+                    const activeFile = files.find(f => f.id === activeFileId);
+                    if (activeFile) {
+                        const currentVal = aceInstance.current.getValue();
+                        if (currentVal !== activeFile.content) {
+                            contentRef.current = activeFile.content;
+                            aceInstance.current.setValue(activeFile.content, -1);
+                        }
+                        aceInstance.current.session.setMode(`ace/mode/${activeFile.language}`);
+                        aceInstance.current.focus();
+                    }
+                }
+            }, [activeFileId, files.length]);
+
+            // --- Code Compilation for Iframe ---
+            const compileCode = useCallback(() => {
+                const htmlFile = files.find(f => f.id === 'html')?.content || '';
+                const cssFile = files.find(f => f.id === 'css')?.content || '';
+                const jsFile = files.find(f => f.id === 'js')?.content || '';
+
+                let compiled = htmlFile;
+
+                // Inject External Libraries
+                const libTags = libraries.map(url => {
+                    if (url.toLowerCase().endsWith('.css')) return `<link rel="stylesheet" href="${url}">`;
+                    return `<script src="${url}"><\/script>`;
+                }).join('\n');
+
+                if (libTags) {
+                    if (compiled.match(/<\/head>/i)) {
+                        compiled = compiled.replace(/<\/head>/i, `${libTags}\n</head>`);
+                    } else {
+                        compiled = libTags + compiled;
+                    }
+                }
+
+                // Inject CSS
+                if (cssFile) {
+                    const styleTag = `<style>\n${cssFile}\n</style>`;
+                    if (compiled.match(/<\/head>/i)) {
+                        compiled = compiled.replace(/<\/head>/i, `${styleTag}\n</head>`);
+                    } else {
+                        compiled = styleTag + compiled;
+                    }
+                }
+
+                // Inject JS and Console Interceptor
+                // We use a unique ID to ensure the iframe is completely refreshed on change.
+                const interceptor = `
+                    <script>
+                        (function() {
+                            const sendLog = (level, args) => {
+                                const parsedArgs = Array.from(args).map(arg => {
+                                    try {
+                                        return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+                                    } catch(e) { return String(arg); }
+                                });
+                                window.parent.postMessage({ source: 'ide-preview', type: 'log', level, msg: parsedArgs.join(' ') }, '*');
+                            };
+                            
+                            const oLog = console.log; console.log = function(...args) { sendLog('info', args); oLog.apply(console, args); };
+                            const oWarn = console.warn; console.warn = function(...args) { sendLog('warn', args); oWarn.apply(console, args); };
+                            const oErr = console.error; console.error = function(...args) { sendLog('error', args); oErr.apply(console, args); };
+                            
+                            window.onerror = function(msg, url, lineNo, columnNo, error) {
+                                sendLog('error', [\`\${msg} at line \${lineNo}:\${columnNo}\`]);
+                                return false;
+                            };
+                        })();
+                    <\/script>
+                `;
+
+                if (jsFile) {
+                    const scriptTag = `<script>\ntry {\n${jsFile}\n} catch (e) { console.error(e); }\n<\/script>`;
+                    if (compiled.match(/<\/body>/i)) {
+                        compiled = compiled.replace(/<\/body>/i, `${scriptTag}\n</body>`);
+                    } else {
+                        compiled += scriptTag;
+                    }
+                }
+
+                // Inject interceptor at top of head
+                if (compiled.match(/<head>/i)) {
+                    compiled = compiled.replace(/<head>/i, `<head>\n${interceptor}`);
+                } else {
+                    compiled = interceptor + compiled;
+                }
+
+                setPreviewSrcDoc(compiled);
+                setLogs([]); // Clear logs on run
+            }, [files, libraries]);
+
+            // --- Auto-Run Debouncer ---
+            useEffect(() => {
+                if (autoRun) {
+                    const timeout = setTimeout(() => {
+                        compileCode();
+                    }, 800);
+                    return () => clearTimeout(timeout);
+                }
+            }, [files, autoRun, compileCode]);
+
+            // --- Initial Compile ---
+            useEffect(() => {
+                compileCode();
+            }, []);
+
+            // --- Console Message Listener ---
+            useEffect(() => {
+                const handleMessage = (e) => {
+                    if (e.data && e.data.source === 'ide-preview' && e.data.type === 'log') {
+                        setLogs(prev => [...prev, { level: e.data.level, msg: e.data.msg, time: new Date().toLocaleTimeString() }]);
+                    }
+                };
+                window.addEventListener('message', handleMessage);
+                return () => window.removeEventListener('message', handleMessage);
+            }, []);
+
+            // --- Actions ---
+            const addFile = (type) => {
+                if (files.some(f => f.id === type)) return; // Already exists
+                
+                let newFile = {};
+                if (type === 'css') newFile = { id: 'css', name: 'style.css', language: 'css', content: DEFAULT_CSS, icon: IconCss };
+                if (type === 'js') newFile = { id: 'js', name: 'script.js', language: 'javascript', content: DEFAULT_JS, icon: IconJs };
+                
+                setFiles(prev => [...prev, newFile]);
+                setActiveFileId(type);
+            };
+
+            const handleFileUpload = (e) => {
+                const uploadedFile = e.target.files[0];
+                if (!uploadedFile) return;
+
+                const ext = uploadedFile.name.split('.').pop().toLowerCase();
+                if (!['html', 'css', 'js'].includes(ext)) {
+                    setLogs(prev => [...prev, { level: 'error', msg: `Upload failed: .${ext} files are not supported. Use HTML, CSS, or JS.`, time: new Date().toLocaleTimeString() }]);
+                    e.target.value = null; // reset input
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const content = event.target.result;
+                    const type = ext;
+
+                    setFiles(prev => {
+                        const exists = prev.find(f => f.id === type);
+                        if (exists) {
+                            return prev.map(f => f.id === type ? { ...f, content } : f);
+                        } else {
+                            const newFile = {
+                                id: type,
+                                name: type === 'html' ? 'index.html' : type === 'css' ? 'style.css' : 'script.js',
+                                language: type === 'js' ? 'javascript' : type,
+                                content: content,
+                                icon: type === 'html' ? IconHtml : type === 'css' ? IconCss : IconJs
+                            };
+                            return [...prev, newFile];
+                        }
+                    });
+                    setActiveFileId(type);
+                    setLogs(prev => [...prev, { level: 'info', msg: `Successfully uploaded ${uploadedFile.name}`, time: new Date().toLocaleTimeString() }]);
+                    e.target.value = null; // reset input
+                };
+                reader.readAsText(uploadedFile);
+            };
+
+            const popOutPreview = () => {
+                const newWindow = window.open('', '_blank');
+                if (newWindow) {
+                    newWindow.document.open();
+                    newWindow.document.write(previewSrcDoc);
+                    newWindow.document.close();
+                } else {
+                    setLogs(prev => [...prev, { level: 'error', msg: 'Pop-out blocked! Please allow popups for this site.', time: new Date().toLocaleTimeString() }]);
+                }
+            };
+
+            const executeReset = () => {
+                setFiles([{ id: 'html', name: 'index.html', language: 'html', content: DEFAULT_HTML, icon: IconHtml }]);
+                setActiveFileId('html');
+                setLibraries([]);
+                setLogs([]);
+                setShowResetConfirm(false);
+            };
+
+            const formatCode = () => {
+                if (aceInstance.current) {
+                    const beautify = ace.require("ace/ext/beautify");
+                    beautify.beautify(aceInstance.current.session);
+                }
+            };
+
+            const addLibrary = () => {
+                if (!newLibUrl.trim()) return;
+                if (!libraries.includes(newLibUrl)) {
+                    setLibraries(prev => [...prev, newLibUrl.trim()]);
+                }
+                setNewLibUrl("");
+            };
+
+            const removeFile = (e, id) => {
+                e.stopPropagation();
+                setFiles(prev => prev.filter(f => f.id !== id));
+                if (activeFileId === id) {
+                    setActiveFileId('html'); // default back to html
+                }
+            };
+
+            const downloadProject = () => {
+                const blob = new Blob([previewSrcDoc], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'project.html';
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const handleAiSubmit = async (e) => {
+                if (e) e.preventDefault();
+                if (!aiInput.trim() || isAiLoading) return;
+
+                const userText = aiInput.trim();
+                setAiInput("");
+                const newHistory = [...chatHistory, { role: 'user', text: userText }];
+                setChatHistory(newHistory);
+                setIsAiLoading(true);
+
+                const apiKey = "";
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const contents = newHistory.map(msg => ({
+                    role: msg.role === 'user' ? 'user' : 'model',
+                    parts: [{ text: msg.text }]
+                }));
+
+                const payload = {
+                    contents,
+                    systemInstruction: { parts: [{ text: "You are an expert web development AI assistant. Write clean HTML, CSS, and JS code. Be concise." }] }
+                };
+
+                let retries = 5;
+                let delay = 1000;
+                let success = false;
+
+                while (retries > 0 && !success) {
+                    try {
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        
+                        const data = await response.json();
+                        const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        
+                        if (aiResponse) {
+                            setChatHistory(prev => [...prev, { role: 'model', text: aiResponse }]);
+                            success = true;
+                        } else {
+                            throw new Error("Invalid response format");
+                        }
+                    } catch (error) {
+                        retries--;
+                        if (retries === 0) {
+                            setChatHistory(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to the AI service. Please try again later." }]);
+                        } else {
+                            await new Promise(res => setTimeout(res, delay));
+                            delay *= 2;
+                        }
+                    }
+                }
+                setIsAiLoading(false);
+            };
+
+            return (
+                <div className="flex flex-col h-screen w-full bg-[#1e1e1e]">
+                    {/* Header */}
+                    <header className="flex items-center justify-between px-4 h-12 bg-[#2d2d2d] border-b border-[#3e3e42] shrink-0 overflow-x-auto no-scrollbar">
+                        <div className="flex items-center space-x-2 mr-4">
+                            <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center font-bold text-white text-xs">IDE</div>
+                            <span className="font-semibold text-gray-200 whitespace-nowrap">Advanced Editor</span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <label className="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer mr-2 whitespace-nowrap">
+                                <input type="checkbox" checked={autoRun} onChange={(e) => setAutoRun(e.target.checked)} className="accent-blue-500" />
+                                <span>Auto-Run</span>
+                            </label>
+                            
+                            {/* Hidden File Input */}
+                            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".html,.css,.js" className="hidden" />
+
+                            {!autoRun && (
+                                <button onClick={compileCode} className="flex items-center space-x-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition whitespace-nowrap">
+                                    <IconPlay /> <span>Run</span>
+                                </button>
+                            )}
+                            <button onClick={() => setShowAiPanel(prev => !prev)} className={`flex items-center space-x-1 px-3 py-1 rounded text-sm transition whitespace-nowrap ${showAiPanel ? 'bg-yellow-600 hover:bg-yellow-500 text-white' : 'bg-[#3e3e42] hover:bg-[#4e4e52] text-yellow-400'}`} title="AI Coding Assistant">
+                                <IconSparkles /> <span className="hidden sm:inline">AI Assistant</span>
+                            </button>
+                            <button onClick={() => setShowLibraries(true)} className="flex items-center space-x-1 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-sm transition whitespace-nowrap" title="Manage External Libraries">
+                                <IconPackage /> <span className="hidden sm:inline">Libraries</span>
+                                {libraries.length > 0 && <span className="ml-1 bg-white text-indigo-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{libraries.length}</span>}
+                            </button>
+                            <button onClick={() => setShowSettings(true)} className="flex items-center space-x-1 bg-[#3e3e42] hover:bg-[#4e4e52] text-white px-3 py-1 rounded text-sm transition whitespace-nowrap" title="Editor Settings">
+                                <IconSettings /> <span className="hidden sm:inline">Settings</span>
+                            </button>
+                            <button onClick={() => fileInputRef.current.click()} className="flex items-center space-x-1 bg-[#3e3e42] hover:bg-[#4e4e52] text-white px-3 py-1 rounded text-sm transition whitespace-nowrap" title="Upload a file">
+                                <IconUpload /> <span className="hidden sm:inline">Upload</span>
+                            </button>
+                            <button onClick={downloadProject} className="flex items-center space-x-1 bg-gray-600 hover:bg-gray-500 text-white px-3 py-1 rounded text-sm transition whitespace-nowrap" title="Export as single HTML">
+                                <IconDownload /> <span className="hidden sm:inline">Export</span>
+                            </button>
+                            <button onClick={popOutPreview} className="flex items-center space-x-1 bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded text-sm transition whitespace-nowrap" title="Open Preview in New Tab">
+                                <IconExternalLink /> <span className="hidden sm:inline">Pop-out</span>
+                            </button>
+                            <button onClick={() => setShowResetConfirm(true)} className="flex items-center space-x-1 bg-red-900/60 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition whitespace-nowrap" title="Reset all files">
+                                <IconRefresh /> <span className="hidden sm:inline">Reset</span>
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Reset Confirmation Modal */}
+                    {showResetConfirm && (
+                        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center">
+                            <div className="bg-[#252526] border border-[#3e3e42] p-6 rounded shadow-2xl max-w-sm w-full mx-4">
+                                <h3 className="text-lg font-bold mb-3 text-white">Reset Editor?</h3>
+                                <p className="text-gray-300 mb-6 text-sm">This will permanently delete your current code and restore the default boilerplate. Are you sure?</p>
+                                <div className="flex justify-end space-x-3">
+                                    <button onClick={() => setShowResetConfirm(false)} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm text-white transition">Cancel</button>
+                                    <button onClick={executeReset} className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-sm text-white transition">Reset Code</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Settings Modal */}
+                    {showSettings && (
+                        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center">
+                            <div className="bg-[#252526] border border-[#3e3e42] p-6 rounded shadow-2xl max-w-sm w-full mx-4">
+                                <div className="flex justify-between items-center mb-4 text-white">
+                                    <h3 className="text-lg font-bold flex items-center gap-2"><IconSettings/> Editor Settings</h3>
+                                    <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white"><IconX/></button>
+                                </div>
+                                
+                                <div className="space-y-4 text-sm">
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-gray-300">Theme</label>
+                                        <select 
+                                            value={settings.theme} 
+                                            onChange={(e) => setSettings({...settings, theme: e.target.value})}
+                                            className="bg-[#1e1e1e] border border-[#3e3e42] text-white p-2 rounded outline-none focus:border-blue-500"
+                                        >
+                                            <option value="vibrant_ink">Vibrant Ink</option>
+                                            <option value="monokai">Monokai</option>
+                                            <option value="dracula">Dracula</option>
+                                            <option value="github">GitHub Light</option>
+                                            <option value="tomorrow_night">Tomorrow Night</option>
+                                            <option value="chrome">Chrome (Light)</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-gray-300">Font Size (px)</label>
+                                        <input 
+                                            type="number" 
+                                            value={settings.fontSize} 
+                                            onChange={(e) => setSettings({...settings, fontSize: Number(e.target.value)})}
+                                            className="bg-[#1e1e1e] border border-[#3e3e42] text-white p-2 rounded outline-none focus:border-blue-500"
+                                            min="8" max="32"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={settings.wordWrap} 
+                                            onChange={(e) => setSettings({...settings, wordWrap: e.target.checked})}
+                                            className="accent-blue-500 w-4 h-4"
+                                            id="wrapCheck"
+                                        />
+                                        <label htmlFor="wrapCheck" className="text-gray-300 cursor-pointer">Enable Word Wrap</label>
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex justify-end">
+                                    <button onClick={() => setShowSettings(false)} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm text-white transition">Done</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Libraries Modal */}
+                    {showLibraries && (
+                        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center">
+                            <div className="bg-[#252526] border border-[#3e3e42] p-6 rounded shadow-2xl max-w-lg w-full mx-4">
+                                <div className="flex justify-between items-center mb-4 text-white">
+                                    <h3 className="text-lg font-bold flex items-center gap-2"><IconPackage/> External Libraries (CDN)</h3>
+                                    <button onClick={() => setShowLibraries(false)} className="text-gray-400 hover:text-white"><IconX/></button>
+                                </div>
+                                
+                                <div className="flex gap-2 mb-4">
+                                    <input 
+                                        type="text" 
+                                        value={newLibUrl}
+                                        onChange={(e) => setNewLibUrl(e.target.value)}
+                                        placeholder="Paste a JS or CSS URL here..."
+                                        className="flex-1 bg-[#1e1e1e] border border-[#3e3e42] text-white px-3 py-2 rounded outline-none focus:border-blue-500 text-sm"
+                                        onKeyDown={(e) => e.key === 'Enter' && addLibrary()}
+                                    />
+                                    <button onClick={addLibrary} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm transition">Add</button>
+                                </div>
+
+                                <div className="mb-4">
+                                    <p className="text-xs text-gray-400 mb-2">Quick Add Presets:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { name: 'Tailwind CSS', url: 'https://cdn.tailwindcss.com' },
+                                            { name: 'Bootstrap 5 CSS', url: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' },
+                                            { name: 'jQuery', url: 'https://code.jquery.com/jquery-3.7.1.min.js' },
+                                            { name: 'Lodash', url: 'https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js' }
+                                        ].map(lib => (
+                                            <button 
+                                                key={lib.name}
+                                                onClick={() => { setNewLibUrl(lib.url); setTimeout(() => document.querySelector('.bg-blue-600').click(), 0); }}
+                                                className="text-xs bg-[#3e3e42] hover:bg-[#4e4e52] text-gray-200 px-2 py-1 rounded"
+                                            >
+                                                + {lib.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="bg-[#1e1e1e] border border-[#3e3e42] rounded h-32 overflow-y-auto p-2">
+                                    {libraries.length === 0 ? (
+                                        <p className="text-gray-500 text-sm italic text-center mt-10">No external libraries added yet.</p>
+                                    ) : (
+                                        libraries.map((url, i) => (
+                                            <div key={i} className="flex justify-between items-center bg-[#2d2d2d] p-2 rounded mb-1 border border-[#3e3e42]">
+                                                <span className="text-gray-300 text-xs truncate max-w-[90%] font-mono" title={url}>{url}</span>
+                                                <button onClick={() => setLibraries(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-500 hover:text-red-400">
+                                                    <IconTrash />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div className="mt-4 flex justify-end">
+                                    <button onClick={() => setShowLibraries(false)} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-sm text-white transition">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Main Content */}
+                    <div className="flex flex-1 overflow-hidden relative">
+                        
+                        {/* Left: Code Editor (Added overflow-hidden to clip overflowing tabs) */}
+                        <div style={{ width: `${splitRatio}%` }} className="flex flex-col h-full bg-[#1e1e1e] border-r border-[#3e3e42] overflow-hidden">
+                            {/* Tabs */}
+                            <div className="flex bg-[#252526] relative z-20 justify-between pr-2">
+                                <div className="flex overflow-x-auto no-scrollbar">
+                                    {files.map(file => {
+                                        const Icon = file.icon;
+                                        const isActive = activeFileId === file.id;
+                                        return (
+                                            <div 
+                                                key={file.id} 
+                                                onClick={() => setActiveFileId(file.id)}
+                                                className={`flex items-center px-4 py-2 cursor-pointer select-none min-w-fit space-x-2 transition-colors ${isActive ? 'tab-active' : 'tab-inactive hover:bg-[#2a2d2e]'}`}
+                                            >
+                                                <Icon />
+                                                <span className="text-sm">{file.name}</span>
+                                                {file.id !== 'html' && (
+                                                    <button onClick={(e) => removeFile(e, file.id)} className="ml-2 text-gray-500 hover:text-red-400 p-0.5 rounded transition">
+                                                        <IconX />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                
+                                <div className="flex items-center shrink-0">
+                                    {/* Add File Button - Moved outside the overflow-x-auto container */}
+                                    {files.length < 3 && (
+                                        <div className="flex items-center px-2">
+                                            <div className="group relative">
+                                                <button className="flex items-center justify-center w-6 h-6 rounded hover:bg-[#3e3e42] text-gray-400 transition">
+                                                    <IconPlus />
+                                                </button>
+                                                {/* Dropdown */}
+                                                <div className="absolute right-0 top-full mt-1 w-32 bg-[#2d2d2d] border border-[#3e3e42] rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                                    {!files.find(f => f.id === 'css') && (
+                                                        <button onClick={() => addFile('css')} className="flex items-center w-full px-3 py-2 text-sm text-left hover:bg-[#007acc] hover:text-white text-gray-300">
+                                                            <IconCss className="mr-2" /> Add CSS
+                                                        </button>
+                                                    )}
+                                                    {!files.find(f => f.id === 'js') && (
+                                                        <button onClick={() => addFile('js')} className="flex items-center w-full px-3 py-2 text-sm text-left hover:bg-[#007acc] hover:text-white text-gray-300">
+                                                            <IconJs className="mr-2" /> Add JS
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Format Button inside Tab Bar */}
+                                    <div className="flex items-center ml-2 pl-2 border-l border-[#3e3e42] my-1">
+                                        <button onClick={formatCode} className="flex items-center space-x-1 text-gray-400 hover:text-white transition px-2 py-1 rounded hover:bg-[#3e3e42]" title="Format Current Code (Prettier)">
+                                            <IconFormat /> <span className="text-xs">Format</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Editor Container */}
+                            <div className="flex-1 relative">
+                                <div id="editor" ref={editorRef} className="absolute inset-0"></div>
+                            </div>
+                        </div>
+
+                        {/* Vertical Resizer */}
+                        <div className="resizer flex items-center justify-center group" onMouseDown={handleDragSplitter}>
+                             <div className="h-8 w-1 bg-gray-500 rounded opacity-0 group-hover:opacity-100 transition"></div>
+                        </div>
+
+                        {/* Right: Preview & Console */}
+                        <div style={{ width: `${100 - splitRatio}%` }} className="flex flex-col h-full bg-white relative">
+                            
+                            {/* Browser Preview (Added pointerEvents toggle for lag-free dragging) */}
+                            <div style={{ height: `${100 - consoleHeight}%` }} className="w-full relative bg-white">
+                                <iframe 
+                                    ref={iframeRef}
+                                    srcDoc={previewSrcDoc}
+                                    title="preview"
+                                    sandbox="allow-scripts allow-same-origin allow-modals"
+                                    className="w-full h-full border-none"
+                                    style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
+                                ></iframe>
+                            </div>
+
+                            {/* Horizontal Resizer */}
+                            <div className="resizer-h flex items-center justify-center group bg-[#2d2d2d]" onMouseDown={handleDragConsole}>
+                                <div className="w-8 h-1 bg-gray-500 rounded opacity-0 group-hover:opacity-100 transition"></div>
+                            </div>
+
+                            {/* Console */}
+                            <div style={{ height: `${consoleHeight}%` }} className="w-full bg-[#1e1e1e] border-t border-[#3e3e42] flex flex-col">
+                                <div className="flex items-center justify-between px-3 py-1 bg-[#252526] border-b border-[#3e3e42] text-xs font-mono text-gray-400 select-none">
+                                    <span>Console</span>
+                                    <button onClick={() => setLogs([])} className="hover:text-white transition flex items-center space-x-1" title="Clear Console">
+                                        <IconTrash /> <span>Clear</span>
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-2 font-mono text-sm">
+                                    {logs.length === 0 ? (
+                                        <div className="text-gray-600 italic">No output...</div>
+                                    ) : (
+                                        logs.map((log, i) => (
+                                            <div key={i} className={`mb-1 pb-1 border-b border-[#2a2d2e] ${log.level === 'error' ? 'text-red-400' : log.level === 'warn' ? 'text-yellow-400' : 'text-gray-300'}`}>
+                                                <span className="text-[#007acc] text-xs mr-2">[{log.time}]</span>
+                                                <span className="break-all">{log.msg}</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* AI Assistant Overlay Drawer */}
+                        {showAiPanel && (
+                            <div className="absolute right-0 top-0 bottom-0 w-80 md:w-96 flex flex-col bg-[#252526] border-l border-[#3e3e42] shadow-2xl z-50">
+                                <div className="flex items-center justify-between p-3 border-b border-[#3e3e42] bg-[#2d2d2d] shrink-0">
+                                    <div className="flex items-center gap-2 text-white font-semibold">
+                                        <IconSparkles className="text-yellow-400" /> <span>AI Assistant</span>
+                                    </div>
+                                    <button onClick={() => setShowAiPanel(false)} className="text-gray-400 hover:text-white transition"><IconX /></button>
+                                </div>
+                                
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
+                                    {chatHistory.length === 0 && (
+                                        <div className="text-gray-500 text-center mt-10">
+                                            <IconSparkles className="w-8 h-8 mx-auto mb-2 opacity-50 text-yellow-400" />
+                                            <p>Hi! I'm your AI coding assistant.</p>
+                                            <p>Ask me to generate HTML, CSS, or JS!</p>
+                                        </div>
+                                    )}
+                                    {chatHistory.map((msg, idx) => (
+                                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[85%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-[#3e3e42] text-gray-200 rounded-tl-none'}`}>
+                                                {msg.text.split(/(```[\s\S]*?```)/g).map((part, i) => {
+                                                    if (part.startsWith('```') && part.endsWith('```')) {
+                                                        const code = part.slice(3, -3).replace(/^[a-z]*\n/i, '');
+                                                        return <pre key={i} className="bg-[#1e1e1e] text-gray-300 p-2 rounded mt-2 mb-2 overflow-x-auto text-xs font-mono">{code}</pre>;
+                                                    }
+                                                    return <span key={i} className="whitespace-pre-wrap">{part}</span>;
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {isAiLoading && (
+                                        <div className="flex justify-start">
+                                            <div className="bg-[#3e3e42] text-gray-200 p-3 rounded-lg rounded-tl-none flex gap-1 items-center">
+                                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div ref={chatEndRef} />
+                                </div>
+                                
+                                <div className="p-3 border-t border-[#3e3e42] bg-[#2d2d2d] shrink-0">
+                                    <form onSubmit={handleAiSubmit} className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={aiInput}
+                                            onChange={(e) => setAiInput(e.target.value)}
+                                            placeholder="Ask AI to write code..."
+                                            className="flex-1 bg-[#1e1e1e] border border-[#3e3e42] text-white px-3 py-2 rounded outline-none focus:border-blue-500 text-sm"
+                                        />
+                                        <button type="submit" disabled={isAiLoading || !aiInput.trim()} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-2 rounded transition font-medium">
+                                            Send
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
