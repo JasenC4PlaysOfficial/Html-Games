@@ -460,10 +460,10 @@
         }
 
         async function fetchFromSource(source) {
-            const apiUrl = `https://api.github.com/repos/${source.owner}/${source.repo}/git/trees/${source.branch}?recursive=1`;
+            const apiUrl = `https://api.github.com/repos/${source.owner}/${source.repo}/git/trees/${source.branch}?recursive=1&t=${Date.now()}`;
             
             try {
-                const response = await fetch(apiUrl);
+                const response = await fetch(apiUrl, { cache: 'no-store' });
                 if (!response.ok) return;
                 const data = await response.json();
                 
@@ -852,7 +852,7 @@
             try {
                 // 1. Fetch from JSDelivr (Text only)
                 const cdnUrl = CDN_BASE_URL(game.owner, game.repo, game.branch) + game.fullPath;
-                const response = await fetch(cdnUrl);
+                const response = await fetch(cdnUrl + '?t=' + Date.now(), { cache: 'no-store' });
                 if (!response.ok) throw new Error("Failed to fetch game");
                 let htmlCode = await response.text();
 
