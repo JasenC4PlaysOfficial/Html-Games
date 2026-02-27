@@ -71,10 +71,16 @@
             <div class="bg-gray-900 bg-opacity-80 text-white p-4 rounded-xl shadow-lg border border-gray-700 w-64">
                 <div class="text-2xl font-bold text-green-400 mb-2">Money: $<span id="money-display">0.00</span></div>
                 <div class="text-sm text-gray-300 font-semibold mb-1">Energy / Survival</div>
-                <div class="progress-bar-bg h-6 w-full">
+                <div class="progress-bar-bg h-4 w-full mb-3">
                     <div id="health-bar" class="progress-bar-fill bg-red-500" style="width: 100%;"></div>
                 </div>
-                <div class="text-xs text-gray-400 mt-1">Keep eating to survive!</div>
+                <div id="job-container" class="hidden">
+                    <div class="text-sm text-red-400 font-bold mb-1 shake">Time Until Fired!</div>
+                    <div class="progress-bar-bg h-4 w-full">
+                        <div id="job-bar" class="progress-bar-fill bg-blue-500" style="width: 100%;"></div>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-400 mt-2">Keep eating and conducting!</div>
             </div>
 
             <!-- Right: Calories & Stomach -->
@@ -136,7 +142,7 @@
 
     <div id="game-over-screen" class="absolute inset-0 z-50 bg-black bg-opacity-90 flex flex-col items-center justify-center text-white hidden pointer-events-auto">
         <h1 class="text-6xl font-bold text-red-500 mb-4">GAME OVER</h1>
-        <p class="text-xl mb-8">You ran out of energy! You must keep eating to survive.</p>
+        <p id="game-over-reason" class="text-xl mb-8">You ran out of energy! You must keep eating to survive.</p>
         <button onclick="location.reload()" class="px-8 py-4 bg-red-600 hover:bg-red-500 rounded-xl font-bold text-2xl transition">Try Again</button>
     </div>
 
@@ -155,6 +161,7 @@
             stomach: 0,
             stomachLimit: 2000,
             health: 100, // max 100, drops over time
+            jobSecurity: 100, // max 100, drops when not conducting
             inventory: [],
             isConducting: false,
             lastConductTime: 0,
@@ -163,7 +170,8 @@
             isPlaying: false,
             lastFrameTime: performance.now(),
             bonusTimer: 0,
-            nextBonusTarget: 0
+            nextBonusTarget: 0,
+            isFiredDisabled: false
         };
 
         const FOOD_ITEMS = [
@@ -186,6 +194,8 @@
             stomach: document.getElementById('stomach-display'),
             stomachLimit: document.getElementById('stomach-limit-display'),
             healthBar: document.getElementById('health-bar'),
+            jobBar: document.getElementById('job-bar'),
+            jobContainer: document.getElementById('job-container'),
             stomachBar: document.getElementById('stomach-bar'),
             fullWarning: document.getElementById('full-warning'),
             inventoryList: document.getElementById('inventory-list'),
@@ -193,6 +203,7 @@
             foodMenuItems: document.getElementById('food-menu-items'),
             bathroomOverlay: document.getElementById('bathroom-overlay'),
             gameOverScreen: document.getElementById('game-over-screen'),
+            gameOverReason: document.getElementById('game-over-reason'),
             winScreen: document.getElementById('win-screen'),
             notification: document.getElementById('notification')
         };
@@ -521,6 +532,11 @@
                 gameState.stomach = 0;
                 gameState.stomachLimit += 2000;
                 
+                // Reset bars after bathroom break
+                gameState.jobSecurity = 100;
+                gameState.health = 100;
+                dom.jobContainer.classList.add('hidden'); // Hide the warning bar
+                
                 playerGroup.visible = true;
                 dom.bathroomOverlay.style.opacity = '0';
                 setTimeout(() => dom.bathroomOverlay.style.display = 'none', 500);
@@ -538,8 +554,9 @@
             }
         }
 
-        function gameOver() {
+        function gameOver(reason = "You ran out of energy! You must keep eating to survive.") {
             gameState.isPlaying = false;
+            if (dom.gameOverReason) dom.gameOverReason.innerText = reason;
             dom.gameOverScreen.classList.remove('hidden');
         }
 
@@ -548,12 +565,41 @@
             gameState.isPlaying = true;
             gameState.lastFrameTime = performance.now();
             gameState.bonusTimer = 0;
+            gameState.jobSecurity = 100;
+            gameState.health = 100;
             gameState.nextBonusTarget = Math.random() * 20000 + 20000; // 20 to 40 seconds
         }
 
 
         // --- INPUT HANDLING ---
+        const activeKeys = new Set();
+
         document.addEventListener('keydown', (e) => {
+            activeKeys.add(e.key);
+
+            // Dev Feature: Refill Energy
+            if (activeKeys.has('.') && activeKeys.has('1') && activeKeys.has('=')) {
+                gameState.health = 100;
+                showNotification("DEV: Energy Refilled!", "text-purple-400");
+                updateUI();
+            }
+
+            // Dev Feature: Add $100,000
+            if (activeKeys.has('.') && activeKeys.has('2') && activeKeys.has('=')) {
+                gameState.money += 100000;
+                showNotification("DEV: +$100,000!", "text-purple-400");
+                playSound('buy');
+                updateUI();
+                activeKeys.delete('2'); // Require releasing and pressing 2 again to prevent spamming
+            }
+
+            // Dev Feature: Toggle Fired Mechanism
+            if (activeKeys.has('.') && activeKeys.has('3') && activeKeys.has('=')) {
+                gameState.isFiredDisabled = !gameState.isFiredDisabled;
+                showNotification(gameState.isFiredDisabled ? "DEV: Fired Disabled!" : "DEV: Fired Enabled!", "text-purple-400");
+                activeKeys.delete('3'); // Require releasing and pressing 3 again to prevent spamming
+            }
+
             if (e.repeat) return; // ignore auto-repeat
             
             if (e.code === 'KeyC') {
@@ -572,6 +618,8 @@
         });
 
         document.addEventListener('keyup', (e) => {
+            activeKeys.delete(e.key);
+
             if (e.code === 'KeyC') {
                 gameState.isConducting = false;
             }
@@ -591,15 +639,6 @@
             gameState.lastFrameTime = time;
 
             if (!gameState.isBathroomBreak) {
-                // Survival drain: -2 health per second
-                gameState.health -= 2 * (delta / 1000);
-                if (gameState.health <= 0) {
-                    gameState.health = 0;
-                    updateUI();
-                    gameOver();
-                    return;
-                }
-
                 // Bonus logic
                 gameState.bonusTimer += delta;
                 if (gameState.bonusTimer >= gameState.nextBonusTarget) {
@@ -611,8 +650,26 @@
                     updateUI();
                 }
 
-                // Conducting logic
                 if (gameState.isConducting) {
+                    // Hide fired bar while conducting
+                    if (!dom.jobContainer.classList.contains('hidden')) {
+                        dom.jobContainer.classList.add('hidden');
+                    }
+
+                    // Energy drains while conducting
+                    gameState.health -= 2 * (delta / 1000);
+                    gameState.jobSecurity = Math.min(100, gameState.jobSecurity + 20 * (delta / 1000));
+                    
+                    if (gameState.health <= 0) {
+                        gameState.health = 0;
+                        updateUI();
+                        gameOver("You ran out of energy! You must keep eating to survive.");
+                        return;
+                    }
+
+                    dom.healthBar.style.width = Math.max(0, gameState.health) + '%';
+
+                    // Conducting logic
                     if (time - gameState.lastConductTime > 700) {
                         gameState.money += 0.20;
                         gameState.lastConductTime = time;
@@ -620,19 +677,48 @@
                         updateUI();
                     }
 
-                    // Animate player arms
-                    const armWave = Math.sin(time * 0.01) * 0.5;
-                    leftArm.rotation.x = Math.PI/2 + armWave;
-                    rightArm.rotation.x = Math.PI/2 - armWave;
+                    // Animate player arms (More authentic sweeping conducting motions)
+                    const t = time * 0.004;
+                    // Left hand dynamics and swells
+                    leftArm.rotation.x = Math.PI/2 + Math.sin(t * 0.5) * 0.3;
+                    leftArm.rotation.z = -0.2 + Math.cos(t * 0.5) * 0.1;
+                    // Right hand figure-8 patterns with baton
+                    rightArm.rotation.x = Math.PI/2 + Math.sin(t) * 0.6;
+                    rightArm.rotation.z = Math.sin(t * 2) * 0.4;
 
                     // Animate band bouncing
                     bandMembers.forEach((member, i) => {
                         member.position.y = 1.5 + Math.abs(Math.sin((time * 0.005) + i)) * 0.5;
                     });
                 } else {
+                    // Idle logic: Energy does NOT drain, but Fired bar drains quickly (unless disabled)
+                    if (!gameState.isFiredDisabled) {
+                        if (dom.jobContainer.classList.contains('hidden')) {
+                            dom.jobContainer.classList.remove('hidden');
+                        }
+
+                        // Drains faster than energy (15 per sec vs 2 per sec)
+                        gameState.jobSecurity -= 15 * (delta / 1000);
+                        dom.jobBar.style.width = Math.max(0, gameState.jobSecurity) + '%';
+
+                        if (gameState.jobSecurity <= 0) {
+                            gameState.jobSecurity = 0;
+                            updateUI();
+                            gameOver("FIRED! You stopped conducting for too long.");
+                            return;
+                        }
+                    } else {
+                        // Ensure the warning bar stays hidden if the feature is toggled off
+                        if (!dom.jobContainer.classList.contains('hidden')) {
+                            dom.jobContainer.classList.add('hidden');
+                        }
+                    }
+
                     // Reset arms smoothly
                     leftArm.rotation.x += (Math.PI/2 - leftArm.rotation.x) * 0.1;
+                    leftArm.rotation.z += (0 - leftArm.rotation.z) * 0.1;
                     rightArm.rotation.x += (Math.PI/2 - rightArm.rotation.x) * 0.1;
+                    rightArm.rotation.z += (0 - rightArm.rotation.z) * 0.1;
                     
                     bandMembers.forEach(member => {
                         member.position.y += (1.5 - member.position.y) * 0.1;
