@@ -412,6 +412,13 @@
                     showToast("Popup blocked! Please allow popups for this site.");
                 }
             });
+
+            // --- Feature: Warn Before Leaving ---
+            window.addEventListener('beforeunload', (e) => {
+                // Cancel the event and show the browser's default confirmation dialog
+                e.preventDefault();
+                e.returnValue = '';
+            });
         });
     </script>
 </body>
