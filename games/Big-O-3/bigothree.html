@@ -1,1 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIG O 3 - First Person City</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #000; user-select: none; }
+        #gameCanvas { display: block; }
+        
+        /* Main Menu Overlay */
+        #mainMenu {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 10, 15, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            transition: opacity 0.5s;
+        }
 
+        #mainMenu h1 { font-size: 5rem; margin: 0; color: #ffcc00; text-shadow: 0 0 20px #ff6600; }
+        #mainMenu p { font-size: 1.2rem; margin-top: 10px; color: #ccc; max-width: 600px; text-align: center; line-height: 1.5; }
+        
+        .btn {
+            margin-top: 40px;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #111;
+            background: #00ff88;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 0 15px #00ff88;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .btn:hover { transform: scale(1.1); background: #00cc6a; }
+
+        /* Crosshair */
+        #crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 10px; height: 10px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+            mix-blend-mode: difference;
+        }
+
+        /* UI Overlay */
+        #uiLayer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: none; /* Hidden until game starts */
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 5;
+        }
+
+        .hud-box {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            backdrop-filter: blur(5px);
+        }
+
+        .mass-bar-container {
+            width: 300px; height: 20px;
+            background: #222; border-radius: 10px;
+            margin-top: 10px; overflow: hidden;
+            border: 2px solid #555;
+        }
+
+        .mass-bar {
+            width: 0%; height: 100%;
+            background: linear-gradient(90deg, #ffcc00, #ff0000);
+            transition: width 0.2s ease-out;
+        }
+
+        /* Ability UI */
+        .abilities-container {
+            display: flex; gap: 15px; align-self: flex-end;
+        }
+        .ability-slot {
+            width: 60px; height: 60px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #444; border-radius: 50%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: #555; font-size: 0.7rem; font-weight: bold;
+            position: relative; overflow: hidden; transition: 0.3s;
+        }
+        .ability-slot.unlocked {
+            border-color: #00ff88; color: white; box-shadow: 0 0 10px #00ff88;
+        }
+        .ability-slot .key { color: #ffcc00; font-size: 0.9rem; margin-bottom: 2px; }
+        .ability-slot:not(.unlocked) .key { color: #555; }
+        .cooldown-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 0%;
+            background: rgba(255, 0, 0, 0.5);
+        }
+
+        #interactionHint {
+            position: absolute;
+            bottom: 20%; left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem; font-weight: bold;
+            color: white; text-shadow: 2px 2px 0 #000;
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="mainMenu">
+        <h1>BIG O 3</h1>
+        <p>You arrive in the city hungry. <br><br><b>WASD</b> to move. <b>Mouse</b> to look. <b>Left Click</b> to consume food.<br>Walk into restaurants to find large stashes. As you eat, you grow.<br>Become massive.</p>
+        <button class="btn" id="startBtn">ENTER CITY</button>
+    </div>
+
+    <div id="crosshair"></div>
+
+    <div id="uiLayer">
+        <div style="display: flex; justify-content: space-between;">
+            <div class="hud-box">
+                <h2 style="margin:0;">Stomach Mass: <span id="massText">0</span> kg</h2>
+                <div class="mass-bar-container">
+                    <div class="mass-bar" id="massBar"></div>
+                </div>
+            </div>
+            <div class="hud-box" style="text-align: right;">
+                <h3 style="margin:0;">WANTED</h3>
+                <div style="color: #444; font-size: 24px; letter-spacing: 5px; margin-top: 5px;">
+                    <span id="star1">★</span><span id="star2">★</span><span id="star3">★</span>
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto;">
+            <div class="hud-box">
+                Height: <span id="heightText">1.7</span>m
+            </div>
+            <div class="abilities-container">
+                <div class="ability-slot" id="abRoll">
+                    <span class="key">Q</span><span>ROLL</span>
+                    <div class="cooldown-overlay" id="cdRoll"></div>
+                </div>
+                <div class="ability-slot" id="abInhale">
+                    <span class="key">E</span><span>INHALE</span>
+                    <div class="cooldown-overlay" id="cdInhale"></div>
+                </div>
+                <div class="ability-slot" id="abShock">
+                    <span class="key">F</span><span>SHOCK</span>
+                    <div class="cooldown-overlay" id="cdShock"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="interactionHint">CLICK TO EAT</div>
+
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // --- Core Engine ---
+        let scene, camera, renderer, clock;
+        let isGameRunning = false;
+        
+        // --- Player ---
+        let playerVelocity = new THREE.Vector3();
+        let playerDirection = new THREE.Vector3();
+        let pitch = 0, yaw = 0;
+        let keys = { w: false, a: false, s: false, d: false, space: false };
+        let stomachMass = 0;
+        let baseHeight = 1.7; // 1.7 meters (average human)
+        let playerHeight = baseHeight;
+        let walkTime = 0;
+        let playerKnockback = new THREE.Vector3();
+        
+        let playerBelly; // Visible belly mesh
+        let colliders = []; // AABB array for wall collisions
+        let foodItems = [];
+        let npcs = [];
+        let cars = [];
+
+        // --- Abilities State ---
+        let abilities = {
+            roll: { unlocked: false, cooldown: 0, maxCooldown: 5 },
+            inhale: { unlocked: false, cooldown: 0, maxCooldown: 10 },
+            shock: { unlocked: false, cooldown: 0, maxCooldown: 15 }
+        };
+
+        // --- Audio Context ---
+        let audioCtx;
+        
+        // --- UI Elements ---
+        const mainMenu = document.getElementById('mainMenu');
+        const uiLayer = document.getElementById('uiLayer');
+        const startBtn = document.getElementById('startBtn');
+        const interactionHint = document.getElementById('interactionHint');
+        const massText = document.getElementById('massText');
+        const heightText = document.getElementById('heightText');
+        const massBar = document.getElementById('massBar');
+
+        // Initialize on button click to satisfy AudioContext constraints
+        startBtn.addEventListener('click', () => {
+            if(!isGameRunning) {
+                initAudio();
+                initEngine();
+                mainMenu.style.display = 'none';
+                uiLayer.style.display = 'flex';
+                document.body.requestPointerLock();
+                isGameRunning = true;
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement !== document.body && isGameRunning) {
+                mainMenu.style.display = 'flex';
+                mainMenu.querySelector('h1').innerText = "PAUSED";
+                mainMenu.querySelector('p').innerText = "Click 'RESUME' to continue.";
+                startBtn.innerText = "RESUME";
+                uiLayer.style.display = 'none';
+                isGameRunning = false;
+            } else if (document.pointerLockElement === document.body) {
+                mainMenu.style.display = 'none';
+                uiLayer.style.display = 'flex';
+                isGameRunning = true;
+            }
+        });
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // City Ambience (low frequency noise)
+            const bufferSize = audioCtx.sampleRate * 2; // 2 seconds
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            const whiteNoise = audioCtx.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+            whiteNoise.loop = true;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 150; // Low hum of city
+            
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.5;
+
+            whiteNoise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            whiteNoise.start();
+        }
+
+        function playChompSound() {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'sawtooth';
+            // Downward pitch bend
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.15);
+            
+            // Volume envelope
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.8, audioCtx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function initEngine() {
+            if (scene) return; // Prevent double init
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xaaccff);
+            scene.fog = new THREE.Fog(0xaaccff, 10, 150);
+
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, playerHeight, 0);
+            camera.rotation.order = 'YXZ'; // Important for FPS look
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+            
+            clock = new THREE.Clock();
+
+            setupLighting();
+            buildCity();
+            createPlayerBelly();
+
+            // Event Listeners
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            animate();
+        }
+
+        function setupLighting() {
+            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xffeedd, 1.0);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            sun.shadow.camera.near = 0.5;
+            sun.shadow.camera.far = 250;
+            sun.shadow.camera.left = -100;
+            sun.shadow.camera.right = 100;
+            sun.shadow.camera.top = 100;
+            sun.shadow.camera.bottom = -100;
+            scene.add(sun);
+        }
+
+        function createPlayerBelly() {
+            // First person visible belly
+            const geo = new THREE.SphereGeometry(1, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xffccaa, roughness: 0.5 });
+            playerBelly = new THREE.Mesh(geo, mat);
+            // Position it below and slightly forward of the eyes
+            playerBelly.position.set(0, -1.2, -0.3);
+            playerBelly.scale.set(0.1, 0.1, 0.1); // Start small
+            camera.add(playerBelly);
+            scene.add(camera);
+        }
+
+        // --- World Generation ---
+        function buildCity() {
+            // Ground (Asphalt)
+            const groundGeo = new THREE.PlaneGeometry(600, 600);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const brands = [
+                { name: "Burger Monarch", color: 0xdd7722 },
+                { name: "Cluck-fil-A", color: 0xcc2222 },
+                { name: "McDowells", color: 0xffcc00 },
+                { name: "Wanda's", color: 0x4466ee }
+            ];
+
+            // City Grid
+            for (let x = -200; x <= 200; x += 40) {
+                for (let z = -200; z <= 200; z += 40) {
+                    if (Math.abs(x) < 20 && Math.abs(z) < 20) continue; // Leave center open for spawn
+                    
+                    // Create Sidewalks/Blocks
+                    const blockGeo = new THREE.BoxGeometry(32, 0.2, 32);
+                    const blockMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+                    const block = new THREE.Mesh(blockGeo, blockMat);
+                    block.position.set(x, 0.1, z);
+                    block.receiveShadow = true;
+                    scene.add(block);
+
+                    // 50% chance for a restaurant, 50% for standard building
+                    if (Math.random() > 0.5) {
+                        const brand = brands[Math.floor(Math.random() * brands.length)];
+                        buildRestaurant(x, z, brand);
+                    } else {
+                        buildOffice(x, z);
+                    }
+                }
+            }
+
+            // Spawn Entities
+            for(let i=0; i<80; i++) spawnNPC();
+            for(let i=0; i<40; i++) spawnCar();
+            for(let i=0; i<100; i++) spawnStreetFood();
+        }
+
+        function buildRestaurant(x, z, brand) {
+            const group = new THREE.Group();
+            const wallMat = new THREE.MeshStandardMaterial({ color: brand.color });
+            const interiorMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+            const w = 16, h = 6, d = 16;
+            const wallThickness = 1;
+
+            // Helper to add walls and colliders
+            const addWall = (mesh, px, pz) => {
+                mesh.position.set(px, h/2, pz);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+                
+                // Add bounding box to colliders
+                const box = new THREE.Box3().setFromObject(mesh);
+                // Translate box to world coords relative to group pos
+                box.min.add(new THREE.Vector3(x, 0, z));
+                box.max.add(new THREE.Vector3(x, 0, z));
+                colliders.push(box);
+            };
+
+            // Back wall
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w, h, wallThickness), wallMat), 0, -d/2);
+            // Side walls
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(wallThickness, h, d), wallMat), -w/2, 0);
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(wallThickness, h, d), wallMat), w/2, 0);
+            
+            // Front wall (with door gap)
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w/3, h, wallThickness), wallMat), -w/3, d/2);
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w/3, h, wallThickness), wallMat), w/3, d/2);
+            // Lintel over door
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w/3, h/2, wallThickness), wallMat), 0, d/2 + 1.5); // +1.5 pushes lintel up in local space
+
+            // Roof
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 1, 0.5, d + 1), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            roof.position.set(0, h + 0.25, 0);
+            roof.castShadow = true;
+            group.add(roof);
+
+            // Interior Counter
+            const counter = new THREE.Mesh(new THREE.BoxGeometry(8, 1.5, 2), new THREE.MeshStandardMaterial({color: 0x444444}));
+            counter.position.set(0, 0.75, -d/2 + 3);
+            addWall(counter, 0, -d/2 + 3); // Make counter solid
+            
+            group.position.set(x, 0, z);
+            scene.add(group);
+
+            // Spawn Food inside
+            for(let i=0; i<8; i++) {
+                spawnFoodAt(x + (Math.random() - 0.5) * 6, 1.6, z - d/2 + 3 + (Math.random()*1)); // On counter
+                spawnFoodAt(x + (Math.random() - 0.5) * 10, 0.2, z + (Math.random() - 0.5) * 10); // Floor
+            }
+
+            // Drive Thru Menu (outside)
+            const menu = new THREE.Mesh(new THREE.BoxGeometry(1, 3, 2), new THREE.MeshStandardMaterial({color: 0x222222}));
+            menu.position.set(x + w/2 + 4, 1.5, z);
+            addWall(menu, x + w/2 + 4, z); // Add solid
+            scene.add(menu);
+        }
+
+        function buildOffice(x, z) {
+            const group = new THREE.Group();
+            const w = 20, h = 20 + Math.random() * 40, d = 20;
+            const wallThickness = 1;
+            const mat = new THREE.MeshStandardMaterial({ color: 0x555566, roughness: 0.3 });
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.1, metalness: 0.8 });
+
+            const addWall = (mesh, px, pz) => {
+                mesh.position.set(px, h/2, pz);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+                
+                const box = new THREE.Box3().setFromObject(mesh);
+                box.min.add(new THREE.Vector3(x, 0, z));
+                box.max.add(new THREE.Vector3(x, 0, z));
+                colliders.push(box);
+            };
+
+            // Hollow walls
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w, h, wallThickness), mat), 0, -d/2); // Back
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(wallThickness, h, d), mat), -w/2, 0); // Left
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(wallThickness, h, d), mat), w/2, 0);  // Right
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w/3, h, wallThickness), mat), -w/3, d/2); // Front L
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w/3, h, wallThickness), mat), w/3, d/2);  // Front R
+            addWall(new THREE.Mesh(new THREE.BoxGeometry(w/3, h - 4, wallThickness), mat), 0, d/2 + 2); // Door Lintel
+
+            // Roof
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 1, 1, d + 1), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            roof.position.set(0, h + 0.5, 0);
+            roof.castShadow = true;
+            group.add(roof);
+
+            // Decorative Glass (Windows)
+            const windowPane = new THREE.Mesh(new THREE.PlaneGeometry(w/3 - 1, h - 4), glassMat);
+            windowPane.position.set(-w/3, h/2 + 2, d/2 + 0.51);
+            group.add(windowPane);
+            
+            const windowPane2 = new THREE.Mesh(new THREE.PlaneGeometry(w/3 - 1, h - 4), glassMat);
+            windowPane2.position.set(w/3, h/2 + 2, d/2 + 0.51);
+            group.add(windowPane2);
+
+            group.position.set(x, 0, z);
+            scene.add(group);
+
+            // Spawn food inside office lobbies
+            for(let i=0; i<6; i++) {
+                spawnFoodAt(x + (Math.random() - 0.5) * 10, 0.2, z + (Math.random() - 0.5) * 10);
+            }
+        }
+
+        function spawnFoodAt(fx, fy, fz) {
+            const geo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 12);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+            const food = new THREE.Mesh(geo, mat);
+            food.position.set(fx, fy, fz);
+            food.castShadow = true;
+            food.userData = { calorie: 5 }; // Base value
+            scene.add(food);
+            foodItems.push(food);
+        }
+
+        function spawnStreetFood() {
+            // Spawn loose food randomly on sidewalks
+            let rx = (Math.random() - 0.5) * 400;
+            let rz = (Math.random() - 0.5) * 400;
+            spawnFoodAt(rx, 0.3, rz);
+        }
+
+        // --- Entities ---
+        function spawnNPC() {
+            const group = new THREE.Group();
+            const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+            const shirtColors = [0xdd3333, 0x33dd33, 0x3333dd, 0xeeeeee, 0x333333];
+            const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColors[Math.floor(Math.random()*shirtColors.length)] });
+            const pantsMat = new THREE.MeshStandardMaterial({ color: 0x223366 });
+
+            // Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), shirtMat);
+            body.position.y = 1.0;
+            group.add(body);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), skinMat);
+            head.position.y = 1.6;
+            group.add(head);
+
+            // Legs
+            const legGeo = new THREE.BoxGeometry(0.25, 0.7, 0.25);
+            const legL = new THREE.Mesh(legGeo, pantsMat);
+            const legR = new THREE.Mesh(legGeo, pantsMat);
+            legL.position.set(-0.15, 0.35, 0);
+            legR.position.set(0.15, 0.35, 0);
+            group.add(legL);
+            group.add(legR);
+
+            group.position.set((Math.random()-0.5)*400, 0, (Math.random()-0.5)*400);
+            scene.add(group);
+
+            npcs.push({
+                mesh: group,
+                legL: legL, legR: legR,
+                speed: 1.5 + Math.random(),
+                direction: new THREE.Vector3(Math.random()-0.5, 0, Math.random()-0.5).normalize(),
+                stateTime: 0
+            });
+        }
+
+        function spawnCar() {
+            const group = new THREE.Group();
+            const colors = [0xff0000, 0x0000ff, 0x00ff00, 0xaaaaaa, 0xffff00];
+            const mat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random()*colors.length)] });
+            
+            // Chassis
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), mat);
+            chassis.position.y = 0.7;
+            chassis.castShadow = true;
+            group.add(chassis);
+
+            // Top
+            const top = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.8, 2), new THREE.MeshStandardMaterial({color: 0x111111}));
+            top.position.set(0, 1.5, -0.2);
+            group.add(top);
+
+            // Align to road grid exactly between buildings
+            const isVertical = Math.random() > 0.5;
+            let roadIndex = (Math.floor(Math.random() * 10) - 5) * 40 + 20; // Roads at -180, -140, ..., 180
+            let laneOffset = Math.random() > 0.5 ? 2 : -2; // Two lanes, 4 units apart
+            let x, z, dir;
+            
+            if (isVertical) {
+                x = roadIndex + laneOffset;
+                z = (Math.random() - 0.5) * 400;
+                dir = new THREE.Vector3(0, 0, laneOffset > 0 ? 1 : -1);
+            } else {
+                z = roadIndex + laneOffset;
+                x = (Math.random() - 0.5) * 400;
+                dir = new THREE.Vector3(laneOffset > 0 ? 1 : -1, 0, 0);
+            }
+
+            group.position.set(x, 0, z);
+            group.lookAt(group.position.clone().add(dir));
+            scene.add(group);
+
+            cars.push({
+                mesh: group,
+                dir: dir,
+                speed: 8 + Math.random() * 5,
+                isFlung: false,
+                velocity: new THREE.Vector3()
+            });
+        }
+
+        // --- Input Handling ---
+        function onMouseMove(event) {
+            if (!isGameRunning) return;
+            yaw -= event.movementX * 0.002;
+            pitch -= event.movementY * 0.002;
+            pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+            camera.rotation.set(pitch, yaw, 0, 'YXZ');
+        }
+
+        function onKeyDown(event) {
+            switch (event.code) {
+                case 'KeyW': keys.w = true; break;
+                case 'KeyA': keys.a = true; break;
+                case 'KeyS': keys.s = true; break;
+                case 'KeyD': keys.d = true; break;
+                case 'Space': keys.space = true; break;
+                
+                // Abilities
+                case 'KeyQ': 
+                    if (abilities.roll.unlocked && abilities.roll.cooldown <= 0) abilities.roll.cooldown = abilities.roll.maxCooldown;
+                    break;
+                case 'KeyE':
+                    if (abilities.inhale.unlocked && abilities.inhale.cooldown <= 0) abilities.inhale.cooldown = abilities.inhale.maxCooldown;
+                    break;
+                case 'KeyF':
+                    if (abilities.shock.unlocked && abilities.shock.cooldown <= 0) abilities.shock.cooldown = abilities.shock.maxCooldown;
+                    break;
+            }
+
+            // Dev Shortcut (Shift + 3)
+            if (event.shiftKey && event.code === 'Digit3') {
+                devConsumeFood(100);
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'KeyW': keys.w = false; break;
+                case 'KeyA': keys.a = false; break;
+                case 'KeyS': keys.s = false; break;
+                case 'KeyD': keys.d = false; break;
+                case 'Space': keys.space = false; break;
+            }
+        }
+
+        function onMouseDown(event) {
+            if (!isGameRunning || event.button !== 0) return;
+            attemptEat();
+        }
+
+        // --- Core Mechanics ---
+        function devConsumeFood(amount) {
+            stomachMass += amount;
+            updatePlayerScale();
+            playChompSound();
+            
+            massText.innerText = Math.floor(stomachMass);
+            massBar.style.width = Math.min(100, (stomachMass % 100)) + '%';
+        }
+
+        function attemptEat() {
+            // Raycast from center of camera
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            
+            // Eat reach scales with player height
+            const reach = 3 + (playerHeight - baseHeight) * 2; 
+
+            // Check food
+            const intersects = raycaster.intersectObjects(foodItems);
+            if (intersects.length > 0 && intersects[0].distance < reach) {
+                const foodMesh = intersects[0].object;
+                
+                // Remove from scene and array
+                scene.remove(foodMesh);
+                foodItems.splice(foodItems.indexOf(foodMesh), 1);
+                
+                // Grow logic
+                stomachMass += foodMesh.userData.calorie;
+                updatePlayerScale();
+                playChompSound();
+                
+                // UI update
+                massText.innerText = Math.floor(stomachMass);
+                massBar.style.width = Math.min(100, (stomachMass % 100)) + '%';
+            }
+        }
+
+        function updatePlayerScale() {
+            // Logarithmic/Square root growth feels better than linear
+            let growth = Math.pow(stomachMass, 0.6) * 0.05; 
+            playerHeight = baseHeight + growth;
+            
+            // Adjust Belly mesh
+            let bellyScale = 0.1 + growth * 0.4;
+            playerBelly.scale.set(bellyScale, bellyScale, bellyScale);
+            playerBelly.position.set(0, -1.2 - (growth*0.2), -0.3 - (growth*0.1));
+
+            // Update UI
+            heightText.innerText = playerHeight.toFixed(2);
+
+            // Check Ability Unlocks
+            if (playerHeight >= 3.0 && !abilities.roll.unlocked) {
+                abilities.roll.unlocked = true;
+                document.getElementById('abRoll').classList.add('unlocked');
+            }
+            if (playerHeight >= 6.0 && !abilities.inhale.unlocked) {
+                abilities.inhale.unlocked = true;
+                document.getElementById('abInhale').classList.add('unlocked');
+            }
+            if (playerHeight >= 10.0 && !abilities.shock.unlocked) {
+                abilities.shock.unlocked = true;
+                document.getElementById('abShock').classList.add('unlocked');
+            }
+        }
+
+        function handleMovement(dt) {
+            // Movement logic relative to camera yaw
+            let moveSpeed = 6.0; 
+            // Scale movement speed slightly with height, so massive = faster absolute cover but slower feel
+            moveSpeed *= (1 + (playerHeight - baseHeight) * 0.2); 
+
+            playerDirection.set(0, 0, 0);
+            if (keys.w) playerDirection.z -= 1;
+            if (keys.s) playerDirection.z += 1;
+            if (keys.a) playerDirection.x -= 1;
+            if (keys.d) playerDirection.x += 1;
+
+            playerDirection.normalize();
+            
+            // Rotate direction vector by camera yaw
+            playerDirection.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+
+            // Apply to velocity with damping
+            playerVelocity.x = playerDirection.x * moveSpeed;
+            playerVelocity.z = playerDirection.z * moveSpeed;
+
+            // Save old pos for collision resolution
+            const oldX = camera.position.x;
+            const oldZ = camera.position.z;
+
+            // Apply movement
+            camera.position.x += playerVelocity.x * dt;
+            camera.position.z += playerVelocity.z * dt;
+
+            // Apply knockback
+            camera.position.addScaledVector(playerKnockback, dt);
+            playerKnockback.lerp(new THREE.Vector3(0,0,0), dt * 5); // Decay over time
+
+            // Head bobbing animation if moving
+            if (playerDirection.lengthSq() > 0) {
+                walkTime += dt * 10;
+                camera.position.y = playerHeight + Math.sin(walkTime) * 0.1;
+            } else {
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, playerHeight, 0.1);
+            }
+
+            // AABB Collision vs Walls
+            // Player AABB scales with height/belly
+            const playerRadius = 0.4 + (playerHeight - baseHeight) * 0.3;
+            const pBox = new THREE.Box3().setFromCenterAndSize(
+                new THREE.Vector3(camera.position.x, playerHeight/2, camera.position.z),
+                new THREE.Vector3(playerRadius*2, playerHeight, playerRadius*2)
+            );
+
+            let hit = false;
+            for(let box of colliders) {
+                if (pBox.intersectsBox(box)) {
+                    hit = true;
+                    break;
+                }
+            }
+
+            // Simple resolution: if hit, revert movement
+            // (A robust engine uses sliding vectors, but this keeps it single-file clean)
+            if (hit) {
+                camera.position.x = oldX;
+                camera.position.z = oldZ;
+            }
+
+            // Check interaction hints (raycast food)
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+            const reach = 3 + (playerHeight - baseHeight) * 2;
+            const intersects = raycaster.intersectObjects(foodItems);
+            if (intersects.length > 0 && intersects[0].distance < reach) {
+                interactionHint.style.display = 'block';
+            } else {
+                interactionHint.style.display = 'none';
+            }
+        }
+
+        function updateEntities(dt) {
+            const time = clock.getElapsedTime();
+
+            // Animate NPCs
+            for(let npc of npcs) {
+                npc.stateTime -= dt;
+                
+                // Random wander changes
+                if (npc.stateTime <= 0) {
+                    npc.direction.set(Math.random()-0.5, 0, Math.random()-0.5).normalize();
+                    npc.stateTime = 2 + Math.random() * 3;
+                }
+
+                npc.mesh.position.addScaledVector(npc.direction, npc.speed * dt);
+                npc.mesh.lookAt(npc.mesh.position.clone().add(npc.direction));
+                
+                // Keep in bounds
+                if(npc.mesh.position.x > 250) npc.mesh.position.x = -250;
+                if(npc.mesh.position.x < -250) npc.mesh.position.x = 250;
+                if(npc.mesh.position.z > 250) npc.mesh.position.z = -250;
+                if(npc.mesh.position.z < -250) npc.mesh.position.z = 250;
+
+                // Simple walk cycle
+                const limbAngle = Math.sin(time * 10) * 0.5;
+                npc.legL.rotation.x = limbAngle;
+                npc.legR.rotation.x = -limbAngle;
+            }
+
+            // Move Cars
+            for(let car of cars) {
+                if (car.isFlung) {
+                    car.velocity.y -= 40 * dt; // Gravity
+                    car.mesh.position.addScaledVector(car.velocity, dt);
+                    car.mesh.rotation.x += dt * 3;
+                    car.mesh.rotation.z += dt * 5;
+                } else {
+                    car.mesh.position.addScaledVector(car.dir, car.speed * dt);
+                    
+                    // Wrap around map
+                    if(car.mesh.position.x > 250) car.mesh.position.x = -250;
+                    if(car.mesh.position.x < -250) car.mesh.position.x = 250;
+                    if(car.mesh.position.z > 250) car.mesh.position.z = -250;
+                    if(car.mesh.position.z < -250) car.mesh.position.z = 250;
+
+                    // Car collision with player
+                    let dist = car.mesh.position.distanceTo(camera.position);
+                    let collisionRadius = 3.0 + (playerHeight - baseHeight) * 0.3; 
+                    if (dist < collisionRadius) {
+                        if (playerHeight < 3.0) {
+                            // Small: Fling player to side
+                            let knockDir = new THREE.Vector3().subVectors(camera.position, car.mesh.position).normalize();
+                            knockDir.y = 0.5; // Upward bias
+                            playerKnockback.copy(knockDir).multiplyScalar(40);
+                        } else {
+                            // Big: Fling car away
+                            car.isFlung = true;
+                            let flingDir = new THREE.Vector3().subVectors(car.mesh.position, camera.position).normalize();
+                            flingDir.y = 1.0; // Knock up
+                            car.velocity.copy(flingDir).multiplyScalar(20 + playerHeight * 2);
+                        }
+                    }
+                }
+            }
+
+            // Update Ability Cooldowns
+            if (abilities.roll.cooldown > 0) {
+                abilities.roll.cooldown -= dt;
+                document.getElementById('cdRoll').style.height = (abilities.roll.cooldown / abilities.roll.maxCooldown * 100) + '%';
+            }
+            if (abilities.inhale.cooldown > 0) {
+                abilities.inhale.cooldown -= dt;
+                document.getElementById('cdInhale').style.height = (abilities.inhale.cooldown / abilities.inhale.maxCooldown * 100) + '%';
+            }
+            if (abilities.shock.cooldown > 0) {
+                abilities.shock.cooldown -= dt;
+                document.getElementById('cdShock').style.height = (abilities.shock.cooldown / abilities.shock.maxCooldown * 100) + '%';
+            }
+        }
+
+        // --- Main Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isGameRunning) {
+                renderer.render(scene, camera);
+                return;
+            }
+
+            const dt = Math.min(clock.getDelta(), 0.1); // Cap dt to prevent physics jumps
+            
+            handleMovement(dt);
+            updateEntities(dt);
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
