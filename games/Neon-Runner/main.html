@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Runner — Rhythm Rooftop</title>
+    <style>
+        /* === CSS & NEON STYLING === */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-green: #00ff66;
+            --neon-red: #ff3333;
+            --bg-dark: rgba(10, 10, 15, 0.85);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #050505;
+            font-family: 'Orbitron', sans-serif;
+            color: #fff; user-select: none;
+        }
+
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        /* UI Layers */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: var(--bg-dark); z-index: 10;
+            backdrop-filter: blur(4px); transition: opacity 0.3s;
+        }
+        .hidden { display: none !important; }
+
+        h1 {
+            font-size: 4rem; margin-bottom: 0.5rem; text-align: center;
+            text-transform: uppercase; letter-spacing: 5px;
+            color: #fff; text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink), 0 0 40px var(--neon-pink);
+        }
+        h2 { font-size: 2.5rem; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+
+        .btn {
+            background: transparent; border: 2px solid var(--neon-blue);
+            color: var(--neon-blue); font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem; padding: 15px 40px; margin: 10px;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 2px;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2) inset, 0 0 10px rgba(0, 243, 255, 0.2);
+        }
+        .btn:hover, .btn:focus {
+            background: var(--neon-blue); color: #000;
+            box-shadow: 0 0 20px var(--neon-blue) inset, 0 0 20px var(--neon-blue);
+            outline: none; transform: scale(1.05);
+        }
+        .btn-pink { border-color: var(--neon-pink); color: var(--neon-pink); box-shadow: 0 0 10px rgba(255, 0, 255, 0.2) inset, 0 0 10px rgba(255, 0, 255, 0.2); }
+        .btn-pink:hover, .btn-pink:focus { background: var(--neon-pink); color: #000; box-shadow: 0 0 20px var(--neon-pink) inset, 0 0 20px var(--neon-pink); }
+
+        /* HUD */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .hud-top { display: flex; justify-content: space-between; padding: 20px; text-shadow: 0 0 5px #000; }
+        .hud-stat { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
+        .hud-score { color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+        .hud-combo { color: var(--neon-pink); text-shadow: 0 0 10px var(--neon-pink); }
+        
+        #stability-bar-container { width: 200px; height: 15px; background: #222; border: 1px solid #fff; margin-top: 10px; }
+        #stability-bar { width: 100%; height: 100%; background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); transition: width 0.2s, background 0.2s; }
+
+        .beat-bar-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 300px; height: 30px; border: 2px solid rgba(255,255,255,0.5); border-radius: 15px; overflow: hidden; background: rgba(0,0,0,0.5); }
+        #beat-cursor { width: 10px; height: 100%; background: #fff; position: absolute; left: 0; box-shadow: 0 0 15px #fff; }
+        .beat-target { position: absolute; width: 4px; height: 100%; background: var(--neon-pink); left: 50%; transform: translateX(-50%); box-shadow: 0 0 10px var(--neon-pink); }
+
+        #timing-feedback {
+            position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 2.5rem; font-weight: 900; opacity: 0; transition: opacity 0.1s, transform 0.2s;
+        }
+        .feedback-perfect { color: var(--neon-pink); text-shadow: 0 0 20px var(--neon-pink); }
+        .feedback-good { color: var(--neon-blue); text-shadow: 0 0 15px var(--neon-blue); }
+        .feedback-miss { color: var(--neon-red); text-shadow: 0 0 15px var(--neon-red); }
+
+        /* Touch Controls */
+        #touch-controls {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
+            display: none; pointer-events: none; z-index: 6;
+        }
+        .touch-zone { position: absolute; pointer-events: auto; }
+        #joystick-zone { left: 20px; bottom: 20px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(0,243,255,0.3); }
+        #joystick-knob { width: 60px; height: 60px; background: rgba(0,243,255,0.6); border-radius: 50%; position: absolute; top: 45px; left: 45px; box-shadow: 0 0 10px var(--neon-blue); }
+        #action-btn { right: 30px; bottom: 30px; width: 100px; height: 100px; background: rgba(255,0,255,0.2); border: 2px solid var(--neon-pink); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; font-weight: bold; box-shadow: 0 0 15px rgba(255,0,255,0.4); }
+        #dash-btn { right: 140px; bottom: 30px; width: 80px; height: 80px; background: rgba(0,243,255,0.2); border: 2px solid var(--neon-blue); border-radius: 50%; display: flex; justify-content: center; align-items: center; }
+
+        /* Dev & Settings */
+        .panel { background: rgba(0,0,0,0.8); padding: 30px; border: 1px solid var(--neon-blue); border-radius: 10px; max-width: 600px; text-align: center; }
+        .setting-row { display: flex; justify-content: space-between; margin: 15px 0; align-items: center; width: 100%; }
+        #dev-panel { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; padding: 10px; border: 1px solid #0f0; z-index: 100; font-size: 12px; pointer-events: none; }
+        #quick-play-btn { position: absolute; bottom: 10px; right: 10px; font-size: 10px; padding: 5px; z-index: 100; opacity: 0.5; }
+
+        .hint { font-size: 1rem; color: #aaa; margin-top: 20px; }
+        
+        /* Fallback loader */
+        #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--neon-blue); z-index: 999; text-align: center; }
+        .spinner { width: 50px; height: 50px; border: 5px solid rgba(0,243,255,0.3); border-top-color: var(--neon-blue); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+    <!-- Three.js from stable CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="loader-text">Initializing Game Engine...</div>
+    </div>
+
+    <!-- UI Overlays -->
+    <div id="main-menu" class="overlay hidden">
+        <h1>Neon Runner</h1>
+        <h2 style="font-size: 1.5rem; color: #fff; text-shadow: 0 0 5px #fff; margin-top:-10px; margin-bottom: 40px;">Rhythm Rooftop</h2>
+        <button class="btn" onclick="ui.showLevelSelect()">Start Run</button>
+        <button class="btn" onclick="ui.showSettings()">Settings & Controls</button>
+        <div class="hint">High Score: <span id="main-high-score">0</span></div>
+    </div>
+
+    <div id="level-select" class="overlay hidden">
+        <h2>Select Track</h2>
+        <button class="btn btn-pink" onclick="game.startLevel('easy')">Easy (90 BPM)</button>
+        <button class="btn btn-pink" onclick="game.startLevel('medium')">Medium (120 BPM)</button>
+        <button class="btn btn-pink" onclick="game.startLevel('hard')">Hard (150 BPM)</button>
+        <button class="btn" onclick="ui.showMainMenu()" style="margin-top: 40px; font-size: 1rem;">Back</button>
+    </div>
+
+    <div id="settings-menu" class="overlay hidden">
+        <div class="panel">
+            <h2>Settings & Controls</h2>
+            <div class="setting-row">
+                <span>Audio (Music/SFX)</span>
+                <input type="checkbox" id="audio-toggle" checked onchange="audio.toggleMute()">
+            </div>
+            <div class="setting-row">
+                <span>Low Graphics (Mobile mode)</span>
+                <input type="checkbox" id="graphics-toggle" onchange="game.toggleGraphics()">
+            </div>
+            <hr style="border-color: #333; margin: 20px 0;">
+            <div style="text-align: left; font-size: 0.9rem; line-height: 1.5;">
+                <b style="color:var(--neon-pink)">Desktop:</b> WASD/Arrows to Move. SPACE to Jump. SHIFT to Dash.<br>
+                <b style="color:var(--neon-blue)">Mobile:</b> On-screen Joystick & Buttons.<br><br>
+                <b style="color:var(--neon-green)">Rhythm:</b> Perform actions ON THE BEAT for Speed & Score Combo. Misses drain Stability.<br>
+                <b style="color:#0ff">Orbs:</b> Collect cyan orbs to unlock Double Jump and boost score. Reach the Extraction Gate!
+            </div>
+            <button class="btn" onclick="ui.showMainMenu()" style="margin-top: 30px;">Back</button>
+        </div>
+    </div>
+
+    <div id="pause-menu" class="overlay hidden">
+        <h2>System Paused</h2>
+        <button class="btn" onclick="game.resume()">Resume</button>
+        <button class="btn btn-pink" onclick="game.restart()">Restart Track</button>
+        <button class="btn" onclick="game.quitToMenu()">Abort Run</button>
+    </div>
+
+    <div id="results-screen" class="overlay hidden">
+        <h1 id="result-title">Run Complete</h1>
+        <div class="panel">
+            <div class="setting-row"><span class="hud-stat">Orbs Collected:</span> <span id="res-orbs" class="hud-score">0/0</span></div>
+            <div class="setting-row"><span class="hud-stat">Max Combo:</span> <span id="res-combo" class="hud-combo">0</span></div>
+            <div class="setting-row"><span class="hud-stat">Final Score:</span> <span id="res-score" class="hud-score" style="font-size: 2rem;">0</span></div>
+            <div id="res-high-score-msg" class="hint" style="color: var(--neon-green); display:none;">New High Score!</div>
+            <div style="margin-top: 30px;">
+                <button class="btn btn-pink" onclick="game.restart()">Retry</button>
+                <button class="btn" onclick="game.quitToMenu()">Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-Game HUD -->
+    <div id="hud" class="hidden">
+        <div class="hud-top">
+            <div>
+                <div class="hud-stat hud-score">SCORE: <span id="hud-score-val">0000</span></div>
+                <div class="hud-stat">ORBS: <span id="hud-orbs-val">0/3</span></div>
+                <div class="hud-stat" style="font-size: 1rem; color: #ccc;">ESC to Pause</div>
+            </div>
+            <div style="text-align: right;">
+                <div class="hud-stat hud-combo">COMBO x<span id="hud-combo-val">0</span></div>
+                <div>Stability</div>
+                <div id="stability-bar-container"><div id="stability-bar"></div></div>
+            </div>
+        </div>
+        
+        <div id="timing-feedback">PERFECT</div>
+
+        <div class="beat-bar-container">
+            <div class="beat-target"></div>
+            <div id="beat-cursor"></div>
+        </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div id="touch-controls">
+        <div class="touch-zone" id="joystick-zone"><div id="joystick-knob"></div></div>
+        <div class="touch-zone" id="dash-btn">DASH</div>
+        <div class="touch-zone" id="action-btn">JUMP</div>
+    </div>
+
+    <div id="game-container"></div>
+    <div id="dev-panel" class="hidden"></div>
+    <button id="quick-play-btn" class="btn" onclick="qa.quickPlay()">Quick Play (Dev)</button>
+
+    <script>
+        /**
+         * NEON RUNNER - CORE ENGINE
+         * Single-file architecture mapping:
+         * 1. Globals & Utils
+         * 2. UI Manager
+         * 3. Audio / Rhythm Engine (WebAudio)
+         * 4. Graphics / Three.js Setup
+         * 5. Game Objects (Player, Environment, AI)
+         * 6. Game Loop & States
+         * 7. QA / Dev Harness
+         */
+
+        // --- 1. GLOBALS & UTILS ---
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const STATE = { MENU: 0, PLAYING: 1, PAUSED: 2, GAMEOVER: 3, VICTORY: 4 };
+        let gameState = STATE.MENU;
+        
+        const storageKey = 'neonRunner_highScore';
+        let highScore = parseInt(localStorage.getItem(storageKey)) || 0;
+
+        const config = {
+            easy: { bpm: 90, orbs: 3, speed: 15, length: 30, drones: 0 },
+            medium: { bpm: 120, orbs: 5, speed: 20, length: 50, drones: 3 },
+            hard: { bpm: 150, orbs: 9, speed: 25, length: 80, drones: 8 }
+        };
+
+        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+        const touchInput = { x: 0, y: 0, jump: false, dash: false };
+
+        function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+        function lerp(start, end, amt) { return (1 - amt) * start + amt * end; }
+
+        // --- 2. UI MANAGER ---
+        const ui = {
+            screens: ['main-menu', 'level-select', 'settings-menu', 'pause-menu', 'results-screen', 'hud'],
+            hideAll: () => ui.screens.forEach(id => document.getElementById(id).classList.add('hidden')),
+            show: (id) => { ui.hideAll(); document.getElementById(id).classList.remove('hidden'); },
+            showMainMenu: () => { ui.show('main-menu'); document.getElementById('main-high-score').innerText = highScore; },
+            showLevelSelect: () => ui.show('level-select'),
+            showSettings: () => ui.show('settings-menu'),
+            showHUD: () => {
+                ui.show('hud');
+                if(isMobile) document.getElementById('touch-controls').style.display = 'block';
+            },
+            hideTouch: () => document.getElementById('touch-controls').style.display = 'none',
+            updateHUD: (score, combo, orbs, totalOrbs, stability) => {
+                document.getElementById('hud-score-val').innerText = Math.floor(score).toString().padStart(4, '0');
+                document.getElementById('hud-combo-val').innerText = combo;
+                document.getElementById('hud-orbs-val').innerText = `${orbs}/${totalOrbs}`;
+                
+                const sBar = document.getElementById('stability-bar');
+                sBar.style.width = `${Math.max(0, stability)}%`;
+                sBar.style.background = stability > 50 ? 'var(--neon-green)' : (stability > 20 ? 'yellow' : 'var(--neon-red)');
+            },
+            showFeedback: (type) => {
+                const el = document.getElementById('timing-feedback');
+                el.innerText = type.toUpperCase();
+                el.className = `feedback-${type.toLowerCase()}`;
+                el.style.opacity = '1';
+                el.style.transform = 'translate(-50%, -60%) scale(1.2)';
+                setTimeout(() => {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translate(-50%, -50%) scale(1)';
+                }, 400);
+            }
+        };
+
+        // --- 3. AUDIO / RHYTHM ENGINE ---
+        class AudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.bpm = 120;
+                this.nextNoteTime = 0.0;
+                this.lookahead = 25.0; // ms
+                this.scheduleAheadTime = 0.1; // s
+                this.timerID = null;
+                this.isPlaying = false;
+                
+                this.beatIndex = 0;
+                this.lastBeatTime = 0;
+                this.upcomingBeatTime = 0;
+            }
+
+            init() {
+                if(this.ctx) return;
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                    qa.log('AudioContext initialized');
+                } catch(e) { qa.error('WebAudio not supported'); this.muted = true; }
+            }
+
+            toggleMute() { this.muted = !this.muted; }
+
+            startMusic(bpm) {
+                if(!this.ctx) this.init();
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+                this.bpm = bpm;
+                this.beatIndex = 0;
+                this.nextNoteTime = this.ctx.currentTime + 0.1;
+                this.isPlaying = true;
+                this.scheduler();
+            }
+
+            stopMusic() {
+                this.isPlaying = false;
+                clearTimeout(this.timerID);
+            }
+
+            scheduler() {
+                if(!this.isPlaying) return;
+                while (this.nextNoteTime < this.ctx.currentTime + this.scheduleAheadTime) {
+                    this.scheduleNote(this.beatIndex, this.nextNoteTime);
+                    this.nextNote();
+                }
+                this.timerID = setTimeout(() => this.scheduler(), this.lookahead);
+            }
+
+            nextNote() {
+                const secondsPerBeat = 60.0 / this.bpm;
+                this.nextNoteTime += secondsPerBeat;
+                this.beatIndex++;
+            }
+
+            scheduleNote(beatNumber, time) {
+                this.lastBeatTime = this.upcomingBeatTime;
+                this.upcomingBeatTime = time;
+
+                if(this.muted) return;
+                
+                // Procedural Kick/Hat pattern
+                if(beatNumber % 4 === 0) this.playKick(time);
+                else if(beatNumber % 2 === 0) this.playSnare(time);
+                else this.playHat(time);
+
+                // Synth bass on downbeats
+                if(beatNumber % 8 === 0) this.playSynth(time, 40, 0.5);
+                else if(beatNumber % 8 === 4) this.playSynth(time, 45, 0.3);
+            }
+
+            // Procedural Synth Functions
+            playKick(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+                gain.gain.setValueAtTime(1, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+                osc.start(time); osc.stop(time + 0.5);
+            }
+
+            playSnare(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.frequency.setValueAtTime(250, time);
+                gain.gain.setValueAtTime(0.5, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+                osc.start(time); osc.stop(time + 0.2);
+            }
+
+            playHat(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.frequency.setValueAtTime(8000, time);
+                gain.gain.setValueAtTime(0.1, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+                osc.start(time); osc.stop(time + 0.05);
+            }
+
+            playSynth(time, freq, dur) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.frequency.setValueAtTime(freq, time);
+                gain.gain.setValueAtTime(0.2, time);
+                gain.gain.linearRampToValueAtTime(0, time + dur);
+                osc.start(time); osc.stop(time + dur);
+            }
+
+            // SFX
+            playSFX(type) {
+                if(this.muted || !this.ctx) return;
+                const time = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                
+                switch(type) {
+                    case 'jump':
+                        osc.type = 'sine'; osc.frequency.setValueAtTime(300, time); osc.frequency.linearRampToValueAtTime(600, time + 0.2);
+                        gain.gain.setValueAtTime(0.3, time); gain.gain.linearRampToValueAtTime(0, time + 0.2);
+                        osc.start(time); osc.stop(time + 0.2); break;
+                    case 'dash':
+                        osc.type = 'square'; osc.frequency.setValueAtTime(100, time); osc.frequency.exponentialRampToValueAtTime(800, time + 0.3);
+                        gain.gain.setValueAtTime(0.2, time); gain.gain.linearRampToValueAtTime(0, time + 0.3);
+                        osc.start(time); osc.stop(time + 0.3); break;
+                    case 'collect':
+                        osc.type = 'sine'; osc.frequency.setValueAtTime(800, time); osc.frequency.setValueAtTime(1200, time+0.1);
+                        gain.gain.setValueAtTime(0.4, time); gain.gain.linearRampToValueAtTime(0, time + 0.3);
+                        osc.start(time); osc.stop(time + 0.3); break;
+                    case 'hit':
+                        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, time); osc.frequency.linearRampToValueAtTime(50, time + 0.4);
+                        gain.gain.setValueAtTime(0.5, time); gain.gain.linearRampToValueAtTime(0, time + 0.4);
+                        osc.start(time); osc.stop(time + 0.4); break;
+                }
+            }
+
+            checkRhythmTiming() {
+                if(!this.ctx) return 'miss';
+                const now = this.ctx.currentTime;
+                const diff = Math.min(Math.abs(now - this.lastBeatTime), Math.abs(now - this.upcomingBeatTime));
+                const beatDuration = 60.0 / this.bpm;
+                
+                if(diff < 0.1) return 'perfect';
+                if(diff < 0.25) return 'good';
+                return 'miss';
+            }
+
+            updateBeatVisuals() {
+                if(!this.isPlaying || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const beatDur = 60.0 / this.bpm;
+                let progress = (now - this.lastBeatTime) / beatDur;
+                if(progress > 1) progress = 1;
+                
+                const cursor = document.getElementById('beat-cursor');
+                // Move cursor left to right across the bar
+                cursor.style.left = `${progress * 100}%`;
+            }
+        }
+        const audio = new AudioEngine();
+
+        // --- 4. GRAPHICS & THREE.JS SETUP ---
+        class Graphics {
+            constructor() {
+                this.scene = null; this.camera = null; this.renderer = null;
+                this.lowQuality = isMobile;
+                this.materials = {};
+            }
+
+            init() {
+                const container = document.getElementById('game-container');
+                if(typeof THREE === 'undefined') {
+                    document.getElementById('loader-text').innerText = "Failed to load 3D Engine. Check connection.";
+                    qa.error("THREE is undefined"); return false;
+                }
+
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.FogExp2(0x050510, 0.03); // Neon cyberpunk atmosphere
+
+                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: !this.lowQuality });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(this.lowQuality ? 1 : window.devicePixelRatio);
+                container.appendChild(this.renderer.domElement);
+
+                // Lighting
+                const ambient = new THREE.AmbientLight(0x222244);
+                this.scene.add(ambient);
+                
+                const dirLight = new THREE.DirectionalLight(0x00f3ff, 0.5);
+                dirLight.position.set(10, 20, 10);
+                this.scene.add(dirLight);
+
+                // Reusable Materials
+                this.materials.player = new THREE.MeshStandardMaterial({ color: 0x00f3ff, emissive: 0x0055ff, emissiveIntensity: 0.8 });
+                this.materials.platform = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2, emissive: 0x001122, emissiveIntensity: 0.2 });
+                this.materials.platformEdge = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true });
+                this.materials.orb = new THREE.MeshBasicMaterial({ color: 0x00ff66 });
+                this.materials.hazard = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff0000, emissiveIntensity: 1.0 });
+                this.materials.gate = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+
+                window.addEventListener('resize', () => this.onWindowResize(), false);
+                qa.log('Graphics initialized');
+                return true;
+            }
+
+            toggleQuality() {
+                this.lowQuality = !this.lowQuality;
+                this.renderer.setPixelRatio(this.lowQuality ? 1 : window.devicePixelRatio);
+                this.renderer.antialias = !this.lowQuality;
+            }
+
+            onWindowResize() {
+                if(!this.camera || !this.renderer) return;
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            render() {
+                if(this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+        }
+        const gfx = new Graphics();
+
+        // --- 5. GAME OBJECTS ---
+        class Player {
+            constructor() {
+                this.mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 1), gfx.materials.player);
+                this.mesh.position.set(0, 2, 0);
+                gfx.scene.add(this.mesh);
+                
+                this.velocity = new THREE.Vector3();
+                this.speed = 15;
+                this.jumpForce = 18;
+                this.gravity = -50;
+                
+                this.isGrounded = false;
+                this.canDoubleJump = false;
+                this.hasDoubleJumpAbility = false;
+                this.isDashing = false;
+                this.dashTimer = 0;
+
+                this.health = 100; // Stability
+                this.combo = 0;
+                this.score = 0;
+                this.orbs = 0;
+                
+                this.bbox = new THREE.Box3();
+            }
+
+            reset(startPos) {
+                this.mesh.position.copy(startPos);
+                this.velocity.set(0,0,0);
+                this.health = 100; this.combo = 0; this.score = 0; this.orbs = 0;
+                this.hasDoubleJumpAbility = false;
+                this.updateBBox();
+            }
+
+            updateBBox() { this.bbox.setFromObject(this.mesh); }
+
+            applyRhythmEffect(timing) {
+                if(timing === 'perfect') {
+                    this.combo++; this.score += 50 * this.combo;
+                    this.health = Math.min(100, this.health + 5);
+                    this.velocity.z -= 5; // Speed boost
+                    createParticles(this.mesh.position, 0xff00ff);
+                } else if(timing === 'good') {
+                    this.combo++; this.score += 20 * this.combo;
+                } else {
+                    this.combo = 0; this.health -= 10;
+                    cameraShake = 0.5;
+                }
+                ui.showFeedback(timing);
+                ui.updateHUD(this.score, this.combo, this.orbs, game.totalOrbs, this.health);
+            }
+
+            jump() {
+                if(this.isGrounded) {
+                    this.velocity.y = this.jumpForce;
+                    this.isGrounded = false;
+                    this.canDoubleJump = this.hasDoubleJumpAbility;
+                    audio.playSFX('jump');
+                    this.applyRhythmEffect(audio.checkRhythmTiming());
+                } else if(this.canDoubleJump) {
+                    this.velocity.y = this.jumpForce * 0.9;
+                    this.canDoubleJump = false;
+                    audio.playSFX('jump');
+                    this.applyRhythmEffect(audio.checkRhythmTiming());
+                }
+            }
+
+            dash() {
+                if(this.dashTimer <= 0) {
+                    this.isDashing = true;
+                    this.dashTimer = 0.5;
+                    this.velocity.z -= 20; // Forward burst
+                    audio.playSFX('dash');
+                    this.applyRhythmEffect(audio.checkRhythmTiming());
+                }
+            }
+
+            takeDamage(amount) {
+                this.health -= amount;
+                this.combo = 0;
+                this.velocity.z *= 0.5; // Slow down
+                cameraShake = 1.0;
+                audio.playSFX('hit');
+                ui.updateHUD(this.score, this.combo, this.orbs, game.totalOrbs, this.health);
+            }
+
+            update(dt) {
+                // Apply Gravity
+                if(!this.isGrounded) this.velocity.y += this.gravity * dt;
+                
+                // Dash cooldown
+                if(this.dashTimer > 0) {
+                    this.dashTimer -= dt;
+                    if(this.dashTimer < 0.3) this.isDashing = false;
+                }
+
+                // Input Movement
+                let inputX = 0;
+                if(keys.a) inputX = -1; if(keys.d) inputX = 1;
+                if(isMobile) inputX = touchInput.x;
+                
+                // Constant forward movement (auto-runner style) + input
+                let targetZVel = keys.w || touchInput.y < -0.5 ? -this.speed * 1.2 : -this.speed;
+                if(keys.s) targetZVel = -this.speed * 0.5;
+
+                this.velocity.x = lerp(this.velocity.x, inputX * 10, dt * 10);
+                if(!this.isDashing) this.velocity.z = lerp(this.velocity.z, targetZVel, dt * 5);
+
+                // Check collisions before applying full movement
+                let nextPos = this.mesh.position.clone().addScaledVector(this.velocity, dt);
+                
+                // Simple Physics & Collision against platforms
+                this.isGrounded = false;
+                let hitPlatform = false;
+                
+                // Create a test bbox
+                let testBox = this.bbox.clone().translate(this.velocity.clone().multiplyScalar(dt));
+
+                for(let p of game.platforms) {
+                    if(testBox.intersectsBox(p.bbox)) {
+                        // Very basic resolution: assume standing on top if falling
+                        if(this.velocity.y < 0 && this.mesh.position.y - 0.75 >= p.bbox.max.y - 0.2) {
+                            nextPos.y = p.bbox.max.y + 0.75;
+                            this.velocity.y = 0;
+                            this.isGrounded = true;
+                            hitPlatform = true;
+                        } else {
+                            // Hit wall
+                            this.velocity.z = 0;
+                            nextPos.z = this.mesh.position.z;
+                        }
+                    }
+                }
+
+                this.mesh.position.copy(nextPos);
+                this.updateBBox();
+
+                // Death plane
+                if(this.mesh.position.y < -10) this.health = 0;
+            }
+        }
+
+        class Drone {
+            constructor(pos) {
+                this.mesh = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.5, 4), gfx.materials.hazard);
+                this.mesh.position.copy(pos);
+                this.mesh.rotation.x = Math.PI; // Point down
+                gfx.scene.add(this.mesh);
+                this.bbox = new THREE.Box3();
+                this.startPos = pos.clone();
+                this.state = 'patrol';
+                this.time = Math.random() * 10;
+            }
+            update(dt, playerPos) {
+                this.time += dt;
+                this.mesh.position.y = this.startPos.y + Math.sin(this.time * 2) * 0.5; // Hover
+
+                let dist = this.mesh.position.distanceTo(playerPos);
+                
+                if(dist < 15) this.state = 'chase';
+                else if(dist > 25) this.state = 'return';
+
+                if(this.state === 'chase') {
+                    // Simple steering towards player
+                    let dir = playerPos.clone().sub(this.mesh.position).normalize();
+                    this.mesh.position.addScaledVector(dir, 8 * dt);
+                } else if(this.state === 'return') {
+                    let dir = this.startPos.clone().sub(this.mesh.position).normalize();
+                    this.mesh.position.addScaledVector(dir, 5 * dt);
+                    if(this.mesh.position.distanceTo(this.startPos) < 1) this.state = 'patrol';
+                } else {
+                    // Patrol side to side
+                    this.mesh.position.x = this.startPos.x + Math.sin(this.time) * 3;
+                }
+                
+                this.mesh.rotation.y += dt;
+                this.bbox.setFromObject(this.mesh);
+            }
+        }
+
+        // --- PARTICLE SYSTEM ---
+        let particles = [];
+        const particleGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+        function createParticles(pos, colorHex) {
+            if(gfx.lowQuality) return;
+            const mat = new THREE.MeshBasicMaterial({color: colorHex});
+            for(let i=0; i<10; i++) {
+                let p = new THREE.Mesh(particleGeo, mat);
+                p.position.copy(pos);
+                p.velocity = new THREE.Vector3((Math.random()-0.5)*10, Math.random()*10, (Math.random()-0.5)*10);
+                p.life = 1.0;
+                gfx.scene.add(p);
+                particles.push(p);
+            }
+        }
+        function updateParticles(dt) {
+            for(let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.life -= dt;
+                if(p.life <= 0) {
+                    gfx.scene.remove(p);
+                    particles.splice(i, 1);
+                } else {
+                    p.position.addScaledVector(p.velocity, dt);
+                    p.scale.setScalar(p.life);
+                }
+            }
+        }
+
+        // --- 6. GAME LOOP & GENERATION ---
+        let player, cameraShake = 0, lastTime = 0;
+        
+        const game = {
+            platforms: [], orbs: [], drones: [],
+            totalOrbs: 0, levelLength: 0,
+            gateBBox: null, gateMesh: null,
+            
+            init: function() {
+                if(!gfx.init()) return;
+                player = new Player();
+                
+                // Input Listeners
+                document.addEventListener('keydown', e => {
+                    const k = e.key.toLowerCase();
+                    if(keys.hasOwnProperty(k)) keys[k] = true;
+                    if(k === 'escape') this.togglePause();
+                    
+                    // Trigger actions immediately for rhythm
+                    if(gameState === STATE.PLAYING) {
+                        if(e.code === 'Space') player.jump();
+                        if(e.code === 'ShiftLeft') player.dash();
+                    }
+                });
+                document.addEventListener('keyup', e => {
+                    const k = e.key.toLowerCase();
+                    if(keys.hasOwnProperty(k)) keys[k] = false;
+                });
+
+                this.setupTouch();
+                document.getElementById('loader').style.display = 'none';
+                ui.showMainMenu();
+                requestAnimationFrame(this.loop.bind(this));
+            },
+
+            setupTouch: function() {
+                if(!isMobile) return;
+                const joyZone = document.getElementById('joystick-zone');
+                const joyKnob = document.getElementById('joystick-knob');
+                let joyCenter = {x:0, y:0};
+
+                joyZone.addEventListener('touchstart', e => {
+                    e.preventDefault();
+                    let rect = joyZone.getBoundingClientRect();
+                    joyCenter = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+                    this.updateJoystick(e.touches[0], joyCenter, joyKnob);
+                }, {passive: false});
+
+                joyZone.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    this.updateJoystick(e.touches[0], joyCenter, joyKnob);
+                }, {passive: false});
+
+                joyZone.addEventListener('touchend', e => {
+                    e.preventDefault();
+                    touchInput.x = 0; touchInput.y = 0;
+                    joyKnob.style.transform = `translate(0px, 0px)`;
+                }, {passive: false});
+
+                const btnAction = document.getElementById('action-btn');
+                btnAction.addEventListener('touchstart', e => { e.preventDefault(); if(gameState===STATE.PLAYING) player.jump(); });
+                
+                const btnDash = document.getElementById('dash-btn');
+                btnDash.addEventListener('touchstart', e => { e.preventDefault(); if(gameState===STATE.PLAYING) player.dash(); });
+            },
+
+            updateJoystick: function(touch, center, knob) {
+                let dx = touch.clientX - center.x;
+                let dy = touch.clientY - center.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let maxDist = 45;
+                if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
+                knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                touchInput.x = dx / maxDist;
+                touchInput.y = dy / maxDist;
+            },
+
+            toggleGraphics: function() { gfx.toggleQuality(); },
+
+            startLevel: function(diffKey) {
+                const conf = config[diffKey];
+                this.totalOrbs = conf.orbs;
+                this.levelLength = conf.length;
+                player.speed = conf.speed;
+                
+                this.generateLevel(conf);
+                player.reset(new THREE.Vector3(0, 5, 0));
+                
+                gameState = STATE.PLAYING;
+                audio.startMusic(conf.bpm);
+                ui.showHUD();
+                ui.updateHUD(0, 0, 0, this.totalOrbs, 100);
+            },
+
+            generateLevel: function(conf) {
+                // Clear old geometry
+                [...this.platforms, ...this.orbs, ...this.drones].forEach(obj => {
+                    gfx.scene.remove(obj.mesh);
+                    if(obj.edges) gfx.scene.remove(obj.edges);
+                });
+                if(this.gateMesh) gfx.scene.remove(this.gateMesh);
+                this.platforms = []; this.orbs = []; this.drones = [];
+
+                let z = 0;
+                // Start platform
+                this.createPlatform(0, 0, z, 10, 20);
+                
+                let placedOrbs = 0;
+                let platCount = conf.length;
+
+                for(let i=0; i<platCount; i++) {
+                    let gap = Math.random() * 5 + 5; // 5 to 10 unit gap
+                    z -= gap;
+                    
+                    let width = Math.random() * 4 + 4;
+                    let length = Math.random() * 15 + 10;
+                    let xOff = (Math.random() - 0.5) * 10;
+                    let yOff = (Math.random() - 0.5) * 2; // slight elevation changes
+
+                    z -= length/2;
+                    this.createPlatform(xOff, yOff, z, width, length);
+
+                    // Place Orb logic
+                    if(placedOrbs < conf.orbs && Math.random() > 0.5) {
+                        let orbMesh = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), gfx.materials.orb);
+                        orbMesh.position.set(xOff, yOff + 2, z);
+                        gfx.scene.add(orbMesh);
+                        this.orbs.push({ mesh: orbMesh, bbox: new THREE.Box3(), active: true });
+                        placedOrbs++;
+                    }
+
+                    // Place Drone logic
+                    if(i > 2 && Math.random() < (conf.drones/platCount)) {
+                        this.drones.push(new Drone(new THREE.Vector3(xOff, yOff + 3, z)));
+                    }
+
+                    z -= length/2;
+                }
+
+                // Force remaining orbs if not enough spawned
+                while(placedOrbs < conf.orbs) {
+                    let p = this.platforms[Math.floor(Math.random() * (this.platforms.length-1)) + 1];
+                    let orbMesh = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), gfx.materials.orb);
+                    orbMesh.position.set(p.mesh.position.x, p.mesh.position.y + 2, p.mesh.position.z);
+                    gfx.scene.add(orbMesh);
+                    this.orbs.push({ mesh: orbMesh, bbox: new THREE.Box3(), active: true });
+                    placedOrbs++;
+                }
+
+                // Extraction Gate
+                z -= 10;
+                this.gateMesh = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 2), gfx.materials.gate);
+                this.gateMesh.position.set(0, 5, z);
+                gfx.scene.add(this.gateMesh);
+                this.gateBBox = new THREE.Box3().setFromObject(this.gateMesh);
+                this.createPlatform(0, 0, z, 14, 10); // Final platform
+            },
+
+            createPlatform: function(x, y, z, w, l) {
+                let geo = new THREE.BoxGeometry(w, 2, l);
+                let mesh = new THREE.Mesh(geo, gfx.materials.platform);
+                mesh.position.set(x, y-1, z);
+                gfx.scene.add(mesh);
+                
+                // Neon Edge lines
+                if(!gfx.lowQuality) {
+                    let edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), gfx.materials.platformEdge);
+                    edges.position.copy(mesh.position);
+                    gfx.scene.add(edges);
+                    this.platforms.push({ mesh: mesh, edges: edges, bbox: new THREE.Box3().setFromObject(mesh) });
+                } else {
+                    this.platforms.push({ mesh: mesh, bbox: new THREE.Box3().setFromObject(mesh) });
+                }
+            },
+
+            togglePause: function() {
+                if(gameState === STATE.PLAYING) {
+                    gameState = STATE.PAUSED;
+                    audio.stopMusic();
+                    ui.show('pause-menu');
+                    ui.hideTouch();
+                } else if(gameState === STATE.PAUSED) {
+                    this.resume();
+                }
+            },
+
+            resume: function() {
+                gameState = STATE.PLAYING;
+                audio.startMusic(audio.bpm); // resume
+                ui.showHUD();
+            },
+
+            restart: function() {
+                // Determine difficulty based on totalOrbs config hack
+                let diff = 'easy';
+                if(this.totalOrbs === config.medium.orbs) diff = 'medium';
+                if(this.totalOrbs === config.hard.orbs) diff = 'hard';
+                this.startLevel(diff);
+            },
+
+            quitToMenu: function() {
+                gameState = STATE.MENU;
+                audio.stopMusic();
+                ui.showMainMenu();
+            },
+
+            endGame: function(won) {
+                gameState = won ? STATE.VICTORY : STATE.GAMEOVER;
+                audio.stopMusic();
+                
+                if(won) player.score += 1000 + (player.health * 10);
+                
+                ui.show('results-screen');
+                ui.hideTouch();
+                document.getElementById('result-title').innerText = won ? "EXTRACTION SUCCESS" : "SYSTEM FAILURE";
+                document.getElementById('result-title').style.color = won ? "var(--neon-green)" : "var(--neon-red)";
+                
+                document.getElementById('res-orbs').innerText = `${player.orbs}/${this.totalOrbs}`;
+                document.getElementById('res-combo').innerText = player.combo;
+                
+                let fScore = Math.floor(player.score);
+                document.getElementById('res-score').innerText = fScore;
+
+                const hsMsg = document.getElementById('res-high-score-msg');
+                if(fScore > highScore) {
+                    highScore = fScore;
+                    localStorage.setItem(storageKey, highScore);
+                    hsMsg.style.display = 'block';
+                } else {
+                    hsMsg.style.display = 'none';
+                }
+            },
+
+            loop: function(time) {
+                requestAnimationFrame(this.loop.bind(this));
+                
+                let dt = (time - lastTime) / 1000;
+                lastTime = time;
+                if(dt > 0.1) dt = 0.1; // cap delta to prevent physics explosion
+
+                if(gameState === STATE.PLAYING) {
+                    player.update(dt);
+                    audio.updateBeatVisuals();
+                    updateParticles(dt);
+
+                    // Orbs collision
+                    this.orbs.forEach(orb => {
+                        if(orb.active) {
+                            orb.mesh.rotation.y += dt * 2;
+                            orb.bbox.setFromObject(orb.mesh);
+                            if(player.bbox.intersectsBox(orb.bbox)) {
+                                orb.active = false;
+                                gfx.scene.remove(orb.mesh);
+                                player.orbs++;
+                                player.score += 200;
+                                player.hasDoubleJumpAbility = true;
+                                audio.playSFX('collect');
+                                createParticles(orb.mesh.position, 0x00ff66);
+                                ui.updateHUD(player.score, player.combo, player.orbs, this.totalOrbs, player.health);
+                            }
+                        }
+                    });
+
+                    // Drone update & collision
+                    this.drones.forEach(drone => {
+                        drone.update(dt, player.mesh.position);
+                        if(player.bbox.intersectsBox(drone.bbox)) {
+                            // simple debounce by pushing player back slightly
+                            player.takeDamage(20);
+                            player.velocity.z += 15; 
+                            player.velocity.y += 5;
+                        }
+                    });
+
+                    // Win Condition
+                    if(this.gateBBox && player.bbox.intersectsBox(this.gateBBox)) {
+                        if(player.orbs >= this.totalOrbs) this.endGame(true);
+                        else {
+                            // Hit gate without enough orbs = bounce back
+                            player.velocity.z = 20;
+                            ui.showFeedback("MISSING ORBS");
+                        }
+                    }
+
+                    // Lose Condition
+                    if(player.health <= 0) this.endGame(false);
+
+                    // Score over time based on speed
+                    player.score += (-player.velocity.z) * dt;
+                    ui.updateHUD(player.score, player.combo, player.orbs, this.totalOrbs, player.health);
+
+                    // Camera Follow with smooth lerp and slight lag for speed feel
+                    let camTargetZ = player.mesh.position.z + 8;
+                    let camTargetY = player.mesh.position.y + 4;
+                    let camTargetX = player.mesh.position.x;
+                    
+                    gfx.camera.position.x = lerp(gfx.camera.position.x, camTargetX, dt * 5);
+                    gfx.camera.position.y = lerp(gfx.camera.position.y, camTargetY, dt * 5);
+                    gfx.camera.position.z = lerp(gfx.camera.position.z, camTargetZ, dt * 10);
+                    
+                    // Shake
+                    if(cameraShake > 0) {
+                        gfx.camera.position.x += (Math.random()-0.5) * cameraShake;
+                        gfx.camera.position.y += (Math.random()-0.5) * cameraShake;
+                        cameraShake -= dt * 2;
+                    }
+
+                    gfx.camera.lookAt(player.mesh.position.x, player.mesh.position.y + 1, player.mesh.position.z - 5);
+                } else if(gameState === STATE.MENU) {
+                    // Menu background animation
+                    if(gfx.camera) {
+                        gfx.camera.position.set(Math.sin(time*0.0005)*10, 10, Math.cos(time*0.0005)*10);
+                        gfx.camera.lookAt(0,0,0);
+                    }
+                }
+
+                gfx.render();
+            }
+        };
+
+        // --- 7. QA / DEV HARNESS ---
+        const qa = {
+            panel: document.getElementById('dev-panel'),
+            log: (msg) => { console.log(`[QA] ${msg}`); if(qa.panel) qa.panel.innerHTML += `<div>OK: ${msg}</div>`; },
+            error: (msg) => { console.error(`[QA] ${msg}`); if(qa.panel) qa.panel.innerHTML += `<div style="color:red">ERR: ${msg}</div>`; qa.panel.classList.remove('hidden'); },
+            
+            runChecks: function() {
+                try {
+                    let canvas = document.createElement('canvas');
+                    let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if(!gl) throw new Error("WebGL not supported");
+                    this.log("WebGL context OK");
+                    if(typeof THREE === 'undefined') throw new Error("Three.js not loaded");
+                    this.log("Three.js loaded OK");
+                } catch(e) {
+                    this.error(e.message);
+                }
+            },
+
+            quickPlay: function() {
+                if(gameState !== STATE.PLAYING) game.startLevel('easy');
+                
+                // Simple auto-play bot logic injection
+                let botInterval = setInterval(() => {
+                    if(gameState !== STATE.PLAYING) { clearInterval(botInterval); return; }
+                    
+                    // Force forward movement
+                    keys.w = true;
+                    
+                    // Simple jump logic if gap detected
+                    let pPos = player.mesh.position;
+                    let safe = false;
+                    
+                    // Raycast down slightly ahead
+                    let testBox = player.bbox.clone().translate(new THREE.Vector3(0, -2, -3));
+                    for(let p of game.platforms) {
+                        if(testBox.intersectsBox(p.bbox)) safe = true;
+                    }
+                    
+                    if(!safe && player.isGrounded) {
+                        player.jump(); // Jump over gap
+                    }
+                    
+                    // If stuck, dash
+                    if(Math.abs(player.velocity.z) < 1 && player.isGrounded) player.dash();
+
+                }, 100);
+                this.log("QuickPlay Bot Activated");
+                document.getElementById('quick-play-btn').style.display = 'none';
+            }
+        };
+
+        // Boot
+        window.onload = () => {
+            qa.runChecks();
+            // Allow slight delay to ensure scripts are parsed
+            setTimeout(() => game.init(), 500);
+        };
+
+    </script>
+</body>
+</html>
