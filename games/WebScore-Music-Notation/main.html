@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebScore Studio - Advanced Notation Editor</title>
+    
+    <!-- External Libraries via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.8/build/opensheetmusicdisplay.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.10.9/dist/soundfont-player.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-panel: #252526;
+            --bg-toolbar: #333333;
+            --text-main: #cccccc;
+            --text-light: #ffffff;
+            --accent: #007acc;
+            --accent-hover: #0098ff;
+            --border: #3e3e42;
+            --canvas-bg: #e0e0e0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Menu Bar */
+        .menubar { background-color: var(--bg-toolbar); display: flex; padding: 0 10px; height: 30px; align-items: center; border-bottom: 1px solid var(--border); font-size: 13px; z-index: 2000; }
+        .menu-item { padding: 5px 10px; cursor: pointer; position: relative; }
+        .menu-item:hover { background-color: #505050; color: var(--text-light); }
+        .dropdown { display: none; position: absolute; top: 100%; left: 0; background-color: var(--bg-panel); border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; min-width: 220px; }
+        .menu-item:hover .dropdown { display: block; }
+        .dropdown-item { padding: 8px 15px; display: flex; justify-content: space-between; }
+        .dropdown-item:hover { background-color: var(--accent); color: var(--text-light); }
+        .shortcut { color: #999; font-size: 11px; }
+
+        /* Toolbar */
+        .toolbar { background-color: var(--bg-panel); display: flex; padding: 5px 10px; gap: 15px; border-bottom: 1px solid var(--border); align-items: center; }
+        .tool-group { display: flex; gap: 5px; border-right: 1px solid var(--border); padding-right: 15px; align-items: center; }
+        .btn { background: transparent; border: 1px solid transparent; color: var(--text-main); padding: 5px 8px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .btn:hover { background-color: rgba(255,255,255,0.1); }
+        .btn.active { background-color: rgba(0, 122, 204, 0.4); border-color: var(--accent); color: var(--text-light); }
+        .btn.recording { color: #ff4444; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Tabs (Part Viewer) */
+        .tabs-bar { display: flex; background-color: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 5px 10px 0 10px; overflow-x: auto; flex-shrink: 0; }
+        .tab { padding: 6px 15px; background-color: #2d2d2d; border: 1px solid var(--border); border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 12px; margin-right: 2px; color: var(--text-main); white-space: nowrap; }
+        .tab:hover { background-color: #3d3d3d; }
+        .tab.active { background-color: var(--canvas-bg); color: #000; font-weight: bold; border-color: var(--canvas-bg); }
+
+        /* Main Workspace */
+        .workspace { display: flex; flex: 1; overflow: hidden; }
+
+        /* Panels (Palettes & Inspector) */
+        .panel { width: 280px; background-color: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+        .panel-right { border-right: none; border-left: 1px solid var(--border); }
+        .panel-header { padding: 10px; font-weight: bold; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); background-color: var(--bg-toolbar); display: flex; justify-content: space-between;}
+        .panel-content { flex: 1; overflow-y: auto; padding: 10px; }
+        
+        /* Palettes specific */
+        .palette-group { margin-bottom: 10px; border: 1px solid var(--border); border-radius: 4px; }
+        .palette-title { padding: 6px 10px; background: #2d2d2d; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
+        .palette-title:hover { background: #3d3d3d; }
+        .palette-items { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 5px; background: #1e1e1e; }
+        .palette-item { background: #333; text-align: center; padding: 10px 0; border-radius: 3px; cursor: grab; font-family: serif; font-size: 18px; font-weight: bold; color: #ddd; }
+        .palette-item:hover { background: var(--accent); color: white; }
+        .palette-item:active { cursor: grabbing; }
+        .palette-item.text-item { font-size: 12px; font-family: sans-serif; display: flex; align-items: center; justify-content: center; }
+
+        /* Canvas */
+        .canvas-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: var(--canvas-bg); }
+        .canvas-container { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 20px; position: relative; }
+        #osmdCanvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 100%; max-width: 1400px; min-height: 1000px; padding: 20px; position: relative; overflow: hidden; }
+        .score-overlay-element { position: absolute; cursor: move; color: #000; font-family: serif; font-weight: bold; z-index: 500; user-select: none; }
+        
+        /* Bottom Mixer / Status */
+        .bottom-panel { height: 140px; background-color: var(--bg-panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+        .mixer { display: flex; padding: 10px; gap: 15px; flex: 1; overflow-x: auto; }
+        .channel { display: flex; flex-direction: column; align-items: center; width: 70px; font-size: 11px; background: #1e1e1e; padding: 5px; border-radius: 4px; border: 1px solid #333; }
+        .channel input[type=range] { writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 60px; margin: 5px 0; width: 20px; }
+        .channel-name { text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-bottom: 5px; }
+        .status-bar { height: 25px; background-color: var(--accent); display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: white; justify-content: space-between; flex-shrink: 0; }
+
+        /* Modals */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
+        .modal { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; width: 600px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
+        .modal-header { padding: 15px; border-bottom: 1px solid var(--border); font-weight: bold; display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
+        .modal-body { padding: 15px; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 15px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-primary { background: var(--accent); color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        
+        /* Instrument List Styles */
+        .inst-category { margin-top: 15px; font-weight: bold; color: var(--accent); border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; }
+        .inst-item { display: flex; justify-content: space-between; padding: 8px; background: #1e1e1e; margin-bottom: 4px; border-radius: 3px; align-items: center; font-size: 13px; }
+        .inst-item:hover { background: #333; }
+
+        /* Dev Tools Terminal */
+        #devTerminal { background: #000; color: #0f0; font-family: monospace; font-size: 12px; padding: 10px; height: 200px; overflow-y: auto; white-space: pre-wrap; user-select: text;}
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        input[type="file"] { display: none; }
+        
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+    </style>
+</head>
+<body>
+
+    <!-- Menubar -->
+    <div class="menubar">
+        <div class="menu-item">File
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="document.getElementById('fileInput').click()"><span>Open... (XML, MSCZ)</span> <span class="shortcut">Ctrl+O</span></div>
+                <div class="dropdown-item" onclick="App.saveProject()"><span>Save Project (.musicxml)</span> <span class="shortcut">Ctrl+S</span></div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
+                <div class="dropdown-item" onclick="App.exportPNG()"><span>Export as PNG</span></div>
+                <div class="dropdown-item" onclick="App.exportPDF()"><span>Export as PDF</span> <span class="shortcut">Ctrl+E</span></div>
+                <div class="dropdown-item" onclick="AudioEngine.exportAudio()"><span>Export Audio (WAV/WebM)</span></div>
+            </div>
+        </div>
+        <div class="menu-item">Edit
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="History.undo()"><span>Undo</span> <span class="shortcut">Ctrl+Z</span></div>
+                <div class="dropdown-item" onclick="History.redo()"><span>Redo</span> <span class="shortcut">Ctrl+Y</span></div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
+                <div class="dropdown-item" onclick="UI.toggleModal('instrumentModal')"><span>Instruments...</span> <span class="shortcut">I</span></div>
+                <div class="dropdown-item" onclick="UI.toggleModal('keybindModal')"><span>Preferences / Keybinds</span></div>
+            </div>
+        </div>
+        <div class="menu-item">View
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="UI.togglePanel('palettes')"><span>Toggle Palettes</span></div>
+                <div class="dropdown-item" onclick="UI.togglePanel('inspector')"><span>Toggle Inspector</span></div>
+                <div class="dropdown-item" onclick="UI.togglePanel('mixer')"><span>Toggle Mixer</span></div>
+                <div class="dropdown-item" onclick="UI.toggleModal('devModal')"><span>Developer Tools</span></div>
+            </div>
+        </div>
+        <div class="menu-item">Help
+            <div class="dropdown">
+                <div class="dropdown-item" onclick="alert('WebScore Studio v2.1\nA prototype music notation editor matching MuseScore features.\n\nIncludes dynamic part extraction, general MIDI soundfont playback, audio/image export, interactive text palettes, and Undo/Redo history.')"><span>About</span></div>
+            </div>
+        </div>
+    </div>
+    <input type="file" id="fileInput" accept=".xml,.musicxml,.mscz,.mid" onchange="FileIO.handleFileUpload(event)">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="tool-group">
+            <button class="btn" title="Undo (Ctrl+Z)" onclick="History.undo()"><i class="fas fa-undo"></i></button>
+            <button class="btn" title="Redo (Ctrl+Y)" onclick="History.redo()"><i class="fas fa-redo"></i></button>
+        </div>
+        <div class="tool-group">
+            <button class="btn" title="Note Entry (N)" id="btnNoteEntry" onclick="App.toggleNoteEntry()"><i class="fas fa-pen"></i></button>
+        </div>
+        <div class="tool-group">
+            <button class="btn" title="Whole Note (7)"><i class="fas fa-circle"></i></button>
+            <button class="btn" title="Half Note (6)"><i class="fas fa-circle-half-stroke"></i></button>
+            <button class="btn active" title="Quarter Note (5)"><i class="fas fa-music"></i></button>
+            <button class="btn" title="Eighth Note (4)"><i class="fas fa-music"></i></button>
+        </div>
+        <div class="tool-group">
+            <button class="btn" title="Rewind" onclick="AudioEngine.stop()"><i class="fas fa-backward-step"></i></button>
+            <button class="btn" title="Play/Pause (Space)" onclick="AudioEngine.togglePlay()"><i class="fas fa-play" id="playIcon"></i></button>
+            <button class="btn" title="Toggle Metronome" id="btnMetronome" onclick="AudioEngine.toggleMetronome()"><i class="fas fa-metronome"></i></button>
+        </div>
+        <div class="tool-group" style="border:none;">
+            <button class="btn" title="Zoom In" onclick="App.zoom(0.1)"><i class="fas fa-search-plus"></i></button>
+            <button class="btn" title="Zoom Out" onclick="App.zoom(-0.1)"><i class="fas fa-search-minus"></i></button>
+        </div>
+    </div>
+
+    <!-- Workspace -->
+    <div class="workspace">
+        <!-- Palettes Panel -->
+        <div class="panel" id="panel-palettes">
+            <div class="panel-header">Palettes <i class="fas fa-times" style="cursor:pointer" onclick="UI.togglePanel('palettes')"></i></div>
+            <div class="panel-content" id="palette-container">
+                <!-- Dynamically generated by JS to save space -->
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <!-- Tabs Bar for Parts -->
+            <div class="tabs-bar" id="score-tabs">
+                <!-- Dynamically populated -->
+            </div>
+            
+            <div class="canvas-container" id="canvasContainer">
+                <div id="osmdCanvas"></div>
+            </div>
+        </div>
+
+        <!-- Inspector Panel -->
+        <div class="panel panel-right" id="panel-inspector">
+            <div class="panel-header">Inspector <i class="fas fa-times" style="cursor:pointer" onclick="UI.togglePanel('inspector')"></i></div>
+            <div class="panel-content">
+                <div id="inspector-content" style="font-size: 13px;">
+                    <p style="color:#888;">Select an element to inspect properties.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Mixer -->
+    <div class="bottom-panel" id="panel-mixer">
+        <div class="panel-header" style="border-bottom:none;">Mixer <i class="fas fa-times" style="cursor:pointer; float:right;" onclick="UI.togglePanel('mixer')"></i></div>
+        <div class="mixer" id="mixer-channels">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div id="statusText">Ready</div>
+        <div>Zoom: <span id="zoomLevel">100%</span> | Audio Engine: Active</div>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- Instrument Modal -->
+    <div class="modal-overlay" id="instrumentModal">
+        <div class="modal">
+            <div class="modal-header">Add Instruments <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('instrumentModal')"></i></div>
+            <div class="modal-body" id="instrumentListBody">
+                <!-- Populated by JS -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="UI.toggleModal('instrumentModal')">Cancel</button>
+                <button class="btn-primary" onclick="UI.toggleModal('instrumentModal'); alert('Instruments updated (Mock - Requires XML regeneration in true OSMD app)');">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keybinds Modal -->
+    <div class="modal-overlay" id="keybindModal">
+        <div class="modal" style="width: 500px;">
+            <div class="modal-header">Preferences & Keybinds <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('keybindModal')"></i></div>
+            <div class="modal-body">
+                <table style="width:100%; text-align:left; font-size:13px; border-collapse: collapse;">
+                    <thead><tr style="border-bottom:1px solid #555;"><th style="padding:5px;">Action</th><th style="padding:5px;">Shortcut</th></tr></thead>
+                    <tbody id="keybindTable"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="KeybindManager.resetToDefault()">Reset</button>
+                <button class="btn-primary" onclick="UI.toggleModal('keybindModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dev Modal -->
+    <div class="modal-overlay" id="devModal">
+        <div class="modal" style="width:600px;">
+            <div class="modal-header">Developer Tools & Logs <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('devModal')"></i></div>
+            <div class="modal-body" style="padding:0;">
+                <div id="devTerminal">Initializing WebScore Studio Engine...
+</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="document.getElementById('devTerminal').innerHTML=''">Clear</button>
+                <button class="btn-primary" onclick="UI.toggleModal('devModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * WebScore Studio Engine v2.1
+ * ---------------------------------------------------------
+ * Features added: Undo/Redo History Manager, Text Palette Modifiers
+ * (Tempo, Title, Lyrics, Chord symbols).
+ */
+
+// --- DEMO MUSICXML DATA (Multi-instrument to show parts) ---
+const DEMO_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="3.1">
+  <work><work-title>WebScore Orchestra Demo</work-title></work>
+  <part-list>
+    <score-part id="P1"><part-name>Flute</part-name></score-part>
+    <score-part id="P2"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note>
+    </measure>
+    <measure number="2">
+        <note><pitch><step>G</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>F</sign><line>4</line></clef></attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+    <measure number="2">
+        <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>whole</type></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+// --- MASSIVE INSTRUMENT LIBRARY ---
+const INSTRUMENT_LIB = {
+    "Woodwinds": [
+        { name: "Piccolo", gm: "piccolo" }, { name: "Flute", gm: "flute" }, { name: "Oboe", gm: "oboe" },
+        { name: "English Horn", gm: "english_horn" }, { name: "Clarinet in Bb", gm: "clarinet" },
+        { name: "Bass Clarinet", gm: "clarinet" }, { name: "Bassoon", gm: "bassoon" },
+        { name: "Alto Saxophone", gm: "alto_sax" }, { name: "Tenor Saxophone", gm: "tenor_sax" },
+        { name: "Baritone Saxophone", gm: "baritone_sax" }
+    ],
+    "Brass": [
+        { name: "Trumpet in Bb", gm: "trumpet" }, { name: "French Horn", gm: "french_horn" },
+        { name: "Trombone", gm: "trombone" }, { name: "Bass Trombone", gm: "trombone" },
+        { name: "Euphonium", gm: "tuba" }, { name: "Tuba", gm: "tuba" }
+    ],
+    "Marching Band / Drumline": [
+        { name: "Marching Snare", gm: "synth_drum" }, { name: "Tenors (Quads)", gm: "taiko_drum" },
+        { name: "Marching Bass Drums", gm: "melodic_tom" }, { name: "Crash Cymbals", gm: "reverse_cymbal" }
+    ],
+    "Percussion": [
+        { name: "Timpani", gm: "timpani" }, { name: "Glockenspiel", gm: "glockenspiel" },
+        { name: "Xylophone", gm: "xylophone" }, { name: "Marimba", gm: "marimba" },
+        { name: "Drumset", gm: "synth_drum" }
+    ],
+    "Strings": [
+        { name: "Violin", gm: "violin" }, { name: "Viola", gm: "viola" },
+        { name: "Cello", gm: "cello" }, { name: "Contrabass", gm: "contrabass" }
+    ],
+    "Keyboards": [
+        { name: "Piano", gm: "acoustic_grand_piano" }, { name: "Harpsichord", gm: "harpsichord" },
+        { name: "Pipe Organ", gm: "church_organ" }, { name: "Synthesizer", gm: "lead_1_square" }
+    ],
+    "Plucked": [
+        { name: "Acoustic Guitar", gm: "acoustic_guitar_nylon" }, { name: "Electric Guitar", gm: "electric_guitar_jazz" },
+        { name: "Electric Bass", gm: "electric_bass_finger" }, { name: "Harp", gm: "orchestral_harp" }
+    ]
+};
+
+// --- LOGGER ---
+const Logger = {
+    log: (msg) => {
+        const term = document.getElementById('devTerminal');
+        const time = new Date().toLocaleTimeString();
+        term.innerHTML += `[${time}] ${msg}\n`;
+        term.scrollTop = term.scrollHeight;
+        console.log(`[WebScore] ${msg}`);
+    },
+    warn: (msg) => Logger.log(`WARNING: ${msg}`),
+    error: (msg) => Logger.log(`ERROR: ${msg}`)
+};
+
+// --- STATE MANAGEMENT ---
+const State = {
+    osmd: null,
+    zoom: 1.0,
+    isPlaying: false,
+    noteEntryMode: false,
+    metronomeEnabled: false,
+    currentScoreXML: DEMO_XML,
+    currentPartIndex: 'full', // 'full' or integer index
+    history: [],
+    historyIndex: -1
+};
+
+// --- UNDO/REDO HISTORY MANAGER ---
+const History = {
+    push: (xml) => {
+        if (State.historyIndex >= 0 && State.history[State.historyIndex] === xml) return; // Prevent duplicates
+        // If we are pushing a new state after undoing, slice off the redo future
+        State.history = State.history.slice(0, State.historyIndex + 1);
+        State.history.push(xml);
+        State.historyIndex++;
+        Logger.log(`History pushed. Current Index: ${State.historyIndex}, Total: ${State.history.length}`);
+    },
+    undo: () => {
+        if (State.historyIndex > 0) {
+            State.historyIndex--;
+            Logger.log(`Undo executed. Moving to state ${State.historyIndex}`);
+            UI.setStatus('Undo applied.');
+            App.loadScoreXML(State.history[State.historyIndex], true); // true = skip history push
+        } else {
+            UI.setStatus('Nothing left to undo.');
+        }
+    },
+    redo: () => {
+        if (State.historyIndex < State.history.length - 1) {
+            State.historyIndex++;
+            Logger.log(`Redo executed. Moving to state ${State.historyIndex}`);
+            UI.setStatus('Redo applied.');
+            App.loadScoreXML(State.history[State.historyIndex], true); // true = skip history push
+        } else {
+            UI.setStatus('Nothing to redo.');
+        }
+    }
+};
+
+// --- PALETTE HANDLER (Interactive Drag and Drop / Score Mutator) ---
+const PaletteHandler = {
+    dragStart: (e, item) => {
+        e.dataTransfer.setData('text/plain', item);
+        e.dataTransfer.effectAllowed = 'copy';
+    },
+    clickItem: (item) => {
+        UI.setStatus(`Drag '${item}' directly onto the score to apply it.`);
+        Logger.log(`Palette item clicked: ${item}`);
+    },
+    dragOver: (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    },
+    drop: (e) => {
+        e.preventDefault();
+        const item = e.dataTransfer.getData('text/plain');
+        if (!item) return;
+        
+        Logger.log(`Palette drop detected: ${item}`);
+        
+        // Calculate closest measure and staff using OSMD's internal graphical structures
+        let closestMeasureIndex = 0;
+        let closestStaffIndex = 0;
+        let closestDistance = Infinity;
+        
+        const canvasDiv = document.getElementById('osmdCanvas');
+        const svg = document.querySelector('#osmdCanvas svg');
+        const rect = (svg || canvasDiv).getBoundingClientRect();
+        
+        // Convert screen coordinates to OSMD internal units (approx 10px per unit * zoom)
+        const unitX = (e.clientX - rect.left) / (10 * State.zoom);
+        const unitY = (e.clientY - rect.top) / (10 * State.zoom);
+
+        if (State.osmd && State.osmd.GraphicSheet && State.osmd.GraphicSheet.MeasureList) {
+            for (let i = 0; i < State.osmd.GraphicSheet.MeasureList.length; i++) {
+                const measureStaves = State.osmd.GraphicSheet.MeasureList[i];
+                for (let j = 0; j < measureStaves.length; j++) {
+                    const m = measureStaves[j];
+                    if (!m || !m.PositionAndShape) continue;
+                    
+                    const mx = m.PositionAndShape.AbsolutePosition.x;
+                    const my = m.PositionAndShape.AbsolutePosition.y;
+                    
+                    // Y-distance is weighted heavier to prevent snapping to the wrong staff
+                    const dist = Math.sqrt(Math.pow(mx - unitX, 2) + Math.pow((my - unitY) * 4, 2));
+                    
+                    if (dist < closestDistance) {
+                        closestDistance = dist;
+                        closestMeasureIndex = i;
+                        closestStaffIndex = j;
+                    }
+                }
+            }
+        }
+
+        Logger.log(`Targeting Measure: ${closestMeasureIndex + 1}, Staff: ${closestStaffIndex + 1}`);
+
+        // --- SCORE MUTATION ENGINE ---
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        let modifiedXML = false;
+
+        const parts = xmlDoc.querySelectorAll('part');
+        const targetPart = parts[closestStaffIndex] || parts[0];
+        if (!targetPart) return;
+        const targetMeasure = targetPart.querySelectorAll('measure')[closestMeasureIndex];
+        if (!targetMeasure) return;
+
+        // Helper: Ensure <attributes> tag exists
+        let attributes = targetMeasure.querySelector('attributes');
+        if (!attributes) {
+            attributes = xmlDoc.createElement('attributes');
+            targetMeasure.insertBefore(attributes, targetMeasure.firstChild);
+        }
+
+        // 1. Time Signatures (Updates XML and Adjusts measure contents to fit)
+        if (['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'].includes(item)) {
+            let beats = '4', beatType = '4';
+            if (item === 'C') { beats = '4'; beatType = '4'; }
+            else if (item === '𝄴') { beats = '2'; beatType = '2'; }
+            else { [beats, beatType] = item.split('/'); }
+
+            let timeNode = attributes.querySelector('time');
+            if (!timeNode) {
+                timeNode = xmlDoc.createElement('time');
+                attributes.appendChild(timeNode);
+            }
+            timeNode.innerHTML = `<beats>${beats}</beats><beat-type>${beatType}</beat-type>`;
+
+            // Determine divisions to calculate measure capacity
+            let divisions = 1;
+            const divNode = xmlDoc.querySelector('divisions');
+            if (divNode) divisions = parseInt(divNode.textContent) || 1;
+
+            // Target duration in divisions: (beats * 4 * divisions) / beatType
+            const targetDivisions = (parseInt(beats) * 4 * divisions) / parseInt(beatType);
+
+            // Calculate current total duration of the measure
+            let currentDivisions = 0;
+            const notes = Array.from(targetMeasure.querySelectorAll('note'));
+            let notesToRemove = [];
+            
+            for (let note of notes) {
+                const durNode = note.querySelector('duration');
+                if (durNode) {
+                    let dur = parseInt(durNode.textContent) || 0;
+                    if (currentDivisions + dur > targetDivisions) {
+                        notesToRemove.push(note); // Note overflows new time signature, remove it
+                    } else {
+                        currentDivisions += dur;
+                    }
+                }
+            }
+            
+            notesToRemove.forEach(n => n.remove());
+
+            // If the measure is under capacity, pad with rests
+            if (currentDivisions < targetDivisions) {
+                let diff = targetDivisions - currentDivisions;
+                const newRest = xmlDoc.createElement('note');
+                newRest.innerHTML = `<rest/><duration>${diff}</duration>`;
+                targetMeasure.appendChild(newRest);
+            }
+
+            UI.setStatus(`Time Signature updated to ${item} at measure ${closestMeasureIndex+1}. Fit adjusted.`);
+            modifiedXML = true;
+        }
+        // 2. Clefs
+        else if (['𝄞', '𝄢', '𝄡'].includes(item)) {
+            let sign = 'G', line = '2';
+            if (item === '𝄢') { sign = 'F'; line = '4'; }
+            if (item === '𝄡') { sign = 'C'; line = '3'; } // Alto clef
+            
+            let clefNode = attributes.querySelector('clef');
+            if (!clefNode) {
+                clefNode = xmlDoc.createElement('clef');
+                attributes.appendChild(clefNode);
+            }
+            clefNode.innerHTML = `<sign>${sign}</sign><line>${line}</line>`;
+            
+            UI.setStatus(`Clef changed to ${item} at measure ${closestMeasureIndex+1}.`);
+            modifiedXML = true;
+        }
+        // 3. Key Signatures
+        else if (['♯', '♭', '♮'].includes(item)) {
+            let fifths = '0';
+            if (item === '♯') fifths = '1';  // G Major / E minor
+            if (item === '♭') fifths = '-1'; // F Major / D minor
+            
+            let keyNode = attributes.querySelector('key');
+            if (!keyNode) {
+                keyNode = xmlDoc.createElement('key');
+                attributes.appendChild(keyNode);
+            }
+            keyNode.innerHTML = `<fifths>${fifths}</fifths>`;
+            
+            UI.setStatus(`Key Signature changed to ${item} at measure ${closestMeasureIndex+1}.`);
+            modifiedXML = true;
+        }
+        // 4. Dynamics
+        else if (['p', 'mp', 'mf', 'f', 'ff', 'sfz'].includes(item)) {
+            const direction = xmlDoc.createElement('direction');
+            direction.setAttribute('placement', 'below');
+            const dirType = xmlDoc.createElement('direction-type');
+            const dynamics = xmlDoc.createElement('dynamics');
+            dynamics.appendChild(xmlDoc.createElement(item));
+            dirType.appendChild(dynamics);
+            direction.appendChild(dirType);
+            
+            if (targetMeasure.firstChild && targetMeasure.firstChild.nodeName === 'attributes') {
+                targetMeasure.insertBefore(direction, targetMeasure.firstChild.nextSibling);
+            } else {
+                targetMeasure.insertBefore(direction, targetMeasure.firstChild);
+            }
+            
+            UI.setStatus(`Added dynamic ${item} to staff ${closestStaffIndex+1}, measure ${closestMeasureIndex+1}.`);
+            modifiedXML = true;
+        }
+        // 5. Text / Metadata Palette Logic
+        else if (['Title', 'Tempo', 'Lyrics', 'Chord'].includes(item)) {
+            
+            if (item === 'Title') {
+                const newTitle = prompt("Enter new Score Title:", "My Composition");
+                if (newTitle !== null && newTitle.trim() !== "") {
+                    let work = xmlDoc.querySelector('work');
+                    if (!work) {
+                        work = xmlDoc.createElement('work');
+                        const partList = xmlDoc.querySelector('part-list');
+                        xmlDoc.documentElement.insertBefore(work, partList);
+                    }
+                    let titleNode = work.querySelector('work-title');
+                    if (!titleNode) {
+                        titleNode = xmlDoc.createElement('work-title');
+                        work.appendChild(titleNode);
+                    }
+                    titleNode.textContent = newTitle;
+                    UI.setStatus(`Title updated to '${newTitle}'`);
+                    modifiedXML = true;
+                }
+            } 
+            else if (item === 'Tempo') {
+                const bpm = prompt("Enter tempo (BPM) for this measure:", "120");
+                if (bpm !== null && !isNaN(parseInt(bpm))) {
+                    const direction = xmlDoc.createElement('direction');
+                    direction.setAttribute('placement', 'above');
+                    
+                    const dirType = xmlDoc.createElement('direction-type');
+                    const words = xmlDoc.createElement('words');
+                    words.setAttribute('font-weight', 'bold');
+                    words.textContent = `♩ = ${bpm}`;
+                    dirType.appendChild(words);
+                    
+                    const sound = xmlDoc.createElement('sound');
+                    sound.setAttribute('tempo', bpm);
+                    
+                    direction.appendChild(dirType);
+                    direction.appendChild(sound);
+                    
+                    if (targetMeasure.firstChild && targetMeasure.firstChild.nodeName === 'attributes') {
+                        targetMeasure.insertBefore(direction, targetMeasure.firstChild.nextSibling);
+                    } else {
+                        targetMeasure.insertBefore(direction, targetMeasure.firstChild);
+                    }
+                    UI.setStatus(`Tempo set to ${bpm} BPM at measure ${closestMeasureIndex+1}`);
+                    modifiedXML = true;
+                }
+            }
+            else if (item === 'Chord') {
+                const chordName = prompt("Enter chord symbol (e.g. Cmaj7, G7):", "C");
+                if (chordName !== null && chordName.trim() !== "") {
+                    // Injecting a direction words tag acts as a robust text chord symbol representation in OSMD
+                    const direction = xmlDoc.createElement('direction');
+                    direction.setAttribute('placement', 'above');
+                    const dirType = xmlDoc.createElement('direction-type');
+                    const words = xmlDoc.createElement('words');
+                    words.setAttribute('font-weight', 'bold');
+                    words.setAttribute('font-size', '11');
+                    words.textContent = chordName;
+                    dirType.appendChild(words);
+                    direction.appendChild(dirType);
+                    
+                    targetMeasure.insertBefore(direction, targetMeasure.firstChild);
+                    UI.setStatus(`Added chord '${chordName}' to measure ${closestMeasureIndex+1}`);
+                    modifiedXML = true;
+                }
+            }
+            else if (item === 'Lyrics') {
+                const lyricText = prompt("Enter lyric syllable for the closest note:", "la");
+                if (lyricText !== null && lyricText.trim() !== "") {
+                    // Try to attach to the first valid note in the targeted measure
+                    let targetNote = null;
+                    const notes = targetMeasure.querySelectorAll('note');
+                    for (let n of notes) {
+                        if (!n.querySelector('rest')) {
+                            targetNote = n;
+                            break;
+                        }
+                    }
+                    
+                    if (targetNote) {
+                        const lyric = xmlDoc.createElement('lyric');
+                        const syllabic = xmlDoc.createElement('syllabic');
+                        syllabic.textContent = 'single';
+                        const text = xmlDoc.createElement('text');
+                        text.textContent = lyricText;
+                        
+                        lyric.appendChild(syllabic);
+                        lyric.appendChild(text);
+                        targetNote.appendChild(lyric);
+                        UI.setStatus(`Added lyric '${lyricText}'`);
+                        modifiedXML = true;
+                    } else {
+                        alert("No playable note found in this measure to attach lyrics to. Add notes first.");
+                    }
+                }
+            }
+        }
+
+        // Apply structurally changed score and re-render
+        if (modifiedXML) {
+            const serializer = new XMLSerializer();
+            const newXmlStr = serializer.serializeToString(xmlDoc);
+            App.loadScoreXML(newXmlStr); // Will automatically trigger History.push()
+            return;
+        }
+
+        // --- FALLBACK FOR NON-STRUCTURAL / UNMAPPED SYMBOLS ---
+        const x = e.clientX - rect.left + canvasDiv.scrollLeft;
+        const y = e.clientY - rect.top + canvasDiv.scrollTop;
+
+        const marker = document.createElement('div');
+        marker.innerText = item;
+        marker.className = 'score-overlay-element';
+        marker.style.left = (x - 10) + 'px'; 
+        marker.style.top = (y - 15) + 'px';  
+        
+        if (item.length > 2) {
+            marker.style.fontSize = '14px';
+            marker.style.fontFamily = 'sans-serif';
+        } else {
+            marker.style.fontSize = '28px';
+        }
+        
+        marker.onmousedown = function(event) {
+            event.preventDefault();
+            let shiftX = event.clientX - marker.getBoundingClientRect().left;
+            let shiftY = event.clientY - marker.getBoundingClientRect().top;
+
+            function moveAt(pageX, pageY) {
+                const currentRect = (document.querySelector('#osmdCanvas svg') || canvasDiv).getBoundingClientRect();
+                marker.style.left = pageX - currentRect.left + canvasDiv.scrollLeft - shiftX + 'px';
+                marker.style.top = pageY - currentRect.top + canvasDiv.scrollTop - shiftY + 'px';
+            }
+
+            function onMouseMove(moveEvent) { moveAt(moveEvent.clientX, moveEvent.clientY); }
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }, { once: true });
+        };
+        
+        canvasDiv.appendChild(marker);
+        UI.setStatus(`Placed floating graphic: ${item}`);
+    }
+};
+
+// --- UI CONTROLLER ---
+const UI = {
+    init: () => {
+        UI.renderPalettes();
+        UI.renderInstrumentList();
+    },
+    
+    renderPalettes: () => {
+        const pData = [
+            { title: 'Clefs', items: ['𝄞', '𝄢', '𝄡'] },
+            { title: 'Key Signatures', items: ['♯', '♭', '♮'] },
+            { title: 'Time Signatures', items: ['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'] },
+            { title: 'Barlines', items: ['|', '||', '𝄂', '𝄃', '𝄆', '𝄇'] },
+            { title: 'Lines', items: ['<', '>', 'slur', 'tie', '8va'] },
+            { title: 'Articulations', items: ['.', '>', '-', '^', 'tr'] },
+            { title: 'Dynamics', items: ['p', 'mp', 'mf', 'f', 'ff', 'sfz'] },
+            { title: 'Text', items: ['Title', 'Tempo', 'Lyrics', 'Chord'] }
+        ];
+        
+        const container = document.getElementById('palette-container');
+        container.innerHTML = '';
+        
+        pData.forEach(group => {
+            let itemsHtml = group.items.map(item => {
+                const safeItem = item.replace(/'/g, "\\'");
+                return `<div class="palette-item ${item.length > 2 ? 'text-item' : ''}" title="Drag or click to add ${safeItem}" draggable="true" ondragstart="PaletteHandler.dragStart(event, '${safeItem}')" onclick="PaletteHandler.clickItem('${safeItem}')">${item}</div>`;
+            }).join('');
+            
+            container.innerHTML += `
+                <div class="palette-group">
+                    <div class="palette-title" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                        ${group.title} <i class="fas fa-chevron-down" style="font-size:10px; margin-top:4px;"></i>
+                    </div>
+                    <div class="palette-items">${itemsHtml}</div>
+                </div>
+            `;
+        });
+    },
+
+    renderInstrumentList: () => {
+        const body = document.getElementById('instrumentListBody');
+        body.innerHTML = '';
+        for (const [category, insts] of Object.entries(INSTRUMENT_LIB)) {
+            let listHtml = insts.map(inst => `
+                <div class="inst-item">
+                    <span>${inst.name} <span style="color:#666; font-size:10px;">(${inst.gm})</span></span>
+                    <button class="btn" style="padding: 2px 8px; font-size:11px;">Add to Score</button>
+                </div>
+            `).join('');
+            body.innerHTML += `<div class="inst-category">${category}</div>${listHtml}`;
+        }
+    },
+
+    renderTabs: () => {
+        const tabs = document.getElementById('score-tabs');
+        const instruments = State.osmd.sheet.Instruments;
+        
+        let html = `<div class="tab ${State.currentPartIndex === 'full' ? 'active' : ''}" onclick="App.setView('full')">Full Score</div>`;
+        instruments.forEach((inst, i) => {
+            let active = (State.currentPartIndex === i) ? 'active' : '';
+            html += `<div class="tab ${active}" onclick="App.setView(${i})">${inst.NameLabel.text}</div>`;
+        });
+        tabs.innerHTML = html;
+        
+        UI.renderMixer(); // Update mixer to reflect parts
+    },
+
+    renderMixer: () => {
+        const mixer = document.getElementById('mixer-channels');
+        mixer.innerHTML = '';
+        
+        // Add Master & Metronome
+        mixer.innerHTML += UI.createChannelHTML('Master', 100);
+        mixer.innerHTML += UI.createChannelHTML('Metronome', 80);
+
+        if (State.osmd && State.osmd.sheet) {
+            State.osmd.sheet.Instruments.forEach((inst, i) => {
+                mixer.innerHTML += UI.createChannelHTML(inst.NameLabel.text, 80);
+            });
+        }
+    },
+
+    createChannelHTML: (name, defaultVol) => {
+        return `
+            <div class="channel">
+                <div class="channel-name" title="${name}">${name}</div>
+                <input type="range" min="0" max="100" value="${defaultVol}" onchange="AudioEngine.setVolume('${name}', this.value)">
+                <div><i class="fas fa-volume-up" style="cursor:pointer;" title="Mute/Solo Toggle"></i></div>
+            </div>
+        `;
+    },
+
+    togglePanel: (id) => document.getElementById(`panel-${id}`).classList.toggle('hidden'),
+    toggleModal: (id) => {
+        const modal = document.getElementById(id);
+        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+    },
+    setStatus: (text) => document.getElementById('statusText').innerText = text
+};
+
+// --- KEYBIND MANAGER ---
+const KeybindManager = {
+    bindings: { 
+        'play_pause': 'Space', 
+        'note_entry': 'n', 
+        'instruments': 'i', 
+        'undo': 'Control+z', 
+        'redo': 'Control+y', 
+        'save': 'Control+s' 
+    },
+    init: () => {
+        window.addEventListener('keydown', KeybindManager.handleKey);
+        KeybindManager.renderTable();
+    },
+    handleKey: (e) => {
+        let keyStr = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+        if(e.ctrlKey && keyStr !== 'control') keyStr = 'Control+' + keyStr;
+        if(e.shiftKey && keyStr !== 'shift') keyStr = 'Shift+' + keyStr;
+        
+        for (const [action, bind] of Object.entries(KeybindManager.bindings)) {
+            if (bind.toLowerCase() === keyStr) {
+                if(e.target.tagName !== 'INPUT') e.preventDefault();
+                KeybindManager.executeAction(action);
+                return;
+            }
+        }
+    },
+    executeAction: (action) => {
+        switch(action) {
+            case 'play_pause': AudioEngine.togglePlay(); break;
+            case 'note_entry': App.toggleNoteEntry(); break;
+            case 'instruments': UI.toggleModal('instrumentModal'); break;
+            case 'undo': History.undo(); break;
+            case 'redo': History.redo(); break;
+            case 'save': App.saveProject(); break;
+        }
+    },
+    renderTable: () => {
+        const tbody = document.getElementById('keybindTable');
+        tbody.innerHTML = '';
+        for (const [action, bind] of Object.entries(KeybindManager.bindings)) {
+            tbody.innerHTML += `<tr style="border-bottom:1px solid #333;"><td style="padding:8px;">${action.replace('_', ' ').toUpperCase()}</td><td style="padding:8px;"><button class="btn" style="font-size:11px;">${bind}</button></td></tr>`;
+        }
+    }
+};
+
+// --- AUDIO ENGINE (WebAudio + SoundFont Player + Metronome + Export) ---
+const AudioEngine = {
+    ctx: null,
+    dest: null,
+    masterGain: null,
+    recorder: null,
+    recordedChunks: [],
+    playInterval: null,
+    loadedFonts: {},
+    
+    init: () => {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        AudioEngine.ctx = new AudioContext();
+        
+        // Create export destination
+        AudioEngine.dest = AudioEngine.ctx.createMediaStreamDestination();
+        
+        // Master Gain to route audio to BOTH local speakers and the export destination
+        AudioEngine.masterGain = AudioEngine.ctx.createGain();
+        AudioEngine.masterGain.connect(AudioEngine.ctx.destination); // To Speakers
+        AudioEngine.masterGain.connect(AudioEngine.dest); // To Exporter
+    },
+
+    loadSoundFont: async (gmName) => {
+        if (!AudioEngine.ctx) AudioEngine.init();
+        if (AudioEngine.loadedFonts[gmName]) return AudioEngine.loadedFonts[gmName];
+        
+        UI.setStatus(`Loading samples for ${gmName}...`);
+        Logger.log(`Fetching SoundFont: ${gmName}`);
+
+        // Guaranteed synth fallback if SoundFont CDN fails/blocked
+        const dummyFont = {
+            play: (midiNote, time, opts) => {
+                if (!AudioEngine.ctx) return;
+                const osc = AudioEngine.ctx.createOscillator();
+                const gain = AudioEngine.ctx.createGain();
+                osc.type = 'sine'; // Clean sine wave
+                osc.frequency.value = 440 * Math.pow(2, (midiNote - 69) / 12);
+                osc.connect(gain);
+                gain.connect(AudioEngine.masterGain);
+                osc.start(time);
+                osc.stop(time + (opts.duration || 0.5));
+                gain.gain.setValueAtTime(0.3, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + (opts.duration || 0.5));
+            }
+        };
+
+        try {
+            // Route soundfont directly to the masterGain node so we can hear it
+            const font = await Soundfont.instrument(AudioEngine.ctx, gmName, { destination: AudioEngine.masterGain });
+            AudioEngine.loadedFonts[gmName] = font;
+            UI.setStatus('Ready');
+            return font;
+        } catch (e) {
+            Logger.error(`Failed to load SoundFont ${gmName}. Falling back to oscillator.`);
+            UI.setStatus('Ready (Using Synth Fallback)');
+            AudioEngine.loadedFonts[gmName] = dummyFont; // Cache fallback to prevent repeated failure
+            return dummyFont;
+        }
+    },
+
+    toggleMetronome: () => {
+        State.metronomeEnabled = !State.metronomeEnabled;
+        document.getElementById('btnMetronome').classList.toggle('active');
+        Logger.log(`Metronome: ${State.metronomeEnabled ? 'ON' : 'OFF'}`);
+    },
+
+    playMetronomeClick: (isDownbeat) => {
+        if (!State.metronomeEnabled || !AudioEngine.ctx) return;
+        const osc = AudioEngine.ctx.createOscillator();
+        const gain = AudioEngine.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = isDownbeat ? 1200 : 800;
+        
+        osc.connect(gain);
+        gain.connect(AudioEngine.masterGain);
+        
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, AudioEngine.ctx.currentTime + 0.1);
+        osc.stop(AudioEngine.ctx.currentTime + 0.1);
+    },
+
+    togglePlay: async () => {
+        if (!AudioEngine.ctx) AudioEngine.init();
+        
+        // CRITICAL: Browsers block audio until explicitly resumed by user interaction
+        if (AudioEngine.ctx.state === 'suspended') {
+            await AudioEngine.ctx.resume();
+        }
+
+        if (State.isPlaying) {
+            AudioEngine.stop();
+        } else {
+            AudioEngine.start();
+        }
+    },
+
+    start: async () => {
+        State.isPlaying = true;
+        document.getElementById('playIcon').className = 'fas fa-pause';
+        UI.setStatus('Playing...');
+        
+        if (!State.osmd) return;
+        
+        // Ensure fonts are loaded based on current score parts (Mocking default piano for all for prototype speed)
+        const font = await AudioEngine.loadSoundFont('acoustic_grand_piano');
+        
+        State.osmd.cursor.show();
+        let beatCount = 0;
+
+        // Parse Tempo from XML
+        let currentTempo = 120;
+        const tempoMatch = State.currentScoreXML.match(/<sound[^>]*tempo="(\d+)"/);
+        if (tempoMatch && tempoMatch[1]) {
+            currentTempo = parseInt(tempoMatch[1]);
+            Logger.log(`Extracted playback tempo: ${currentTempo} BPM`);
+        }
+        
+        // Calculate duration of one quarter note interval
+        const intervalMs = (60 / currentTempo) * 1000;
+
+        // Note: Real OSMD playback syncs with fractional timestamps. 
+        // This is a simplified interval-based mock for demonstration.
+        AudioEngine.playInterval = setInterval(() => {
+            if (State.osmd.cursor.iterator.EndReached) {
+                AudioEngine.stop();
+                State.osmd.cursor.reset();
+                return;
+            }
+            
+            // Metronome logic
+            let isDownbeat = (beatCount % 4 === 0);
+            AudioEngine.playMetronomeClick(isDownbeat);
+            beatCount++;
+
+            // Play notes at cursor
+            const notes = State.osmd.cursor.NotesUnderCursor();
+            if (font && notes && notes.length > 0) {
+                notes.forEach(note => {
+                    // Safe OSMD pitch MIDI resolution
+                    let midiNote = -1;
+                    if (note.halfTone !== undefined) {
+                        midiNote = note.halfTone + 12; // Standard OSMD mapping
+                    } else if (note.Pitch) {
+                        if (typeof note.Pitch.getHalfTone === 'function') midiNote = note.Pitch.getHalfTone() + 12;
+                        else if (typeof note.Pitch.GetHalfTone === 'function') midiNote = note.Pitch.GetHalfTone() + 12;
+                    }
+                    
+                    if (midiNote > 0) {
+                        font.play(midiNote, AudioEngine.ctx.currentTime, { duration: 0.5 });
+                    }
+                });
+            }
+            
+            State.osmd.cursor.next();
+        }, intervalMs);
+    },
+
+    stop: () => {
+        State.isPlaying = false;
+        document.getElementById('playIcon').className = 'fas fa-play';
+        clearInterval(AudioEngine.playInterval);
+        UI.setStatus('Ready');
+        if (State.osmd) State.osmd.cursor.hide();
+    },
+
+    setVolume: (channel, val) => {
+        Logger.log(`Mixer: ${channel} volume set to ${val}`);
+        // In a full implementation, this controls GainNodes for each instrument buffer
+    },
+
+    exportAudio: () => {
+        Logger.log('Initializing Audio Export (Recording Output)...');
+        if (!AudioEngine.ctx) AudioEngine.init();
+        
+        alert("Audio Export: The score will play from the beginning and record to an audio file. Press OK to begin recording.");
+        
+        AudioEngine.stop();
+        if(State.osmd) State.osmd.cursor.reset();
+        
+        // Record output using MediaRecorder
+        AudioEngine.recordedChunks = [];
+        // Use webm or ogg as they are widely supported by browsers for MediaRecorder
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+        AudioEngine.recorder = new MediaRecorder(AudioEngine.dest.stream, { mimeType: mimeType });
+        
+        AudioEngine.recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) AudioEngine.recordedChunks.push(e.data);
+        };
+        
+        AudioEngine.recorder.onstop = () => {
+            const blob = new Blob(AudioEngine.recordedChunks, { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = `WebScore_Export.${mimeType.split('/')[1]}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            UI.setStatus('Audio Export Complete.');
+            document.querySelector('.menubar').classList.remove('recording');
+        };
+
+        // Start recording and playback
+        AudioEngine.recorder.start();
+        document.querySelector('.menubar').classList.add('recording');
+        UI.setStatus('Recording Audio...');
+        AudioEngine.start();
+
+        // Auto stop when score ends
+        const checkEnd = setInterval(() => {
+            if (!State.isPlaying) {
+                AudioEngine.recorder.stop();
+                clearInterval(checkEnd);
+            }
+        }, 1000);
+    }
+};
+
+// --- FILE I/O ---
+const FileIO = {
+    handleFileUpload: async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        Logger.log(`Loading file: ${file.name}`);
+        UI.setStatus(`Parsing ${file.name}...`);
+
+        if (file.name.endsWith('.mscz')) {
+            await FileIO.parseMSCZ(file);
+        } else if (file.name.endsWith('.xml') || file.name.endsWith('.musicxml')) {
+            const xml = await file.text();
+            App.loadScoreXML(xml);
+        } else {
+            Logger.error('Unsupported file format.');
+            alert('Format not supported. Please use .musicxml or .mscz');
+            UI.setStatus('Ready');
+        }
+    },
+    
+    parseMSCZ: async (file) => {
+        try {
+            const zip = await JSZip.loadAsync(file);
+            const files = Object.keys(zip.files);
+            let mscxFileName = files.find(name => name.endsWith('.mscx'));
+            
+            if (mscxFileName) {
+                Logger.warn('MSCX parsing requires proprietary mapping. Stubbing to Demo XML.');
+                alert('MSCZ unzipped successfully. MSCX extracted.\n\nNote: MSCX to MusicXML conversion is extremely complex. Loading Demo XML for prototype.');
+                App.loadScoreXML(DEMO_XML);
+            } else {
+                alert('Invalid MSCZ structure.');
+            }
+        } catch (error) { Logger.error(`MSCZ Error: ${error.message}`); }
+        UI.setStatus('Ready');
+    }
+};
+
+// --- MAIN APP CONTROLLER ---
+const App = {
+    init: () => {
+        Logger.log('Initializing WebScore Engine v2.1...');
+        State.osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmdCanvas", {
+            autoResize: true,
+            backend: "svg",
+            drawTitle: true,
+            drawingParameters: "default",
+            pageBackgroundColor: "#ffffff"
+        });
+
+        UI.init();
+        KeybindManager.init();
+        
+        // Bind Drag and Drop listeners to the Canvas
+        const canvasContainer = document.getElementById('canvasContainer');
+        canvasContainer.addEventListener('dragover', PaletteHandler.dragOver);
+        canvasContainer.addEventListener('drop', PaletteHandler.drop);
+
+        App.loadScoreXML(DEMO_XML);
+    },
+    
+    loadScoreXML: (xml, skipHistoryPush = false) => {
+        State.currentScoreXML = xml;
+        
+        // Push to history state manager if not triggered by an Undo/Redo action
+        if (!skipHistoryPush) {
+            History.push(xml);
+        }
+
+        State.osmd.load(xml).then(() => {
+            State.osmd.render();
+            UI.renderTabs();
+            Logger.log('Score rendered successfully.');
+        }).catch(err => Logger.error(`OSMD Error: ${err}`));
+    },
+
+    setView: (index) => {
+        State.currentPartIndex = index;
+        const instruments = State.osmd.sheet.Instruments;
+        
+        if (index === 'full') {
+            instruments.forEach(inst => inst.Visible = true);
+        } else {
+            instruments.forEach((inst, i) => inst.Visible = (i === index));
+        }
+        
+        UI.setStatus('Rendering part layout...');
+        setTimeout(() => {
+            State.osmd.render();
+            UI.renderTabs(); // Update active tab UI
+            UI.setStatus('Ready');
+        }, 50);
+    },
+
+    zoom: (delta) => {
+        State.zoom = Math.max(0.2, Math.min(3.0, State.zoom + delta));
+        State.osmd.setOptions({ zoom: State.zoom });
+        State.osmd.render();
+        document.getElementById('zoomLevel').innerText = Math.round(State.zoom * 100) + '%';
+    },
+
+    toggleNoteEntry: () => {
+        State.noteEntryMode = !State.noteEntryMode;
+        document.getElementById('btnNoteEntry').classList.toggle('active');
+        if(State.noteEntryMode) {
+            State.osmd.cursor.show();
+            UI.setStatus('Note Entry Mode (Press N to exit)');
+        } else {
+            State.osmd.cursor.hide();
+            UI.setStatus('Ready');
+        }
+    },
+
+    saveProject: () => {
+        const blob = new Blob([State.currentScoreXML], {type: "text/xml"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "WebScore_Project.musicxml";
+        a.click();
+        URL.revokeObjectURL(url);
+    },
+
+    exportPNG: async () => {
+        UI.setStatus('Generating PNG...');
+        Logger.log('Starting html2canvas render...');
+        const canvasDiv = document.getElementById('osmdCanvas');
+        
+        try {
+            const canvas = await html2canvas(canvasDiv, { scale: 2 }); // High-res
+            const imgData = canvas.toDataURL("image/png");
+            
+            const a = document.createElement("a");
+            a.href = imgData;
+            a.download = "WebScore_Export.png";
+            a.click();
+            UI.setStatus('PNG Export Complete.');
+        } catch(e) {
+            Logger.error(`PNG Export failed: ${e}`);
+            UI.setStatus('Export Failed.');
+        }
+    },
+
+    exportPDF: () => {
+        Logger.log('Invoking Browser Print-to-PDF engine...');
+        const uiElements = document.querySelectorAll('.menubar, .toolbar, .panel, .bottom-panel, .tabs-bar');
+        uiElements.forEach(el => el.classList.add('hidden'));
+        
+        window.print();
+        
+        uiElements.forEach(el => el.classList.remove('hidden'));
+        Logger.log('PDF Export complete.');
+    }
+};
+
+window.addEventListener('DOMContentLoaded', App.init);
+
+</script>
+</body>
+</html>
