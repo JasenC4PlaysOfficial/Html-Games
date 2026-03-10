@@ -181,7 +181,7 @@
         // --- Player ---
         let playerVelocity = new THREE.Vector3();
         let playerDirection = new THREE.Vector3();
-        let pitch = 0, yaw = 0;
+        let mousePitch = 0, rollPitch = 0, yaw = 0;
         let keys = { w: false, a: false, s: false, d: false, space: false };
         let stomachMass = 0;
         let baseHeight = 1.7; // 1.7 meters (average human)
@@ -194,12 +194,13 @@
         let foodItems = [];
         let npcs = [];
         let cars = [];
+        let debris = []; // Track falling building pieces
 
         // --- Abilities State ---
         let abilities = {
-            roll: { unlocked: false, cooldown: 0, maxCooldown: 5 },
-            inhale: { unlocked: false, cooldown: 0, maxCooldown: 10 },
-            shock: { unlocked: false, cooldown: 0, maxCooldown: 15 }
+            roll: { unlocked: false, cooldown: 0, maxCooldown: 5, active: false, duration: 3.0, timer: 0 },
+            inhale: { unlocked: false, cooldown: 0, maxCooldown: 10, active: false, duration: 4.0, timer: 0 },
+            shock: { unlocked: false, cooldown: 0, maxCooldown: 15, active: false, duration: 1.0, timer: 0 }
         };
 
         // --- Audio Context ---
@@ -410,8 +411,8 @@
             const wallThickness = 1;
 
             // Helper to add walls and colliders
-            const addWall = (mesh, px, pz) => {
-                mesh.position.set(px, h/2, pz);
+            const addWall = (mesh, px, pz, py = h/2) => {
+                mesh.position.set(px, py, pz);
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 group.add(mesh);
@@ -421,7 +422,7 @@
                 // Translate box to world coords relative to group pos
                 box.min.add(new THREE.Vector3(x, 0, z));
                 box.max.add(new THREE.Vector3(x, 0, z));
-                colliders.push(box);
+                colliders.push({ box: box, group: group, isBuilding: true, isDestroyed: false });
             };
 
             // Back wall
@@ -444,8 +445,7 @@
 
             // Interior Counter
             const counter = new THREE.Mesh(new THREE.BoxGeometry(8, 1.5, 2), new THREE.MeshStandardMaterial({color: 0x444444}));
-            counter.position.set(0, 0.75, -d/2 + 3);
-            addWall(counter, 0, -d/2 + 3); // Make counter solid
+            addWall(counter, 0, -d/2 + 3, 0.75); // Make counter solid
             
             group.position.set(x, 0, z);
             scene.add(group);
@@ -458,9 +458,7 @@
 
             // Drive Thru Menu (outside)
             const menu = new THREE.Mesh(new THREE.BoxGeometry(1, 3, 2), new THREE.MeshStandardMaterial({color: 0x222222}));
-            menu.position.set(x + w/2 + 4, 1.5, z);
-            addWall(menu, x + w/2 + 4, z); // Add solid
-            scene.add(menu);
+            addWall(menu, w/2 + 4, 0, 1.5); // Add solid
         }
 
         function buildOffice(x, z) {
@@ -470,8 +468,8 @@
             const mat = new THREE.MeshStandardMaterial({ color: 0x555566, roughness: 0.3 });
             const glassMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.1, metalness: 0.8 });
 
-            const addWall = (mesh, px, pz) => {
-                mesh.position.set(px, h/2, pz);
+            const addWall = (mesh, px, pz, py = h/2) => {
+                mesh.position.set(px, py, pz);
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 group.add(mesh);
@@ -479,7 +477,7 @@
                 const box = new THREE.Box3().setFromObject(mesh);
                 box.min.add(new THREE.Vector3(x, 0, z));
                 box.max.add(new THREE.Vector3(x, 0, z));
-                colliders.push(box);
+                colliders.push({ box: box, group: group, isBuilding: true, isDestroyed: false });
             };
 
             // Hollow walls
@@ -512,6 +510,30 @@
             for(let i=0; i<6; i++) {
                 spawnFoodAt(x + (Math.random() - 0.5) * 10, 0.2, z + (Math.random() - 0.5) * 10);
             }
+        }
+
+        function destroyBuilding(group) {
+            // Mark colliders as destroyed
+            for (let c of colliders) {
+                if (c.group === group) c.isDestroyed = true;
+            }
+            
+            // Turn all parts into physics debris
+            for (let mesh of group.children) {
+                debris.push({
+                    mesh: mesh,
+                    velocity: new THREE.Vector3((Math.random()-0.5)*5, -2, (Math.random()-0.5)*5), // Fall straight down with slight outward drift
+                    rotSpeed: new THREE.Vector3(0, 0, 0), // No spinning
+                    life: 5.0
+                });
+            }
+            
+            // Spawn Food Reserves
+            for(let i=0; i<30; i++) {
+                spawnFoodAt(group.position.x + (Math.random()-0.5)*15, 2, group.position.z + (Math.random()-0.5)*15);
+            }
+            
+            playChompSound(); // Deep boom proxy
         }
 
         function spawnFoodAt(fx, fy, fz) {
@@ -620,9 +642,9 @@
         function onMouseMove(event) {
             if (!isGameRunning) return;
             yaw -= event.movementX * 0.002;
-            pitch -= event.movementY * 0.002;
-            pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
-            camera.rotation.set(pitch, yaw, 0, 'YXZ');
+            mousePitch -= event.movementY * 0.002;
+            mousePitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, mousePitch));
+            camera.rotation.set(mousePitch + rollPitch, yaw, 0, 'YXZ');
         }
 
         function onKeyDown(event) {
@@ -635,10 +657,18 @@
                 
                 // Abilities
                 case 'KeyQ': 
-                    if (abilities.roll.unlocked && abilities.roll.cooldown <= 0) abilities.roll.cooldown = abilities.roll.maxCooldown;
+                    if (abilities.roll.unlocked && abilities.roll.cooldown <= 0) {
+                        abilities.roll.active = true;
+                        abilities.roll.timer = abilities.roll.duration;
+                        abilities.roll.cooldown = abilities.roll.maxCooldown;
+                    }
                     break;
                 case 'KeyE':
-                    if (abilities.inhale.unlocked && abilities.inhale.cooldown <= 0) abilities.inhale.cooldown = abilities.inhale.maxCooldown;
+                    if (abilities.inhale.unlocked && abilities.inhale.cooldown <= 0) {
+                        abilities.inhale.active = true;
+                        abilities.inhale.timer = abilities.inhale.duration;
+                        abilities.inhale.cooldown = abilities.inhale.maxCooldown;
+                    }
                     break;
                 case 'KeyF':
                     if (abilities.shock.unlocked && abilities.shock.cooldown <= 0) abilities.shock.cooldown = abilities.shock.maxCooldown;
@@ -739,10 +769,16 @@
             moveSpeed *= (1 + (playerHeight - baseHeight) * 0.2); 
 
             playerDirection.set(0, 0, 0);
-            if (keys.w) playerDirection.z -= 1;
-            if (keys.s) playerDirection.z += 1;
-            if (keys.a) playerDirection.x -= 1;
-            if (keys.d) playerDirection.x += 1;
+
+            if (abilities.roll.active) {
+                moveSpeed *= 2.0; // Slower boost than before (was 3.0)
+                playerDirection.z -= 1; // Force forward movement automatically
+            } else {
+                if (keys.w) playerDirection.z -= 1;
+                if (keys.s) playerDirection.z += 1;
+                if (keys.a) playerDirection.x -= 1;
+                if (keys.d) playerDirection.x += 1;
+            }
 
             playerDirection.normalize();
             
@@ -766,12 +802,21 @@
             playerKnockback.lerp(new THREE.Vector3(0,0,0), dt * 5); // Decay over time
 
             // Head bobbing animation if moving
-            if (playerDirection.lengthSq() > 0) {
+            if (playerDirection.lengthSq() > 0 && !abilities.roll.active) {
                 walkTime += dt * 10;
                 camera.position.y = playerHeight + Math.sin(walkTime) * 0.1;
             } else {
                 camera.position.y = THREE.MathUtils.lerp(camera.position.y, playerHeight, 0.1);
             }
+
+            // Ability Logic & Camera Rotation
+            if (abilities.roll.active) {
+                rollPitch -= dt * Math.PI * 4; // Roll forward visually
+                playerBelly.rotation.x -= dt * Math.PI * 4; // Spin belly
+            } else {
+                rollPitch = THREE.MathUtils.lerp(rollPitch, 0, dt * 8); // Smoothly return to normal
+            }
+            camera.rotation.set(mousePitch + rollPitch, yaw, 0, 'YXZ');
 
             // AABB Collision vs Walls
             // Player AABB scales with height/belly
@@ -782,10 +827,18 @@
             );
 
             let hit = false;
-            for(let box of colliders) {
-                if (pBox.intersectsBox(box)) {
-                    hit = true;
-                    break;
+            let breakThreshold = abilities.roll.active ? 8.0 : 12.0; // Increased size requirement to break buildings
+
+            for(let col of colliders) {
+                if (col.isDestroyed) continue;
+                if (pBox.intersectsBox(col.box)) {
+                    if (playerHeight >= breakThreshold && col.isBuilding) {
+                        destroyBuilding(col.group);
+                        playerVelocity.multiplyScalar(0.5); // Slow down slightly when bursting through
+                    } else {
+                        hit = true;
+                        break;
+                    }
                 }
             }
 
@@ -811,8 +864,89 @@
         function updateEntities(dt) {
             const time = clock.getElapsedTime();
 
+            // Move Debris
+            for(let i = debris.length - 1; i >= 0; i--) {
+                let d = debris[i];
+                
+                // Only move if it hasn't hit the ground
+                if (d.velocity.lengthSq() > 0) {
+                    d.velocity.y -= 50 * dt; // Gravity
+                    d.mesh.position.addScaledVector(d.velocity, dt);
+                    d.mesh.rotation.x += d.rotSpeed.x * dt;
+                    d.mesh.rotation.y += d.rotSpeed.y * dt;
+                    d.mesh.rotation.z += d.rotSpeed.z * dt;
+                    
+                    // Floor collision for debris
+                    if (d.mesh.position.y <= 0) {
+                        d.mesh.position.y = 0; // Stick partially into the ground like a collapsed ruin
+                        d.velocity.set(0, 0, 0); // Stop moving completely
+                    }
+                }
+                
+                d.life -= dt;
+                
+                if (d.life <= 0) {
+                    if (d.mesh.parent) d.mesh.parent.remove(d.mesh);
+                    debris.splice(i, 1);
+                }
+            }
+
+            // Get camera forward direction for vacuum cone
+            const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+
+            // Food Inhale Logic
+            if (abilities.inhale.active) {
+                const pullRadius = 25 + (playerHeight * 1.5); // Tighter radius
+                for (let i = foodItems.length - 1; i >= 0; i--) {
+                    let food = foodItems[i];
+                    let dist = food.position.distanceTo(camera.position);
+                    
+                    let dirToFood = new THREE.Vector3().subVectors(food.position, camera.position).normalize();
+                    let dotProduct = camForward.dot(dirToFood);
+
+                    // Must be within radius AND within a forward cone (~120 degree FOV)
+                    if (dist < pullRadius && dotProduct > 0.5) {
+                        food.position.lerp(camera.position, dt * 5.0);
+                        if (dist < 3 + (playerHeight - baseHeight) * 2) {
+                            scene.remove(food);
+                            foodItems.splice(i, 1);
+                            devConsumeFood(food.userData.calorie);
+                        }
+                    }
+                }
+            }
+
             // Animate NPCs
-            for(let npc of npcs) {
+            for(let i = npcs.length - 1; i >= 0; i--) {
+                let npc = npcs[i];
+                let dist = npc.mesh.position.distanceTo(camera.position);
+                let collisionRadius = 3.0 + (playerHeight - baseHeight) * 0.3;
+
+                // Inhale logic
+                if (abilities.inhale.active) {
+                    const pullRadius = 25 + (playerHeight * 1.5);
+                    let dirToNpc = new THREE.Vector3().subVectors(npc.mesh.position, camera.position).normalize();
+                    let dotProduct = camForward.dot(dirToNpc);
+
+                    if (dist < pullRadius && dotProduct > 0.5) {
+                        npc.mesh.position.lerp(camera.position, dt * 4.0);
+                        if (dist < collisionRadius) {
+                            scene.remove(npc.mesh);
+                            npcs.splice(i, 1);
+                            devConsumeFood(50);
+                            continue;
+                        }
+                    }
+                }
+
+                // Roll logic
+                if (abilities.roll.active && dist < collisionRadius + 2.0) {
+                    scene.remove(npc.mesh);
+                    npcs.splice(i, 1);
+                    devConsumeFood(100); // 100 for rolling over people
+                    continue;
+                }
+
                 npc.stateTime -= dt;
                 
                 // Random wander changes
@@ -837,7 +971,19 @@
             }
 
             // Move Cars
-            for(let car of cars) {
+            for(let i = cars.length - 1; i >= 0; i--) {
+                let car = cars[i];
+                let dist = car.mesh.position.distanceTo(camera.position);
+                let collisionRadius = 3.0 + (playerHeight - baseHeight) * 0.3; 
+
+                // Roll logic
+                if (abilities.roll.active && dist < collisionRadius + 3.0) {
+                    scene.remove(car.mesh);
+                    cars.splice(i, 1);
+                    devConsumeFood(100); // 100 for rolling over cars
+                    continue;
+                }
+
                 if (car.isFlung) {
                     car.velocity.y -= 40 * dt; // Gravity
                     car.mesh.position.addScaledVector(car.velocity, dt);
@@ -853,8 +999,6 @@
                     if(car.mesh.position.z < -250) car.mesh.position.z = 250;
 
                     // Car collision with player
-                    let dist = car.mesh.position.distanceTo(camera.position);
-                    let collisionRadius = 3.0 + (playerHeight - baseHeight) * 0.3; 
                     if (dist < collisionRadius) {
                         if (playerHeight < 3.0) {
                             // Small: Fling player to side
@@ -870,6 +1014,25 @@
                         }
                     }
                 }
+            }
+
+            // Repopulate missing entities
+            if (Math.random() < 0.05 && npcs.length < 80) spawnNPC();
+            if (Math.random() < 0.02 && cars.length < 40) spawnCar();
+
+            // Update Ability State Timers
+            if (abilities.roll.active) {
+                abilities.roll.timer -= dt;
+                if (abilities.roll.timer <= 0) {
+                    abilities.roll.active = false;
+                    // Snap rollPitch to nearest multiple of 2PI to unwind smoothly
+                    let revolutions = Math.round(rollPitch / (Math.PI * 2));
+                    rollPitch = rollPitch - (revolutions * Math.PI * 2);
+                }
+            }
+            if (abilities.inhale.active) {
+                abilities.inhale.timer -= dt;
+                if (abilities.inhale.timer <= 0) abilities.inhale.active = false;
             }
 
             // Update Ability Cooldowns
