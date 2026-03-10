@@ -23,6 +23,9 @@
             --accent-hover: #0098ff;
             --border: #3e3e42;
             --canvas-bg: #e0e0e0;
+            --select-color: rgba(0, 122, 204, 0.3);
+            --select-border: rgba(0, 122, 204, 0.8);
+            --note-select-color: #007acc;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -39,12 +42,19 @@
         .shortcut { color: #999; font-size: 11px; }
 
         /* Toolbar */
-        .toolbar { background-color: var(--bg-panel); display: flex; padding: 5px 10px; gap: 15px; border-bottom: 1px solid var(--border); align-items: center; }
+        .toolbar { background-color: var(--bg-panel); display: flex; padding: 5px 10px; gap: 15px; border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
         .tool-group { display: flex; gap: 5px; border-right: 1px solid var(--border); padding-right: 15px; align-items: center; }
         .btn { background: transparent; border: 1px solid transparent; color: var(--text-main); padding: 5px 8px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
         .btn:hover { background-color: rgba(255,255,255,0.1); }
         .btn.active { background-color: rgba(0, 122, 204, 0.4); border-color: var(--accent); color: var(--text-light); }
         .btn.recording { color: #ff4444; animation: pulse 1s infinite; }
+        
+        .voice-btn { font-weight: bold; font-size: 12px; }
+        .voice-1.active { color: #569cd6; border-color: #569cd6; }
+        .voice-2.active { color: #4ec9b0; border-color: #4ec9b0; }
+        .voice-3.active { color: #ce9178; border-color: #ce9178; }
+        .voice-4.active { color: #dcdcaa; border-color: #dcdcaa; }
+
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         /* Tabs (Part Viewer) */
@@ -70,13 +80,19 @@
         .palette-item { background: #333; text-align: center; padding: 10px 0; border-radius: 3px; cursor: grab; font-family: serif; font-size: 18px; font-weight: bold; color: #ddd; }
         .palette-item:hover { background: var(--accent); color: white; }
         .palette-item:active { cursor: grabbing; }
-        .palette-item.text-item { font-size: 12px; font-family: sans-serif; display: flex; align-items: center; justify-content: center; }
+        .palette-item.text-item { font-size: 11px; font-family: sans-serif; display: flex; align-items: center; justify-content: center; padding: 5px; }
 
         /* Canvas */
-        .canvas-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: var(--canvas-bg); }
+        .canvas-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: var(--canvas-bg); cursor: default; position: relative; }
+        .canvas-area.entry-mode { cursor: crosshair; }
         .canvas-container { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 20px; position: relative; }
         #osmdCanvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 100%; max-width: 1400px; min-height: 1000px; padding: 20px; position: relative; overflow: hidden; }
-        .score-overlay-element { position: absolute; cursor: move; color: #000; font-family: serif; font-weight: bold; z-index: 500; user-select: none; }
+        
+        /* Interactive Overlays */
+        #uiOverlay { position: absolute; top: 20px; left: 0; width: 100%; max-width: 1400px; height: 1000px; pointer-events: none; z-index: 100; margin: 0 auto; display: flex; justify-content: center; }
+        #selectionBox { position: absolute; background-color: var(--select-color); border: 2px solid var(--select-border); display: none; border-radius: 3px; }
+        #noteSelectionBox { position: absolute; background-color: transparent; border: 2px solid var(--note-select-color); display: none; border-radius: 50%; width: 16px; height: 16px; transform: translate(-50%, -50%); box-shadow: 0 0 8px var(--note-select-color); }
+        .score-overlay-element { position: absolute; cursor: move; color: #000; font-family: serif; font-weight: bold; z-index: 500; user-select: none; pointer-events: auto; }
         
         /* Bottom Mixer / Status */
         .bottom-panel { height: 140px; background-color: var(--bg-panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
@@ -85,6 +101,11 @@
         .channel input[type=range] { writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 60px; margin: 5px 0; width: 20px; }
         .channel-name { text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-bottom: 5px; }
         .status-bar { height: 25px; background-color: var(--accent); display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: white; justify-content: space-between; flex-shrink: 0; }
+
+        /* Inspector Details */
+        .inspector-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .inspector-label { color: #aaa; }
+        .inspector-val { font-weight: bold; color: #fff; }
 
         /* Modals */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
@@ -95,19 +116,13 @@
         .btn-primary { background: var(--accent); color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .btn-primary:hover { background: var(--accent-hover); }
         
-        /* Instrument List Styles */
         .inst-category { margin-top: 15px; font-weight: bold; color: var(--accent); border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; }
         .inst-item { display: flex; justify-content: space-between; padding: 8px; background: #1e1e1e; margin-bottom: 4px; border-radius: 3px; align-items: center; font-size: 13px; }
         .inst-item:hover { background: #333; }
 
-        /* Dev Tools Terminal */
         #devTerminal { background: #000; color: #0f0; font-family: monospace; font-size: 12px; padding: 10px; height: 200px; overflow-y: auto; white-space: pre-wrap; user-select: text;}
-
-        /* Utilities */
         .hidden { display: none !important; }
         input[type="file"] { display: none; }
-        
-        /* Custom Scrollbars */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-dark); }
         ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -133,6 +148,8 @@
                 <div class="dropdown-item" onclick="History.undo()"><span>Undo</span> <span class="shortcut">Ctrl+Z</span></div>
                 <div class="dropdown-item" onclick="History.redo()"><span>Redo</span> <span class="shortcut">Ctrl+Y</span></div>
                 <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
+                <div class="dropdown-item" onclick="NoteEditor.deleteSelected()"><span>Delete Selected</span> <span class="shortcut">Del</span></div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
                 <div class="dropdown-item" onclick="UI.toggleModal('instrumentModal')"><span>Instruments...</span> <span class="shortcut">I</span></div>
                 <div class="dropdown-item" onclick="UI.toggleModal('keybindModal')"><span>Preferences / Keybinds</span></div>
             </div>
@@ -147,7 +164,7 @@
         </div>
         <div class="menu-item">Help
             <div class="dropdown">
-                <div class="dropdown-item" onclick="alert('WebScore Studio v2.1\nA prototype music notation editor matching MuseScore features.\n\nIncludes dynamic part extraction, general MIDI soundfont playback, audio/image export, interactive text palettes, and Undo/Redo history.')"><span>About</span></div>
+                <div class="dropdown-item" onclick="alert('WebScore Studio v4.5\n\nFeatures: Rest Splitting, Note-to-Rest Conversion, Measure Management (+/-), Safe Deletions.')"><span>About</span></div>
             </div>
         </div>
     </div>
@@ -158,15 +175,27 @@
         <div class="tool-group">
             <button class="btn" title="Undo (Ctrl+Z)" onclick="History.undo()"><i class="fas fa-undo"></i></button>
             <button class="btn" title="Redo (Ctrl+Y)" onclick="History.redo()"><i class="fas fa-redo"></i></button>
+            <button class="btn" title="Add Measure" onclick="NoteEditor.addMeasure()"><i class="fas fa-plus-square"></i></button>
+            <button class="btn" title="Remove Last Measure" onclick="NoteEditor.removeMeasure()"><i class="fas fa-minus-square"></i></button>
+            <button class="btn" title="Delete Selected Note/Measure (Del)" onclick="NoteEditor.deleteSelected()"><i class="fas fa-eraser"></i></button>
         </div>
         <div class="tool-group">
-            <button class="btn" title="Note Entry (N)" id="btnNoteEntry" onclick="App.toggleNoteEntry()"><i class="fas fa-pen"></i></button>
+            <button class="btn" title="Note Entry Mode (N)" id="btnNoteEntry" onclick="App.toggleNoteEntry()"><i class="fas fa-pen"></i></button>
         </div>
         <div class="tool-group">
-            <button class="btn" title="Whole Note (7)"><i class="fas fa-circle"></i></button>
-            <button class="btn" title="Half Note (6)"><i class="fas fa-circle-half-stroke"></i></button>
-            <button class="btn active" title="Quarter Note (5)"><i class="fas fa-music"></i></button>
-            <button class="btn" title="Eighth Note (4)"><i class="fas fa-music"></i></button>
+            <button class="btn note-duration-btn" data-dur="whole" title="Whole Note (7)"><i class="fas fa-circle"></i></button>
+            <button class="btn note-duration-btn" data-dur="half" title="Half Note (6)"><i class="fas fa-circle-half-stroke"></i></button>
+            <button class="btn note-duration-btn active" data-dur="quarter" title="Quarter Note (5)"><i class="fas fa-music"></i></button>
+            <button class="btn note-duration-btn" data-dur="eighth" title="Eighth Note (4)"><i class="fas fa-music" style="font-size:10px;"></i></button>
+        </div>
+        <div class="tool-group">
+            <button class="btn" title="Flat (♭)" onclick="NoteEditor.applyAccidental('flat')">♭</button>
+            <button class="btn" title="Natural (♮)" onclick="NoteEditor.applyAccidental('natural')">♮</button>
+            <button class="btn" title="Sharp (♯)" onclick="NoteEditor.applyAccidental('sharp')">♯</button>
+        </div>
+        <div class="tool-group">
+            <button class="btn voice-btn voice-1 active" title="Voice 1">1</button>
+            <button class="btn voice-btn voice-2" title="Voice 2">2</button>
         </div>
         <div class="tool-group">
             <button class="btn" title="Rewind" onclick="AudioEngine.stop()"><i class="fas fa-backward-step"></i></button>
@@ -185,18 +214,19 @@
         <div class="panel" id="panel-palettes">
             <div class="panel-header">Palettes <i class="fas fa-times" style="cursor:pointer" onclick="UI.togglePanel('palettes')"></i></div>
             <div class="panel-content" id="palette-container">
-                <!-- Dynamically generated by JS to save space -->
+                <!-- Dynamically generated -->
             </div>
         </div>
 
         <!-- Main Canvas Area -->
         <div class="canvas-area">
-            <!-- Tabs Bar for Parts -->
-            <div class="tabs-bar" id="score-tabs">
-                <!-- Dynamically populated -->
-            </div>
+            <div class="tabs-bar" id="score-tabs"></div>
             
             <div class="canvas-container" id="canvasContainer">
+                <div id="uiOverlay">
+                    <div id="selectionBox"></div>
+                    <div id="noteSelectionBox"></div>
+                </div>
                 <div id="osmdCanvas"></div>
             </div>
         </div>
@@ -205,8 +235,8 @@
         <div class="panel panel-right" id="panel-inspector">
             <div class="panel-header">Inspector <i class="fas fa-times" style="cursor:pointer" onclick="UI.togglePanel('inspector')"></i></div>
             <div class="panel-content">
-                <div id="inspector-content" style="font-size: 13px;">
-                    <p style="color:#888;">Select an element to inspect properties.</p>
+                <div id="inspector-content">
+                    <p style="color:#888; font-size:12px; text-align:center; margin-top:20px;">Select a note or measure to view properties.</p>
                 </div>
             </div>
         </div>
@@ -215,9 +245,7 @@
     <!-- Bottom Mixer -->
     <div class="bottom-panel" id="panel-mixer">
         <div class="panel-header" style="border-bottom:none;">Mixer <i class="fas fa-times" style="cursor:pointer; float:right;" onclick="UI.togglePanel('mixer')"></i></div>
-        <div class="mixer" id="mixer-channels">
-            <!-- Populated dynamically -->
-        </div>
+        <div class="mixer" id="mixer-channels"></div>
     </div>
 
     <!-- Status Bar -->
@@ -227,26 +255,22 @@
     </div>
 
     <!-- Modals -->
-    
-    <!-- Instrument Modal -->
     <div class="modal-overlay" id="instrumentModal">
         <div class="modal">
             <div class="modal-header">Add Instruments <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('instrumentModal')"></i></div>
-            <div class="modal-body" id="instrumentListBody">
-                <!-- Populated by JS -->
-            </div>
+            <div class="modal-body" id="instrumentListBody"></div>
             <div class="modal-footer">
                 <button class="btn" onclick="UI.toggleModal('instrumentModal')">Cancel</button>
-                <button class="btn-primary" onclick="UI.toggleModal('instrumentModal'); alert('Instruments updated (Mock - Requires XML regeneration in true OSMD app)');">Apply Changes</button>
+                <button class="btn-primary" onclick="UI.toggleModal('instrumentModal'); alert('Instruments updated (Mock)');">Apply</button>
             </div>
         </div>
     </div>
 
-    <!-- Keybinds Modal -->
     <div class="modal-overlay" id="keybindModal">
         <div class="modal" style="width: 500px;">
             <div class="modal-header">Preferences & Keybinds <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('keybindModal')"></i></div>
             <div class="modal-body">
+                <p style="font-size:12px; margin-bottom:10px; color:#aaa;">New: Use Up/Down arrows to change note pitch!</p>
                 <table style="width:100%; text-align:left; font-size:13px; border-collapse: collapse;">
                     <thead><tr style="border-bottom:1px solid #555;"><th style="padding:5px;">Action</th><th style="padding:5px;">Shortcut</th></tr></thead>
                     <tbody id="keybindTable"></tbody>
@@ -259,7 +283,6 @@
         </div>
     </div>
 
-    <!-- Dev Modal -->
     <div class="modal-overlay" id="devModal">
         <div class="modal" style="width:600px;">
             <div class="modal-header">Developer Tools & Logs <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('devModal')"></i></div>
@@ -276,13 +299,12 @@
 
 <script>
 /**
- * WebScore Studio Engine v2.1
+ * WebScore Studio Engine v4.5
  * ---------------------------------------------------------
- * Features added: Undo/Redo History Manager, Text Palette Modifiers
- * (Tempo, Title, Lyrics, Chord symbols).
+ * Features: True Note-level selection, Note-to-Rest deletion conversion, 
+ * Dynamic Duration splitting, Measure Adding/Removing.
  */
 
-// --- DEMO MUSICXML DATA (Multi-instrument to show parts) ---
 const DEMO_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise version="3.1">
@@ -293,976 +315,803 @@ const DEMO_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
-      <note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note>
-      <note><pitch><step>E</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note>
+      <attributes><divisions>4</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <direction placement="above"><direction-type><words font-weight="bold">♩ = 120</words></direction-type><sound tempo="120"/></direction>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>8</duration><type>half</type></note>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>8</duration><type>half</type></note>
     </measure>
     <measure number="2">
-        <note><pitch><step>G</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note>
+        <note><pitch><step>G</step><octave>5</octave></pitch><duration>16</duration><type>whole</type></note>
     </measure>
   </part>
   <part id="P2">
     <measure number="1">
-      <attributes><divisions>1</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>F</sign><line>4</line></clef></attributes>
-      <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
-      <note><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
-      <note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
-      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <attributes><divisions>4</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>F</sign><line>4</line></clef></attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>3</octave></pitch><duration>4</duration><type>quarter</type></note>
+      <note><pitch><step>G</step><octave>3</octave></pitch><duration>4</duration><type>quarter</type></note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>quarter</type></note>
     </measure>
     <measure number="2">
-        <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>whole</type></note>
+        <note><pitch><step>C</step><octave>3</octave></pitch><duration>16</duration><type>whole</type></note>
     </measure>
   </part>
 </score-partwise>`;
 
-// --- MASSIVE INSTRUMENT LIBRARY ---
 const INSTRUMENT_LIB = {
-    "Woodwinds": [
-        { name: "Piccolo", gm: "piccolo" }, { name: "Flute", gm: "flute" }, { name: "Oboe", gm: "oboe" },
-        { name: "English Horn", gm: "english_horn" }, { name: "Clarinet in Bb", gm: "clarinet" },
-        { name: "Bass Clarinet", gm: "clarinet" }, { name: "Bassoon", gm: "bassoon" },
-        { name: "Alto Saxophone", gm: "alto_sax" }, { name: "Tenor Saxophone", gm: "tenor_sax" },
-        { name: "Baritone Saxophone", gm: "baritone_sax" }
-    ],
-    "Brass": [
-        { name: "Trumpet in Bb", gm: "trumpet" }, { name: "French Horn", gm: "french_horn" },
-        { name: "Trombone", gm: "trombone" }, { name: "Bass Trombone", gm: "trombone" },
-        { name: "Euphonium", gm: "tuba" }, { name: "Tuba", gm: "tuba" }
-    ],
-    "Marching Band / Drumline": [
-        { name: "Marching Snare", gm: "synth_drum" }, { name: "Tenors (Quads)", gm: "taiko_drum" },
-        { name: "Marching Bass Drums", gm: "melodic_tom" }, { name: "Crash Cymbals", gm: "reverse_cymbal" }
-    ],
-    "Percussion": [
-        { name: "Timpani", gm: "timpani" }, { name: "Glockenspiel", gm: "glockenspiel" },
-        { name: "Xylophone", gm: "xylophone" }, { name: "Marimba", gm: "marimba" },
-        { name: "Drumset", gm: "synth_drum" }
-    ],
-    "Strings": [
-        { name: "Violin", gm: "violin" }, { name: "Viola", gm: "viola" },
-        { name: "Cello", gm: "cello" }, { name: "Contrabass", gm: "contrabass" }
-    ],
-    "Keyboards": [
-        { name: "Piano", gm: "acoustic_grand_piano" }, { name: "Harpsichord", gm: "harpsichord" },
-        { name: "Pipe Organ", gm: "church_organ" }, { name: "Synthesizer", gm: "lead_1_square" }
-    ],
-    "Plucked": [
-        { name: "Acoustic Guitar", gm: "acoustic_guitar_nylon" }, { name: "Electric Guitar", gm: "electric_guitar_jazz" },
-        { name: "Electric Bass", gm: "electric_bass_finger" }, { name: "Harp", gm: "orchestral_harp" }
-    ]
+    "Woodwinds": [{ name: "Flute", gm: "flute" }, { name: "Oboe", gm: "oboe" }, { name: "Clarinet", gm: "clarinet" }],
+    "Brass": [{ name: "Trumpet", gm: "trumpet" }, { name: "Trombone", gm: "trombone" }, { name: "Tuba", gm: "tuba" }],
+    "Strings": [{ name: "Violin", gm: "violin" }, { name: "Cello", gm: "cello" }],
+    "Keyboards": [{ name: "Piano", gm: "acoustic_grand_piano" }]
 };
 
-// --- LOGGER ---
 const Logger = {
     log: (msg) => {
         const term = document.getElementById('devTerminal');
-        const time = new Date().toLocaleTimeString();
-        term.innerHTML += `[${time}] ${msg}\n`;
+        term.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
         term.scrollTop = term.scrollHeight;
         console.log(`[WebScore] ${msg}`);
     },
-    warn: (msg) => Logger.log(`WARNING: ${msg}`),
-    error: (msg) => Logger.log(`ERROR: ${msg}`)
+    error: (msg) => Logger.log(`ERROR: ${msg}`),
+    warn: (msg) => Logger.log(`WARN: ${msg}`)
 };
 
-// --- STATE MANAGEMENT ---
 const State = {
-    osmd: null,
-    zoom: 1.0,
-    isPlaying: false,
-    noteEntryMode: false,
-    metronomeEnabled: false,
-    currentScoreXML: DEMO_XML,
-    currentPartIndex: 'full', // 'full' or integer index
-    history: [],
-    historyIndex: -1
+    osmd: null, zoom: 1.0, isPlaying: false, noteEntryMode: false, metronomeEnabled: false,
+    currentScoreXML: DEMO_XML, currentPartIndex: 'full',
+    history: [], historyIndex: -1, selectedDuration: 'quarter',
+    selectedMeasure: -1, selectedStaff: -1, selectedNoteIndex: -1
 };
 
-// --- UNDO/REDO HISTORY MANAGER ---
 const History = {
     push: (xml) => {
-        if (State.historyIndex >= 0 && State.history[State.historyIndex] === xml) return; // Prevent duplicates
-        // If we are pushing a new state after undoing, slice off the redo future
+        if (State.historyIndex >= 0 && State.history[State.historyIndex] === xml) return;
         State.history = State.history.slice(0, State.historyIndex + 1);
         State.history.push(xml);
         State.historyIndex++;
-        Logger.log(`History pushed. Current Index: ${State.historyIndex}, Total: ${State.history.length}`);
     },
     undo: () => {
         if (State.historyIndex > 0) {
             State.historyIndex--;
-            Logger.log(`Undo executed. Moving to state ${State.historyIndex}`);
+            App.loadScoreXML(State.history[State.historyIndex], true);
             UI.setStatus('Undo applied.');
-            App.loadScoreXML(State.history[State.historyIndex], true); // true = skip history push
-        } else {
-            UI.setStatus('Nothing left to undo.');
         }
     },
     redo: () => {
         if (State.historyIndex < State.history.length - 1) {
             State.historyIndex++;
-            Logger.log(`Redo executed. Moving to state ${State.historyIndex}`);
+            App.loadScoreXML(State.history[State.historyIndex], true);
             UI.setStatus('Redo applied.');
-            App.loadScoreXML(State.history[State.historyIndex], true); // true = skip history push
-        } else {
-            UI.setStatus('Nothing to redo.');
         }
     }
 };
 
-// --- PALETTE HANDLER (Interactive Drag and Drop / Score Mutator) ---
+// --- TRUE SELECTION & EDITING ENGINE ---
+const NoteEditor = {
+    getClosestElement: (x, y) => {
+        let closestMeasure = -1, closestStaff = -1, closestNote = -1, minDist = Infinity;
+        let bestMeasureRect = null, bestNoteRect = null;
+        
+        if (!State.osmd || !State.osmd.GraphicSheet) return null;
+
+        for (let i = 0; i < State.osmd.GraphicSheet.MeasureList.length; i++) {
+            const staves = State.osmd.GraphicSheet.MeasureList[i];
+            for (let j = 0; j < staves.length; j++) {
+                const m = staves[j];
+                if (!m || !m.PositionAndShape) continue;
+                
+                const mx = m.PositionAndShape.AbsolutePosition.x;
+                const my = m.PositionAndShape.AbsolutePosition.y;
+                const mw = m.PositionAndShape.Size.width;
+                const mh = m.PositionAndShape.Size.height;
+
+                const distToMeasure = Math.sqrt(Math.pow(mx + mw/2 - x, 2) + Math.pow((my + mh/2 - y) * 5, 2));
+                
+                if (distToMeasure < minDist) { 
+                    minDist = distToMeasure; 
+                    closestMeasure = i; closestStaff = j; 
+                    bestMeasureRect = { x: mx, y: my, w: mw, h: mh };
+                    closestNote = -1;
+                }
+
+                if (m.staffEntries) {
+                    let noteIndexCtr = 0;
+                    for (let se of m.staffEntries) {
+                        if (se.graphicalVoiceEntries) {
+                            for (let gve of se.graphicalVoiceEntries) {
+                                if (gve.notes) {
+                                    for (let n of gve.notes) {
+                                        if (n.PositionAndShape) {
+                                            const nx = n.PositionAndShape.AbsolutePosition.x;
+                                            const ny = n.PositionAndShape.AbsolutePosition.y;
+                                            const distToNote = Math.sqrt(Math.pow(nx - x, 2) + Math.pow((ny - y)*2, 2));
+                                            if (distToNote < 2.0 && distToNote < minDist) {
+                                                minDist = distToNote;
+                                                closestMeasure = i; closestStaff = j; closestNote = noteIndexCtr;
+                                                bestNoteRect = { x: nx, y: ny, w: 1.5, h: 1.5 };
+                                            }
+                                        }
+                                        noteIndexCtr++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return closestMeasure >= 0 ? { measure: closestMeasure, staff: closestStaff, noteIndex: closestNote, rect: bestMeasureRect, noteRect: bestNoteRect } : null;
+    },
+
+    selectElement: (e) => {
+        const svg = document.querySelector('#osmdCanvas svg');
+        if(!svg) return;
+        
+        const rect = svg.getBoundingClientRect();
+        const unitX = (e.clientX - rect.left) / (10 * State.zoom);
+        const unitY = (e.clientY - rect.top) / (10 * State.zoom);
+
+        const target = NoteEditor.getClosestElement(unitX, unitY);
+        if (target) {
+            State.selectedMeasure = target.measure;
+            State.selectedStaff = target.staff;
+            State.selectedNoteIndex = target.noteIndex;
+            
+            const mBox = document.getElementById('selectionBox');
+            const nBox = document.getElementById('noteSelectionBox');
+            const svgOffsetX = rect.left - document.getElementById('canvasContainer').getBoundingClientRect().left + document.getElementById('canvasContainer').scrollLeft;
+            const svgOffsetY = rect.top - document.getElementById('canvasContainer').getBoundingClientRect().top + document.getElementById('canvasContainer').scrollTop;
+
+            if (target.noteIndex !== -1 && target.noteRect) {
+                mBox.style.display = 'none';
+                nBox.style.display = 'block';
+                nBox.style.left = (target.noteRect.x * 10 * State.zoom + svgOffsetX) + 'px';
+                nBox.style.top = (target.noteRect.y * 10 * State.zoom + svgOffsetY) + 'px';
+                UI.setStatus(`Selected Staff ${target.staff + 1}, Measure ${target.measure + 1}, Note ${target.noteIndex + 1}`);
+                UI.updateInspector();
+            } else {
+                nBox.style.display = 'none';
+                mBox.style.display = 'block';
+                mBox.style.left = (target.rect.x * 10 * State.zoom + svgOffsetX) + 'px';
+                mBox.style.top = (target.rect.y * 10 * State.zoom + svgOffsetY) + 'px';
+                mBox.style.width = (target.rect.w * 10 * State.zoom) + 'px';
+                mBox.style.height = (target.rect.h * 10 * State.zoom) + 'px';
+                UI.setStatus(`Selected Staff ${target.staff + 1}, Measure ${target.measure + 1}`);
+                UI.clearInspector();
+            }
+            
+            if(State.noteEntryMode && target.noteIndex === -1) {
+                NoteEditor.insertNoteAtSelection('C');
+            }
+        } else {
+            document.getElementById('selectionBox').style.display = 'none';
+            document.getElementById('noteSelectionBox').style.display = 'none';
+            State.selectedMeasure = -1; State.selectedStaff = -1; State.selectedNoteIndex = -1;
+            UI.clearInspector();
+        }
+    },
+
+    insertNoteAtSelection: (pitchStr) => {
+        if (State.selectedMeasure === -1) { UI.setStatus("Click a measure to select it first."); return; }
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
+        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
+        if (!targetMeasure) return;
+
+        let divisions = 1;
+        // Search backwards for the last divisions declaration
+        for (let i = State.selectedMeasure; i >= 0; i--) {
+            const divNode = targetPart.querySelectorAll('measure')[i].querySelector('divisions');
+            if (divNode) { divisions = parseInt(divNode.textContent); break; }
+        }
+
+        let durationVal = divisions; 
+        let typeStr = 'quarter';
+        if (State.selectedDuration === 'whole') { durationVal = divisions * 4; typeStr = 'whole'; }
+        else if (State.selectedDuration === 'half') { durationVal = divisions * 2; typeStr = 'half'; }
+        else if (State.selectedDuration === 'quarter') { durationVal = divisions; typeStr = 'quarter'; }
+        else if (State.selectedDuration === 'eighth') { durationVal = divisions / 2; typeStr = 'eighth'; }
+
+        let octave = State.selectedStaff === 0 ? '5' : '3';
+        if (State.selectedStaff === 0 && ['C','D','E'].includes(pitchStr)) octave = '5';
+        if (State.selectedStaff === 0 && ['F','G','A','B'].includes(pitchStr)) octave = '4';
+
+        let notes = Array.from(targetMeasure.querySelectorAll('note'));
+        let targetNote = null;
+        
+        if (State.selectedNoteIndex !== -1 && notes[State.selectedNoteIndex]) {
+            targetNote = notes[State.selectedNoteIndex];
+        } else {
+            // Find first rest to overwrite
+            targetNote = notes.find(n => n.querySelector('rest'));
+        }
+
+        const newNote = xmlDoc.createElement('note');
+        newNote.innerHTML = `<pitch><step>${pitchStr}</step><octave>${octave}</octave></pitch><duration>${durationVal}</duration><type>${typeStr}</type>`;
+        
+        if (targetNote) {
+            let targetDurNode = targetNote.querySelector('duration');
+            let targetDur = targetDurNode ? parseFloat(targetDurNode.textContent) : 0;
+            
+            targetMeasure.insertBefore(newNote, targetNote);
+            
+            if (durationVal < targetDur) {
+                let remainder = targetDur - durationVal;
+                let remainderType = 'quarter';
+                if (remainder >= divisions * 4) remainderType = 'whole';
+                else if (remainder >= divisions * 2) remainderType = 'half';
+                else if (remainder === divisions) remainderType = 'quarter';
+                else remainderType = 'eighth';
+                
+                let remainderRest = xmlDoc.createElement('note');
+                remainderRest.innerHTML = `<rest/><duration>${remainder}</duration><type>${remainderType}</type>`;
+                targetMeasure.insertBefore(remainderRest, targetNote);
+            } else if (durationVal > targetDur) {
+                let durationNeeded = durationVal - targetDur;
+                let nextNote = targetNote.nextElementSibling;
+                while (nextNote && nextNote.tagName === 'note' && durationNeeded > 0) {
+                    let nextDurNode = nextNote.querySelector('duration');
+                    let nextDur = nextDurNode ? parseFloat(nextDurNode.textContent) : 0;
+                    if (nextDur <= durationNeeded) {
+                        durationNeeded -= nextDur;
+                        let toDel = nextNote;
+                        nextNote = nextNote.nextElementSibling;
+                        toDel.remove();
+                    } else {
+                        let newNextDur = nextDur - durationNeeded;
+                        if (nextDurNode) nextDurNode.textContent = newNextDur;
+                        durationNeeded = 0;
+                    }
+                }
+            }
+            targetNote.remove();
+            
+            if (State.selectedNoteIndex !== -1) State.selectedNoteIndex++;
+        } else {
+            targetMeasure.appendChild(newNote);
+        }
+
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+        UI.setStatus(`Inserted ${pitchStr} ${typeStr}.`);
+    },
+
+    deleteSelected: () => {
+        if (State.selectedMeasure === -1) { UI.setStatus("Select a note or measure first to delete."); return; }
+
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
+        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
+        if (!targetMeasure) return;
+
+        const notes = targetMeasure.querySelectorAll('note');
+        let noteToDelete = null;
+        
+        if (State.selectedNoteIndex !== -1 && notes[State.selectedNoteIndex]) {
+            noteToDelete = notes[State.selectedNoteIndex];
+        } else if (notes.length > 0) {
+            noteToDelete = notes[notes.length - 1]; // Fallback to last note in measure
+        }
+
+        if (noteToDelete) {
+            const pitch = noteToDelete.querySelector('pitch');
+            if (pitch) {
+                // Feature 1: Convert to rest instead of removing to prevent empty measure crash
+                pitch.remove();
+                if (!noteToDelete.querySelector('rest')) {
+                    const rest = xmlDoc.createElement('rest');
+                    noteToDelete.insertBefore(rest, noteToDelete.firstChild);
+                }
+                UI.setStatus('Converted note to rest.');
+                State.selectedNoteIndex = -1; // Reset note selection
+            } else {
+                UI.setStatus('Already a rest.');
+            }
+        }
+
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+    },
+
+    changeSelectedDuration: (newType) => {
+        if (State.selectedNoteIndex === -1 || State.selectedMeasure === -1) return;
+
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
+        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
+        const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
+        if (!targetNote) return;
+
+        let divisions = 1;
+        for (let i = State.selectedMeasure; i >= 0; i--) {
+            const divNode = targetPart.querySelectorAll('measure')[i].querySelector('divisions');
+            if (divNode) { divisions = parseInt(divNode.textContent); break; }
+        }
+
+        const typeToDur = { 'whole': 4, 'half': 2, 'quarter': 1, 'eighth': 0.5 };
+        const newDurValue = typeToDur[newType] * divisions;
+        
+        const currentDurNode = targetNote.querySelector('duration');
+        const currentDurValue = currentDurNode ? parseFloat(currentDurNode.textContent) : newDurValue;
+
+        if (newDurValue === currentDurValue) return;
+
+        if (newDurValue < currentDurValue) {
+            // Split note/rest and generate properly typed remainder rest
+            if(currentDurNode) currentDurNode.textContent = newDurValue;
+            let typeNode = targetNote.querySelector('type');
+            if (!typeNode) { typeNode = xmlDoc.createElement('type'); targetNote.appendChild(typeNode); }
+            typeNode.textContent = newType;
+
+            let remainder = currentDurValue - newDurValue;
+            let remainderType = 'quarter';
+            if (remainder >= divisions * 4) remainderType = 'whole';
+            else if (remainder >= divisions * 2) remainderType = 'half';
+            else if (remainder === divisions) remainderType = 'quarter';
+            else remainderType = 'eighth';
+
+            let remainderRest = xmlDoc.createElement('note');
+            remainderRest.innerHTML = `<rest/><duration>${remainder}</duration><type>${remainderType}</type>`;
+            targetMeasure.insertBefore(remainderRest, targetNote.nextSibling);
+
+            UI.setStatus(`Split element into ${newType} and remainder rest.`);
+        } else {
+            // Increase duration (Overwrites locally, eats subsequent notes)
+            let durationNeeded = newDurValue - currentDurValue;
+            let nextNote = targetNote.nextElementSibling;
+            
+            while (nextNote && nextNote.tagName === 'note' && durationNeeded > 0) {
+                let nextDurNode = nextNote.querySelector('duration');
+                let nextDur = nextDurNode ? parseFloat(nextDurNode.textContent) : 0;
+                
+                if (nextDur <= durationNeeded) {
+                    durationNeeded -= nextDur;
+                    let toDelete = nextNote;
+                    nextNote = nextNote.nextElementSibling;
+                    toDelete.remove();
+                } else {
+                    let newNextDur = nextDur - durationNeeded;
+                    if (nextDurNode) nextDurNode.textContent = newNextDur;
+                    
+                    let nextTypeNode = nextNote.querySelector('type');
+                    let newNextType = 'eighth';
+                    if (newNextDur >= divisions * 4) newNextType = 'whole';
+                    else if (newNextDur >= divisions * 2) newNextType = 'half';
+                    else if (newNextDur >= divisions) newNextType = 'quarter';
+                    if(nextTypeNode) nextTypeNode.textContent = newNextType;
+                    
+                    durationNeeded = 0;
+                }
+            }
+
+            if(currentDurNode) currentDurNode.textContent = newDurValue;
+            let typeNode = targetNote.querySelector('type');
+            if (!typeNode) { typeNode = xmlDoc.createElement('type'); targetNote.appendChild(typeNode); }
+            typeNode.textContent = newType;
+            UI.setStatus(`Changed duration to ${newType}.`);
+        }
+
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+        setTimeout(() => UI.updateInspector(), 150);
+    },
+
+    addMeasure: () => {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const parts = xmlDoc.querySelectorAll('part');
+
+        parts.forEach(part => {
+            const measures = part.querySelectorAll('measure');
+            const lastMeasure = measures[measures.length - 1];
+            const newMeasure = xmlDoc.createElement('measure');
+            newMeasure.setAttribute('number', parseInt(lastMeasure.getAttribute('number') || measures.length) + 1);
+
+            let divisions = 1, beats = 4, beatType = 4;
+            for (let i = measures.length - 1; i >= 0; i--) {
+                const m = measures[i];
+                if (m.querySelector('divisions')) divisions = parseInt(m.querySelector('divisions').textContent);
+                if (m.querySelector('time beats')) beats = parseInt(m.querySelector('time beats').textContent);
+                if (m.querySelector('time beat-type')) beatType = parseInt(m.querySelector('time beat-type').textContent);
+                if (m.querySelector('divisions') && m.querySelector('time')) break;
+            }
+
+            const totalDuration = (beats * 4 * divisions) / beatType;
+            newMeasure.innerHTML = `<note><rest/><duration>${totalDuration}</duration><type>whole</type></note>`;
+            part.appendChild(newMeasure);
+        });
+
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+        UI.setStatus('Added measure to end of score.');
+    },
+
+    removeMeasure: () => {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const parts = xmlDoc.querySelectorAll('part');
+        let removed = false;
+
+        parts.forEach(part => {
+            const measures = part.querySelectorAll('measure');
+            if (measures.length > 1) { // Prevent blank page crash
+                measures[measures.length - 1].remove();
+                removed = true;
+            }
+        });
+
+        if (removed) {
+            App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+            UI.setStatus('Removed last measure.');
+        } else {
+            UI.setStatus('Cannot remove the only measure.');
+        }
+    },
+
+    shiftPitch: (direction) => {
+        if (State.selectedNoteIndex === -1 || State.selectedMeasure === -1) return;
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
+        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
+        const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
+        if (!targetNote) return;
+
+        const pitchNode = targetNote.querySelector('pitch');
+        if (!pitchNode) return; 
+
+        const stepNode = pitchNode.querySelector('step');
+        const octaveNode = pitchNode.querySelector('octave');
+        const scale = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+        let currentIndex = scale.indexOf(stepNode.textContent);
+        let octave = parseInt(octaveNode.textContent);
+
+        if (direction === 'up') {
+            currentIndex++; if (currentIndex >= scale.length) { currentIndex = 0; octave++; }
+        } else if (direction === 'down') {
+            currentIndex--; if (currentIndex < 0) { currentIndex = scale.length - 1; octave--; }
+        }
+
+        stepNode.textContent = scale[currentIndex];
+        octaveNode.textContent = octave;
+
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+        UI.setStatus(`Shifted pitch to ${scale[currentIndex]}${octave}`);
+        setTimeout(() => UI.updateInspector(), 150);
+    }
+};
+
 const PaletteHandler = {
-    dragStart: (e, item) => {
-        e.dataTransfer.setData('text/plain', item);
-        e.dataTransfer.effectAllowed = 'copy';
-    },
-    clickItem: (item) => {
-        UI.setStatus(`Drag '${item}' directly onto the score to apply it.`);
-        Logger.log(`Palette item clicked: ${item}`);
-    },
-    dragOver: (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-    },
+    dragStart: (e, item) => { e.dataTransfer.setData('text/plain', item); e.dataTransfer.effectAllowed = 'copy'; },
+    dragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; },
     drop: (e) => {
         e.preventDefault();
         const item = e.dataTransfer.getData('text/plain');
         if (!item) return;
         
-        Logger.log(`Palette drop detected: ${item}`);
-        
-        // Calculate closest measure and staff using OSMD's internal graphical structures
-        let closestMeasureIndex = 0;
-        let closestStaffIndex = 0;
-        let closestDistance = Infinity;
-        
-        const canvasDiv = document.getElementById('osmdCanvas');
         const svg = document.querySelector('#osmdCanvas svg');
-        const rect = (svg || canvasDiv).getBoundingClientRect();
-        
-        // Convert screen coordinates to OSMD internal units (approx 10px per unit * zoom)
+        const rect = svg.getBoundingClientRect();
         const unitX = (e.clientX - rect.left) / (10 * State.zoom);
         const unitY = (e.clientY - rect.top) / (10 * State.zoom);
+        const target = NoteEditor.getClosestElement(unitX, unitY);
+        if (!target) return;
 
-        if (State.osmd && State.osmd.GraphicSheet && State.osmd.GraphicSheet.MeasureList) {
-            for (let i = 0; i < State.osmd.GraphicSheet.MeasureList.length; i++) {
-                const measureStaves = State.osmd.GraphicSheet.MeasureList[i];
-                for (let j = 0; j < measureStaves.length; j++) {
-                    const m = measureStaves[j];
-                    if (!m || !m.PositionAndShape) continue;
-                    
-                    const mx = m.PositionAndShape.AbsolutePosition.x;
-                    const my = m.PositionAndShape.AbsolutePosition.y;
-                    
-                    // Y-distance is weighted heavier to prevent snapping to the wrong staff
-                    const dist = Math.sqrt(Math.pow(mx - unitX, 2) + Math.pow((my - unitY) * 4, 2));
-                    
-                    if (dist < closestDistance) {
-                        closestDistance = dist;
-                        closestMeasureIndex = i;
-                        closestStaffIndex = j;
-                    }
-                }
-            }
-        }
-
-        Logger.log(`Targeting Measure: ${closestMeasureIndex + 1}, Staff: ${closestStaffIndex + 1}`);
-
-        // --- SCORE MUTATION ENGINE ---
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
         let modifiedXML = false;
 
-        const parts = xmlDoc.querySelectorAll('part');
-        const targetPart = parts[closestStaffIndex] || parts[0];
-        if (!targetPart) return;
-        const targetMeasure = targetPart.querySelectorAll('measure')[closestMeasureIndex];
-        if (!targetMeasure) return;
-
-        // Helper: Ensure <attributes> tag exists
+        const targetPart = xmlDoc.querySelectorAll('part')[target.staff] || xmlDoc.querySelectorAll('part')[0];
+        const targetMeasure = targetPart.querySelectorAll('measure')[target.measure];
         let attributes = targetMeasure.querySelector('attributes');
-        if (!attributes) {
-            attributes = xmlDoc.createElement('attributes');
-            targetMeasure.insertBefore(attributes, targetMeasure.firstChild);
-        }
+        if (!attributes) { attributes = xmlDoc.createElement('attributes'); targetMeasure.insertBefore(attributes, targetMeasure.firstChild); }
+        let firstNote = targetMeasure.querySelector('note');
 
-        // 1. Time Signatures (Updates XML and Adjusts measure contents to fit)
-        if (['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'].includes(item)) {
-            let beats = '4', beatType = '4';
-            if (item === 'C') { beats = '4'; beatType = '4'; }
-            else if (item === '𝄴') { beats = '2'; beatType = '2'; }
-            else { [beats, beatType] = item.split('/'); }
-
-            let timeNode = attributes.querySelector('time');
-            if (!timeNode) {
-                timeNode = xmlDoc.createElement('time');
-                attributes.appendChild(timeNode);
-            }
-            timeNode.innerHTML = `<beats>${beats}</beats><beat-type>${beatType}</beat-type>`;
-
-            // Determine divisions to calculate measure capacity
-            let divisions = 1;
-            const divNode = xmlDoc.querySelector('divisions');
-            if (divNode) divisions = parseInt(divNode.textContent) || 1;
-
-            // Target duration in divisions: (beats * 4 * divisions) / beatType
-            const targetDivisions = (parseInt(beats) * 4 * divisions) / parseInt(beatType);
-
-            // Calculate current total duration of the measure
-            let currentDivisions = 0;
-            const notes = Array.from(targetMeasure.querySelectorAll('note'));
-            let notesToRemove = [];
-            
-            for (let note of notes) {
-                const durNode = note.querySelector('duration');
-                if (durNode) {
-                    let dur = parseInt(durNode.textContent) || 0;
-                    if (currentDivisions + dur > targetDivisions) {
-                        notesToRemove.push(note); // Note overflows new time signature, remove it
-                    } else {
-                        currentDivisions += dur;
-                    }
+        const artMap = { 'staccato': 'staccato', 'accent': 'accent', 'tenuto': 'tenuto', 'fermata': 'fermata' };
+        if (artMap[item]) {
+            let targetNoteTag = target.noteIndex !== -1 ? (targetMeasure.querySelectorAll('note')[target.noteIndex] || firstNote) : firstNote;
+            if (targetNoteTag) {
+                let notations = targetNoteTag.querySelector('notations');
+                if (!notations) { notations = xmlDoc.createElement('notations'); targetNoteTag.appendChild(notations); }
+                if (item === 'fermata') { let f = xmlDoc.createElement('fermata'); f.setAttribute('type', 'upright'); notations.appendChild(f); } 
+                else {
+                    let articulations = notations.querySelector('articulations');
+                    if (!articulations) { articulations = xmlDoc.createElement('articulations'); notations.appendChild(articulations); }
+                    articulations.appendChild(xmlDoc.createElement(artMap[item]));
                 }
+                modifiedXML = true; UI.setStatus(`Applied ${item}.`);
             }
-            
-            notesToRemove.forEach(n => n.remove());
-
-            // If the measure is under capacity, pad with rests
-            if (currentDivisions < targetDivisions) {
-                let diff = targetDivisions - currentDivisions;
-                const newRest = xmlDoc.createElement('note');
-                newRest.innerHTML = `<rest/><duration>${diff}</duration>`;
-                targetMeasure.appendChild(newRest);
+        }
+        else if (item.includes('Maj') || item.includes('min')) {
+            const keyMap = { 'C Maj / a min': '0', 'G Maj (1♯)': '1', 'D Maj (2♯)': '2', 'A Maj (3♯)': '3', 'E Maj (4♯)': '4', 'B Maj (5♯)': '5', 'F♯ Maj (6♯)': '6', 'C♯ Maj (7♯)': '7', 'F Maj (1♭)': '-1', 'Bb Maj (2♭)': '-2', 'Eb Maj (3♭)': '-3', 'Ab Maj (4♭)': '-4', 'Db Maj (5♭)': '-5', 'Gb Maj (6♭)': '-6', 'Cb Maj (7♭)': '-7' };
+            if(keyMap[item] !== undefined) {
+                let keyNode = attributes.querySelector('key');
+                if (!keyNode) { keyNode = xmlDoc.createElement('key'); attributes.appendChild(keyNode); }
+                keyNode.innerHTML = `<fifths>${keyMap[item]}</fifths>`;
+                modifiedXML = true;
             }
-
-            UI.setStatus(`Time Signature updated to ${item} at measure ${closestMeasureIndex+1}. Fit adjusted.`);
+        }
+        else if (['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'].includes(item)) {
+            let beats = '4', beatType = '4';
+            if (item === 'C') { beats = '4'; beatType = '4'; } else if (item === '𝄴') { beats = '2'; beatType = '2'; } else { [beats, beatType] = item.split('/'); }
+            let timeNode = attributes.querySelector('time');
+            if (!timeNode) { timeNode = xmlDoc.createElement('time'); attributes.appendChild(timeNode); }
+            timeNode.innerHTML = `<beats>${beats}</beats><beat-type>${beatType}</beat-type>`;
             modifiedXML = true;
         }
-        // 2. Clefs
         else if (['𝄞', '𝄢', '𝄡'].includes(item)) {
             let sign = 'G', line = '2';
-            if (item === '𝄢') { sign = 'F'; line = '4'; }
-            if (item === '𝄡') { sign = 'C'; line = '3'; } // Alto clef
-            
+            if (item === '𝄢') { sign = 'F'; line = '4'; } if (item === '𝄡') { sign = 'C'; line = '3'; }
             let clefNode = attributes.querySelector('clef');
-            if (!clefNode) {
-                clefNode = xmlDoc.createElement('clef');
-                attributes.appendChild(clefNode);
-            }
+            if (!clefNode) { clefNode = xmlDoc.createElement('clef'); attributes.appendChild(clefNode); }
             clefNode.innerHTML = `<sign>${sign}</sign><line>${line}</line>`;
-            
-            UI.setStatus(`Clef changed to ${item} at measure ${closestMeasureIndex+1}.`);
             modifiedXML = true;
         }
-        // 3. Key Signatures
-        else if (['♯', '♭', '♮'].includes(item)) {
-            let fifths = '0';
-            if (item === '♯') fifths = '1';  // G Major / E minor
-            if (item === '♭') fifths = '-1'; // F Major / D minor
-            
-            let keyNode = attributes.querySelector('key');
-            if (!keyNode) {
-                keyNode = xmlDoc.createElement('key');
-                attributes.appendChild(keyNode);
-            }
-            keyNode.innerHTML = `<fifths>${fifths}</fifths>`;
-            
-            UI.setStatus(`Key Signature changed to ${item} at measure ${closestMeasureIndex+1}.`);
-            modifiedXML = true;
-        }
-        // 4. Dynamics
         else if (['p', 'mp', 'mf', 'f', 'ff', 'sfz'].includes(item)) {
             const direction = xmlDoc.createElement('direction');
             direction.setAttribute('placement', 'below');
-            const dirType = xmlDoc.createElement('direction-type');
-            const dynamics = xmlDoc.createElement('dynamics');
-            dynamics.appendChild(xmlDoc.createElement(item));
-            dirType.appendChild(dynamics);
-            direction.appendChild(dirType);
-            
-            if (targetMeasure.firstChild && targetMeasure.firstChild.nodeName === 'attributes') {
-                targetMeasure.insertBefore(direction, targetMeasure.firstChild.nextSibling);
-            } else {
-                targetMeasure.insertBefore(direction, targetMeasure.firstChild);
-            }
-            
-            UI.setStatus(`Added dynamic ${item} to staff ${closestStaffIndex+1}, measure ${closestMeasureIndex+1}.`);
+            direction.innerHTML = `<direction-type><dynamics><${item}/></dynamics></direction-type>`;
+            if (firstNote) targetMeasure.insertBefore(direction, firstNote); else targetMeasure.appendChild(direction);
             modifiedXML = true;
         }
-        // 5. Text / Metadata Palette Logic
-        else if (['Title', 'Tempo', 'Lyrics', 'Chord'].includes(item)) {
-            
-            if (item === 'Title') {
-                const newTitle = prompt("Enter new Score Title:", "My Composition");
-                if (newTitle !== null && newTitle.trim() !== "") {
-                    let work = xmlDoc.querySelector('work');
-                    if (!work) {
-                        work = xmlDoc.createElement('work');
-                        const partList = xmlDoc.querySelector('part-list');
-                        xmlDoc.documentElement.insertBefore(work, partList);
-                    }
-                    let titleNode = work.querySelector('work-title');
-                    if (!titleNode) {
-                        titleNode = xmlDoc.createElement('work-title');
-                        work.appendChild(titleNode);
-                    }
-                    titleNode.textContent = newTitle;
-                    UI.setStatus(`Title updated to '${newTitle}'`);
-                    modifiedXML = true;
-                }
-            } 
-            else if (item === 'Tempo') {
-                const bpm = prompt("Enter tempo (BPM) for this measure:", "120");
-                if (bpm !== null && !isNaN(parseInt(bpm))) {
-                    const direction = xmlDoc.createElement('direction');
-                    direction.setAttribute('placement', 'above');
-                    
-                    const dirType = xmlDoc.createElement('direction-type');
-                    const words = xmlDoc.createElement('words');
-                    words.setAttribute('font-weight', 'bold');
-                    words.textContent = `♩ = ${bpm}`;
-                    dirType.appendChild(words);
-                    
-                    const sound = xmlDoc.createElement('sound');
-                    sound.setAttribute('tempo', bpm);
-                    
-                    direction.appendChild(dirType);
-                    direction.appendChild(sound);
-                    
-                    if (targetMeasure.firstChild && targetMeasure.firstChild.nodeName === 'attributes') {
-                        targetMeasure.insertBefore(direction, targetMeasure.firstChild.nextSibling);
-                    } else {
-                        targetMeasure.insertBefore(direction, targetMeasure.firstChild);
-                    }
-                    UI.setStatus(`Tempo set to ${bpm} BPM at measure ${closestMeasureIndex+1}`);
-                    modifiedXML = true;
-                }
-            }
-            else if (item === 'Chord') {
-                const chordName = prompt("Enter chord symbol (e.g. Cmaj7, G7):", "C");
-                if (chordName !== null && chordName.trim() !== "") {
-                    // Injecting a direction words tag acts as a robust text chord symbol representation in OSMD
-                    const direction = xmlDoc.createElement('direction');
-                    direction.setAttribute('placement', 'above');
-                    const dirType = xmlDoc.createElement('direction-type');
-                    const words = xmlDoc.createElement('words');
-                    words.setAttribute('font-weight', 'bold');
-                    words.setAttribute('font-size', '11');
-                    words.textContent = chordName;
-                    dirType.appendChild(words);
-                    direction.appendChild(dirType);
-                    
-                    targetMeasure.insertBefore(direction, targetMeasure.firstChild);
-                    UI.setStatus(`Added chord '${chordName}' to measure ${closestMeasureIndex+1}`);
-                    modifiedXML = true;
-                }
-            }
-            else if (item === 'Lyrics') {
-                const lyricText = prompt("Enter lyric syllable for the closest note:", "la");
-                if (lyricText !== null && lyricText.trim() !== "") {
-                    // Try to attach to the first valid note in the targeted measure
-                    let targetNote = null;
-                    const notes = targetMeasure.querySelectorAll('note');
-                    for (let n of notes) {
-                        if (!n.querySelector('rest')) {
-                            targetNote = n;
-                            break;
-                        }
-                    }
-                    
-                    if (targetNote) {
-                        const lyric = xmlDoc.createElement('lyric');
-                        const syllabic = xmlDoc.createElement('syllabic');
-                        syllabic.textContent = 'single';
-                        const text = xmlDoc.createElement('text');
-                        text.textContent = lyricText;
-                        
-                        lyric.appendChild(syllabic);
-                        lyric.appendChild(text);
-                        targetNote.appendChild(lyric);
-                        UI.setStatus(`Added lyric '${lyricText}'`);
-                        modifiedXML = true;
-                    } else {
-                        alert("No playable note found in this measure to attach lyrics to. Add notes first.");
-                    }
-                }
+        else if (item === 'Title') { App.editTitle(); }
+        else if (item === 'Tempo') {
+            const bpm = prompt("Enter tempo (BPM):", "120");
+            if (bpm) {
+                const dir = xmlDoc.createElement('direction');
+                dir.setAttribute('placement', 'above');
+                dir.innerHTML = `<direction-type><words font-weight="bold">♩ = ${bpm}</words></direction-type><sound tempo="${bpm}"/>`;
+                if (firstNote) targetMeasure.insertBefore(dir, firstNote); else targetMeasure.appendChild(dir);
+                modifiedXML = true;
             }
         }
-
-        // Apply structurally changed score and re-render
-        if (modifiedXML) {
-            const serializer = new XMLSerializer();
-            const newXmlStr = serializer.serializeToString(xmlDoc);
-            App.loadScoreXML(newXmlStr); // Will automatically trigger History.push()
-            return;
-        }
-
-        // --- FALLBACK FOR NON-STRUCTURAL / UNMAPPED SYMBOLS ---
-        const x = e.clientX - rect.left + canvasDiv.scrollLeft;
-        const y = e.clientY - rect.top + canvasDiv.scrollTop;
-
-        const marker = document.createElement('div');
-        marker.innerText = item;
-        marker.className = 'score-overlay-element';
-        marker.style.left = (x - 10) + 'px'; 
-        marker.style.top = (y - 15) + 'px';  
-        
-        if (item.length > 2) {
-            marker.style.fontSize = '14px';
-            marker.style.fontFamily = 'sans-serif';
-        } else {
-            marker.style.fontSize = '28px';
-        }
-        
-        marker.onmousedown = function(event) {
-            event.preventDefault();
-            let shiftX = event.clientX - marker.getBoundingClientRect().left;
-            let shiftY = event.clientY - marker.getBoundingClientRect().top;
-
-            function moveAt(pageX, pageY) {
-                const currentRect = (document.querySelector('#osmdCanvas svg') || canvasDiv).getBoundingClientRect();
-                marker.style.left = pageX - currentRect.left + canvasDiv.scrollLeft - shiftX + 'px';
-                marker.style.top = pageY - currentRect.top + canvasDiv.scrollTop - shiftY + 'px';
-            }
-
-            function onMouseMove(moveEvent) { moveAt(moveEvent.clientX, moveEvent.clientY); }
-
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', function onMouseUp() {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            }, { once: true });
-        };
-        
-        canvasDiv.appendChild(marker);
-        UI.setStatus(`Placed floating graphic: ${item}`);
+        if (modifiedXML) App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
     }
 };
 
-// --- UI CONTROLLER ---
 const UI = {
     init: () => {
         UI.renderPalettes();
-        UI.renderInstrumentList();
+        document.querySelectorAll('.note-duration-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.note-duration-btn').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                const dur = e.currentTarget.getAttribute('data-dur');
+                State.selectedDuration = dur;
+                // If a note/rest is already selected, visually split/change it immediately
+                if (State.selectedNoteIndex !== -1) {
+                    NoteEditor.changeSelectedDuration(dur);
+                }
+            });
+        });
+        const container = document.getElementById('canvasContainer');
+        container.addEventListener('dblclick', (e) => { if(e.clientY < 150) App.editTitle(); });
+        container.addEventListener('mousedown', NoteEditor.selectElement);
     },
-    
     renderPalettes: () => {
         const pData = [
             { title: 'Clefs', items: ['𝄞', '𝄢', '𝄡'] },
-            { title: 'Key Signatures', items: ['♯', '♭', '♮'] },
+            { title: 'Key Signatures', items: [
+                'C Maj / a min', 'G Maj (1♯)', 'D Maj (2♯)', 'A Maj (3♯)', 'E Maj (4♯)', 'B Maj (5♯)', 'F♯ Maj (6♯)', 'C♯ Maj (7♯)',
+                'F Maj (1♭)', 'Bb Maj (2♭)', 'Eb Maj (3♭)', 'Ab Maj (4♭)', 'Db Maj (5♭)', 'Gb Maj (6♭)', 'Cb Maj (7♭)'
+            ]},
             { title: 'Time Signatures', items: ['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'] },
-            { title: 'Barlines', items: ['|', '||', '𝄂', '𝄃', '𝄆', '𝄇'] },
-            { title: 'Lines', items: ['<', '>', 'slur', 'tie', '8va'] },
-            { title: 'Articulations', items: ['.', '>', '-', '^', 'tr'] },
+            { title: 'Articulations', items: ['staccato', 'accent', 'tenuto', 'fermata'] },
             { title: 'Dynamics', items: ['p', 'mp', 'mf', 'f', 'ff', 'sfz'] },
             { title: 'Text', items: ['Title', 'Tempo', 'Lyrics', 'Chord'] }
         ];
-        
         const container = document.getElementById('palette-container');
-        container.innerHTML = '';
-        
-        pData.forEach(group => {
-            let itemsHtml = group.items.map(item => {
-                const safeItem = item.replace(/'/g, "\\'");
-                return `<div class="palette-item ${item.length > 2 ? 'text-item' : ''}" title="Drag or click to add ${safeItem}" draggable="true" ondragstart="PaletteHandler.dragStart(event, '${safeItem}')" onclick="PaletteHandler.clickItem('${safeItem}')">${item}</div>`;
+        pData.forEach(g => {
+            let items = g.items.map(i => {
+                let display = i;
+                if(i==='staccato') display='.'; if(i==='accent') display='>'; if(i==='tenuto') display='_'; if(i==='fermata') display='𝄐';
+                return `<div class="palette-item ${display.length > 2 ? 'text-item' : ''}" draggable="true" title="Drag ${i}" ondragstart="PaletteHandler.dragStart(event, '${i}')">${display}</div>`;
             }).join('');
-            
-            container.innerHTML += `
-                <div class="palette-group">
-                    <div class="palette-title" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                        ${group.title} <i class="fas fa-chevron-down" style="font-size:10px; margin-top:4px;"></i>
-                    </div>
-                    <div class="palette-items">${itemsHtml}</div>
-                </div>
-            `;
+            container.innerHTML += `<div class="palette-group"><div class="palette-title" onclick="this.nextElementSibling.classList.toggle('hidden')">${g.title}</div><div class="palette-items">${items}</div></div>`;
         });
     },
-
-    renderInstrumentList: () => {
-        const body = document.getElementById('instrumentListBody');
-        body.innerHTML = '';
-        for (const [category, insts] of Object.entries(INSTRUMENT_LIB)) {
-            let listHtml = insts.map(inst => `
-                <div class="inst-item">
-                    <span>${inst.name} <span style="color:#666; font-size:10px;">(${inst.gm})</span></span>
-                    <button class="btn" style="padding: 2px 8px; font-size:11px;">Add to Score</button>
-                </div>
-            `).join('');
-            body.innerHTML += `<div class="inst-category">${category}</div>${listHtml}`;
-        }
-    },
-
     renderTabs: () => {
         const tabs = document.getElementById('score-tabs');
-        const instruments = State.osmd.sheet.Instruments;
-        
+        if(!State.osmd || !State.osmd.sheet) return;
         let html = `<div class="tab ${State.currentPartIndex === 'full' ? 'active' : ''}" onclick="App.setView('full')">Full Score</div>`;
-        instruments.forEach((inst, i) => {
-            let active = (State.currentPartIndex === i) ? 'active' : '';
-            html += `<div class="tab ${active}" onclick="App.setView(${i})">${inst.NameLabel.text}</div>`;
-        });
+        State.osmd.sheet.Instruments.forEach((inst, i) => html += `<div class="tab ${State.currentPartIndex === i ? 'active' : ''}" onclick="App.setView(${i})">${inst.NameLabel.text}</div>`);
         tabs.innerHTML = html;
-        
-        UI.renderMixer(); // Update mixer to reflect parts
     },
-
-    renderMixer: () => {
-        const mixer = document.getElementById('mixer-channels');
-        mixer.innerHTML = '';
+    updateInspector: () => {
+        const pane = document.getElementById('inspector-content');
+        if (State.selectedNoteIndex === -1) { UI.clearInspector(); return; }
         
-        // Add Master & Metronome
-        mixer.innerHTML += UI.createChannelHTML('Master', 100);
-        mixer.innerHTML += UI.createChannelHTML('Metronome', 80);
-
-        if (State.osmd && State.osmd.sheet) {
-            State.osmd.sheet.Instruments.forEach((inst, i) => {
-                mixer.innerHTML += UI.createChannelHTML(inst.NameLabel.text, 80);
-            });
+        const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
+        const targetPart = (xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0]);
+        if(!targetPart) return;
+        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
+        if(!targetMeasure) return;
+        const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
+        
+        if (targetNote) {
+            let pitchStr = "Rest", durStr = "Unknown";
+            const pitch = targetNote.querySelector('pitch');
+            if(pitch) pitchStr = `${pitch.querySelector('step')?.textContent || ''}${pitch.querySelector('octave')?.textContent || ''}`;
+            const type = targetNote.querySelector('type');
+            if(type) durStr = type.textContent;
+            
+            pane.innerHTML = `
+                <div class="inspector-row"><span class="inspector-label">Element Type</span><span class="inspector-val">Note</span></div>
+                <div class="inspector-row"><span class="inspector-label">Pitch</span><span class="inspector-val">${pitchStr}</span></div>
+                <div class="inspector-row"><span class="inspector-label">Duration Type</span><span class="inspector-val" style="text-transform:capitalize;">${durStr}</span></div>
+                <div class="inspector-row"><span class="inspector-label">Voice</span><span class="inspector-val">1</span></div>
+                <p style="color:#888; font-size:11px; margin-top:15px; text-align:center;">Tip: Use Up/Down arrows to shift pitch.</p>
+            `;
         }
     },
-
-    createChannelHTML: (name, defaultVol) => {
-        return `
-            <div class="channel">
-                <div class="channel-name" title="${name}">${name}</div>
-                <input type="range" min="0" max="100" value="${defaultVol}" onchange="AudioEngine.setVolume('${name}', this.value)">
-                <div><i class="fas fa-volume-up" style="cursor:pointer;" title="Mute/Solo Toggle"></i></div>
-            </div>
-        `;
+    clearInspector: () => {
+        document.getElementById('inspector-content').innerHTML = `<p style="color:#888; font-size:12px; text-align:center; margin-top:20px;">Select a specific note to view properties.</p>`;
     },
-
     togglePanel: (id) => document.getElementById(`panel-${id}`).classList.toggle('hidden'),
-    toggleModal: (id) => {
-        const modal = document.getElementById(id);
-        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
-    },
+    toggleModal: (id) => document.getElementById(id).style.display = document.getElementById(id).style.display === 'flex' ? 'none' : 'flex',
     setStatus: (text) => document.getElementById('statusText').innerText = text
 };
 
-// --- KEYBIND MANAGER ---
 const KeybindManager = {
-    bindings: { 
-        'play_pause': 'Space', 
-        'note_entry': 'n', 
-        'instruments': 'i', 
-        'undo': 'Control+z', 
-        'redo': 'Control+y', 
-        'save': 'Control+s' 
-    },
-    init: () => {
-        window.addEventListener('keydown', KeybindManager.handleKey);
-        KeybindManager.renderTable();
-    },
-    handleKey: (e) => {
-        let keyStr = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-        if(e.ctrlKey && keyStr !== 'control') keyStr = 'Control+' + keyStr;
-        if(e.shiftKey && keyStr !== 'shift') keyStr = 'Shift+' + keyStr;
+    init: () => window.addEventListener('keydown', (e) => {
+        if(e.target.tagName === 'INPUT') return;
         
-        for (const [action, bind] of Object.entries(KeybindManager.bindings)) {
-            if (bind.toLowerCase() === keyStr) {
-                if(e.target.tagName !== 'INPUT') e.preventDefault();
-                KeybindManager.executeAction(action);
-                return;
+        if(e.key.toLowerCase() === 'n') { App.toggleNoteEntry(); e.preventDefault(); return; }
+        if(e.key === ' ' || e.code === 'Space') { AudioEngine.togglePlay(); e.preventDefault(); return; }
+        if(e.key === 'Delete' || e.key === 'Backspace') { NoteEditor.deleteSelected(); e.preventDefault(); return; }
+        if(e.ctrlKey && e.key.toLowerCase() === 'z') { History.undo(); e.preventDefault(); return; }
+        if(e.ctrlKey && e.key.toLowerCase() === 'y') { History.redo(); e.preventDefault(); return; }
+        if(e.key === 'ArrowUp') { NoteEditor.shiftPitch('up'); e.preventDefault(); return; }
+        if(e.key === 'ArrowDown') { NoteEditor.shiftPitch('down'); e.preventDefault(); return; }
+        
+        if (State.noteEntryMode) {
+            const letter = e.key.toUpperCase();
+            if (['A','B','C','D','E','F','G'].includes(letter)) {
+                NoteEditor.insertNoteAtSelection(letter);
+                e.preventDefault();
             }
         }
-    },
-    executeAction: (action) => {
-        switch(action) {
-            case 'play_pause': AudioEngine.togglePlay(); break;
-            case 'note_entry': App.toggleNoteEntry(); break;
-            case 'instruments': UI.toggleModal('instrumentModal'); break;
-            case 'undo': History.undo(); break;
-            case 'redo': History.redo(); break;
-            case 'save': App.saveProject(); break;
-        }
-    },
-    renderTable: () => {
-        const tbody = document.getElementById('keybindTable');
-        tbody.innerHTML = '';
-        for (const [action, bind] of Object.entries(KeybindManager.bindings)) {
-            tbody.innerHTML += `<tr style="border-bottom:1px solid #333;"><td style="padding:8px;">${action.replace('_', ' ').toUpperCase()}</td><td style="padding:8px;"><button class="btn" style="font-size:11px;">${bind}</button></td></tr>`;
-        }
-    }
+    })
 };
 
-// --- AUDIO ENGINE (WebAudio + SoundFont Player + Metronome + Export) ---
 const AudioEngine = {
-    ctx: null,
-    dest: null,
-    masterGain: null,
-    recorder: null,
-    recordedChunks: [],
-    playInterval: null,
-    loadedFonts: {},
-    
+    ctx: null, masterGain: null, loadedFonts: {}, isRunningLoop: false,
     init: () => {
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         AudioEngine.ctx = new AudioContext();
-        
-        // Create export destination
-        AudioEngine.dest = AudioEngine.ctx.createMediaStreamDestination();
-        
-        // Master Gain to route audio to BOTH local speakers and the export destination
         AudioEngine.masterGain = AudioEngine.ctx.createGain();
-        AudioEngine.masterGain.connect(AudioEngine.ctx.destination); // To Speakers
-        AudioEngine.masterGain.connect(AudioEngine.dest); // To Exporter
+        AudioEngine.masterGain.connect(AudioEngine.ctx.destination);
     },
-
     loadSoundFont: async (gmName) => {
         if (!AudioEngine.ctx) AudioEngine.init();
         if (AudioEngine.loadedFonts[gmName]) return AudioEngine.loadedFonts[gmName];
-        
-        UI.setStatus(`Loading samples for ${gmName}...`);
-        Logger.log(`Fetching SoundFont: ${gmName}`);
-
-        // Guaranteed synth fallback if SoundFont CDN fails/blocked
-        const dummyFont = {
-            play: (midiNote, time, opts) => {
-                if (!AudioEngine.ctx) return;
-                const osc = AudioEngine.ctx.createOscillator();
-                const gain = AudioEngine.ctx.createGain();
-                osc.type = 'sine'; // Clean sine wave
-                osc.frequency.value = 440 * Math.pow(2, (midiNote - 69) / 12);
-                osc.connect(gain);
-                gain.connect(AudioEngine.masterGain);
-                osc.start(time);
-                osc.stop(time + (opts.duration || 0.5));
-                gain.gain.setValueAtTime(0.3, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + (opts.duration || 0.5));
-            }
-        };
-
+        const dummyFont = { play: (midiNote, time, opts) => {
+            if (!AudioEngine.ctx) return;
+            const osc = AudioEngine.ctx.createOscillator(), gain = AudioEngine.ctx.createGain();
+            osc.frequency.value = 440 * Math.pow(2, (midiNote - 69) / 12);
+            osc.connect(gain); gain.connect(AudioEngine.masterGain);
+            osc.start(time); osc.stop(time + (opts.duration || 0.5));
+            gain.gain.setValueAtTime(0.3, time); gain.gain.exponentialRampToValueAtTime(0.001, time + (opts.duration || 0.5));
+        }};
         try {
-            // Route soundfont directly to the masterGain node so we can hear it
             const font = await Soundfont.instrument(AudioEngine.ctx, gmName, { destination: AudioEngine.masterGain });
-            AudioEngine.loadedFonts[gmName] = font;
-            UI.setStatus('Ready');
-            return font;
-        } catch (e) {
-            Logger.error(`Failed to load SoundFont ${gmName}. Falling back to oscillator.`);
-            UI.setStatus('Ready (Using Synth Fallback)');
-            AudioEngine.loadedFonts[gmName] = dummyFont; // Cache fallback to prevent repeated failure
-            return dummyFont;
-        }
+            AudioEngine.loadedFonts[gmName] = font; return font;
+        } catch (e) { return dummyFont; }
     },
-
-    toggleMetronome: () => {
-        State.metronomeEnabled = !State.metronomeEnabled;
-        document.getElementById('btnMetronome').classList.toggle('active');
-        Logger.log(`Metronome: ${State.metronomeEnabled ? 'ON' : 'OFF'}`);
-    },
-
-    playMetronomeClick: (isDownbeat) => {
-        if (!State.metronomeEnabled || !AudioEngine.ctx) return;
-        const osc = AudioEngine.ctx.createOscillator();
-        const gain = AudioEngine.ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.value = isDownbeat ? 1200 : 800;
-        
-        osc.connect(gain);
-        gain.connect(AudioEngine.masterGain);
-        
-        osc.start();
-        gain.gain.exponentialRampToValueAtTime(0.00001, AudioEngine.ctx.currentTime + 0.1);
-        osc.stop(AudioEngine.ctx.currentTime + 0.1);
-    },
-
     togglePlay: async () => {
         if (!AudioEngine.ctx) AudioEngine.init();
-        
-        // CRITICAL: Browsers block audio until explicitly resumed by user interaction
-        if (AudioEngine.ctx.state === 'suspended') {
-            await AudioEngine.ctx.resume();
-        }
-
-        if (State.isPlaying) {
-            AudioEngine.stop();
-        } else {
-            AudioEngine.start();
-        }
+        if (AudioEngine.ctx.state === 'suspended') await AudioEngine.ctx.resume();
+        State.isPlaying ? AudioEngine.stop() : AudioEngine.start();
     },
-
     start: async () => {
+        if(!State.osmd) return;
         State.isPlaying = true;
         document.getElementById('playIcon').className = 'fas fa-pause';
         UI.setStatus('Playing...');
         
-        if (!State.osmd) return;
-        
-        // Ensure fonts are loaded based on current score parts (Mocking default piano for all for prototype speed)
         const font = await AudioEngine.loadSoundFont('acoustic_grand_piano');
-        
         State.osmd.cursor.show();
-        let beatCount = 0;
-
-        // Parse Tempo from XML
+        
         let currentTempo = 120;
         const tempoMatch = State.currentScoreXML.match(/<sound[^>]*tempo="(\d+)"/);
-        if (tempoMatch && tempoMatch[1]) {
-            currentTempo = parseInt(tempoMatch[1]);
-            Logger.log(`Extracted playback tempo: ${currentTempo} BPM`);
-        }
+        if (tempoMatch) currentTempo = parseInt(tempoMatch[1]);
         
-        // Calculate duration of one quarter note interval
-        const intervalMs = (60 / currentTempo) * 1000;
-
-        // Note: Real OSMD playback syncs with fractional timestamps. 
-        // This is a simplified interval-based mock for demonstration.
-        AudioEngine.playInterval = setInterval(() => {
-            if (State.osmd.cursor.iterator.EndReached) {
-                AudioEngine.stop();
-                State.osmd.cursor.reset();
-                return;
-            }
-            
-            // Metronome logic
-            let isDownbeat = (beatCount % 4 === 0);
-            AudioEngine.playMetronomeClick(isDownbeat);
-            beatCount++;
-
-            // Play notes at cursor
+        AudioEngine.isRunningLoop = true;
+        while(State.isPlaying && !State.osmd.cursor.iterator.EndReached && AudioEngine.isRunningLoop) {
             const notes = State.osmd.cursor.NotesUnderCursor();
-            if (font && notes && notes.length > 0) {
-                notes.forEach(note => {
-                    // Safe OSMD pitch MIDI resolution
-                    let midiNote = -1;
-                    if (note.halfTone !== undefined) {
-                        midiNote = note.halfTone + 12; // Standard OSMD mapping
-                    } else if (note.Pitch) {
-                        if (typeof note.Pitch.getHalfTone === 'function') midiNote = note.Pitch.getHalfTone() + 12;
-                        else if (typeof note.Pitch.GetHalfTone === 'function') midiNote = note.Pitch.GetHalfTone() + 12;
-                    }
-                    
-                    if (midiNote > 0) {
-                        font.play(midiNote, AudioEngine.ctx.currentTime, { duration: 0.5 });
-                    }
-                });
-            }
-            
+            let longestRealValue = 0; 
+            notes.forEach(note => {
+                let noteVal = note.Length ? note.Length.RealValue : 0.25;
+                if (noteVal > longestRealValue) longestRealValue = noteVal;
+                if (!note.isRestFlag && note.Pitch) {
+                    let midiNote = note.halfTone !== undefined ? note.halfTone + 12 : (note.Pitch.getHalfTone ? note.Pitch.getHalfTone() + 12 : 60);
+                    let durationSecs = (noteVal * 4 * 60) / currentTempo;
+                    if (midiNote > 0) font.play(midiNote, AudioEngine.ctx.currentTime, { duration: durationSecs });
+                }
+            });
+            if (longestRealValue === 0) longestRealValue = 0.25; 
+            let waitMs = (longestRealValue * 4 * 60 * 1000) / currentTempo;
             State.osmd.cursor.next();
-        }, intervalMs);
+            await new Promise(r => setTimeout(r, waitMs));
+        }
+        if (State.isPlaying) AudioEngine.stop();
     },
-
     stop: () => {
-        State.isPlaying = false;
+        State.isPlaying = false; AudioEngine.isRunningLoop = false;
         document.getElementById('playIcon').className = 'fas fa-play';
-        clearInterval(AudioEngine.playInterval);
         UI.setStatus('Ready');
-        if (State.osmd) State.osmd.cursor.hide();
-    },
-
-    setVolume: (channel, val) => {
-        Logger.log(`Mixer: ${channel} volume set to ${val}`);
-        // In a full implementation, this controls GainNodes for each instrument buffer
-    },
-
-    exportAudio: () => {
-        Logger.log('Initializing Audio Export (Recording Output)...');
-        if (!AudioEngine.ctx) AudioEngine.init();
-        
-        alert("Audio Export: The score will play from the beginning and record to an audio file. Press OK to begin recording.");
-        
-        AudioEngine.stop();
-        if(State.osmd) State.osmd.cursor.reset();
-        
-        // Record output using MediaRecorder
-        AudioEngine.recordedChunks = [];
-        // Use webm or ogg as they are widely supported by browsers for MediaRecorder
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
-        AudioEngine.recorder = new MediaRecorder(AudioEngine.dest.stream, { mimeType: mimeType });
-        
-        AudioEngine.recorder.ondataavailable = (e) => {
-            if (e.data.size > 0) AudioEngine.recordedChunks.push(e.data);
-        };
-        
-        AudioEngine.recorder.onstop = () => {
-            const blob = new Blob(AudioEngine.recordedChunks, { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.style.display = "none";
-            a.href = url;
-            a.download = `WebScore_Export.${mimeType.split('/')[1]}`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            UI.setStatus('Audio Export Complete.');
-            document.querySelector('.menubar').classList.remove('recording');
-        };
-
-        // Start recording and playback
-        AudioEngine.recorder.start();
-        document.querySelector('.menubar').classList.add('recording');
-        UI.setStatus('Recording Audio...');
-        AudioEngine.start();
-
-        // Auto stop when score ends
-        const checkEnd = setInterval(() => {
-            if (!State.isPlaying) {
-                AudioEngine.recorder.stop();
-                clearInterval(checkEnd);
-            }
-        }, 1000);
+        if (State.osmd) { State.osmd.cursor.hide(); State.osmd.cursor.reset(); }
     }
 };
 
-// --- FILE I/O ---
 const FileIO = {
     handleFileUpload: async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        Logger.log(`Loading file: ${file.name}`);
-        UI.setStatus(`Parsing ${file.name}...`);
-
+        const file = e.target.files[0]; if (!file) return;
         if (file.name.endsWith('.mscz')) {
-            await FileIO.parseMSCZ(file);
-        } else if (file.name.endsWith('.xml') || file.name.endsWith('.musicxml')) {
-            const xml = await file.text();
-            App.loadScoreXML(xml);
-        } else {
-            Logger.error('Unsupported file format.');
-            alert('Format not supported. Please use .musicxml or .mscz');
-            UI.setStatus('Ready');
-        }
-    },
-    
-    parseMSCZ: async (file) => {
-        try {
-            const zip = await JSZip.loadAsync(file);
-            const files = Object.keys(zip.files);
-            let mscxFileName = files.find(name => name.endsWith('.mscx'));
-            
-            if (mscxFileName) {
-                Logger.warn('MSCX parsing requires proprietary mapping. Stubbing to Demo XML.');
-                alert('MSCZ unzipped successfully. MSCX extracted.\n\nNote: MSCX to MusicXML conversion is extremely complex. Loading Demo XML for prototype.');
-                App.loadScoreXML(DEMO_XML);
-            } else {
-                alert('Invalid MSCZ structure.');
-            }
-        } catch (error) { Logger.error(`MSCZ Error: ${error.message}`); }
-        UI.setStatus('Ready');
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const mscx = Object.keys(zip.files).find(n => n.endsWith('.mscx'));
+                if (mscx) {
+                    const text = await zip.file(mscx).async("text");
+                    let title = "Imported MSCZ";
+                    let match = text.match(/<metaTag name="workTitle">([^<]+)<\/metaTag>/);
+                    if(match) title = match[1];
+                    alert(`MSCZ extracted.\n\nWARNING: MuseScore uses proprietary internal formats (.mscx). Standard browsers require standard MusicXML.\n\nApplying fallback: Creating standard XML with extracted title: "${title}".`);
+                    let newXml = DEMO_XML.replace(/<work-title>.*<\/work-title>/, `<work-title>${title}</work-title>`);
+                    App.loadScoreXML(newXml);
+                }
+            } catch (err) { alert('MSCZ parsing failed.'); }
+        } else { App.loadScoreXML(await file.text()); }
     }
 };
 
-// --- MAIN APP CONTROLLER ---
 const App = {
     init: () => {
-        Logger.log('Initializing WebScore Engine v2.1...');
-        State.osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmdCanvas", {
-            autoResize: true,
-            backend: "svg",
-            drawTitle: true,
-            drawingParameters: "default",
-            pageBackgroundColor: "#ffffff"
-        });
-
-        UI.init();
-        KeybindManager.init();
-        
-        // Bind Drag and Drop listeners to the Canvas
-        const canvasContainer = document.getElementById('canvasContainer');
-        canvasContainer.addEventListener('dragover', PaletteHandler.dragOver);
-        canvasContainer.addEventListener('drop', PaletteHandler.drop);
-
+        State.osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmdCanvas", { autoResize: true, backend: "svg", drawTitle: true });
+        UI.init(); KeybindManager.init();
+        document.getElementById('canvasContainer').addEventListener('dragover', PaletteHandler.dragOver);
+        document.getElementById('canvasContainer').addEventListener('drop', PaletteHandler.drop);
         App.loadScoreXML(DEMO_XML);
     },
-    
-    loadScoreXML: (xml, skipHistoryPush = false) => {
+    loadScoreXML: (xml, skipHist = false) => {
         State.currentScoreXML = xml;
-        
-        // Push to history state manager if not triggered by an Undo/Redo action
-        if (!skipHistoryPush) {
-            History.push(xml);
+        if (!skipHist) History.push(xml);
+        State.osmd.load(xml).then(() => { 
+            State.osmd.render(); 
+            UI.renderTabs(); 
+            document.getElementById('selectionBox').style.display = 'none';
+            document.getElementById('noteSelectionBox').style.display = 'none';
+        });
+    },
+    editTitle: () => {
+        const newTitle = prompt("Enter new Score Title:");
+        if (newTitle) {
+            const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
+            let titleNode = xmlDoc.querySelector('work-title');
+            if (titleNode) { titleNode.textContent = newTitle; } 
+            else {
+                let work = xmlDoc.createElement('work');
+                work.innerHTML = `<work-title>${newTitle}</work-title>`;
+                xmlDoc.documentElement.insertBefore(work, xmlDoc.querySelector('part-list'));
+            }
+            App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
         }
-
-        State.osmd.load(xml).then(() => {
-            State.osmd.render();
-            UI.renderTabs();
-            Logger.log('Score rendered successfully.');
-        }).catch(err => Logger.error(`OSMD Error: ${err}`));
     },
-
-    setView: (index) => {
-        State.currentPartIndex = index;
-        const instruments = State.osmd.sheet.Instruments;
-        
-        if (index === 'full') {
-            instruments.forEach(inst => inst.Visible = true);
-        } else {
-            instruments.forEach((inst, i) => inst.Visible = (i === index));
-        }
-        
-        UI.setStatus('Rendering part layout...');
-        setTimeout(() => {
-            State.osmd.render();
-            UI.renderTabs(); // Update active tab UI
-            UI.setStatus('Ready');
-        }, 50);
-    },
-
-    zoom: (delta) => {
-        State.zoom = Math.max(0.2, Math.min(3.0, State.zoom + delta));
-        State.osmd.setOptions({ zoom: State.zoom });
-        State.osmd.render();
-        document.getElementById('zoomLevel').innerText = Math.round(State.zoom * 100) + '%';
-    },
-
     toggleNoteEntry: () => {
         State.noteEntryMode = !State.noteEntryMode;
         document.getElementById('btnNoteEntry').classList.toggle('active');
-        if(State.noteEntryMode) {
-            State.osmd.cursor.show();
-            UI.setStatus('Note Entry Mode (Press N to exit)');
-        } else {
-            State.osmd.cursor.hide();
-            UI.setStatus('Ready');
-        }
+        document.querySelector('.canvas-area').classList.toggle('entry-mode');
+        UI.setStatus(State.noteEntryMode ? 'Note Entry: Select a measure and press A-G to add notes.' : 'Ready');
     },
-
-    saveProject: () => {
-        const blob = new Blob([State.currentScoreXML], {type: "text/xml"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "WebScore_Project.musicxml";
-        a.click();
-        URL.revokeObjectURL(url);
-    },
-
-    exportPNG: async () => {
-        UI.setStatus('Generating PNG...');
-        Logger.log('Starting html2canvas render...');
-        const canvasDiv = document.getElementById('osmdCanvas');
-        
-        try {
-            const canvas = await html2canvas(canvasDiv, { scale: 2 }); // High-res
-            const imgData = canvas.toDataURL("image/png");
-            
-            const a = document.createElement("a");
-            a.href = imgData;
-            a.download = "WebScore_Export.png";
-            a.click();
-            UI.setStatus('PNG Export Complete.');
-        } catch(e) {
-            Logger.error(`PNG Export failed: ${e}`);
-            UI.setStatus('Export Failed.');
-        }
-    },
-
-    exportPDF: () => {
-        Logger.log('Invoking Browser Print-to-PDF engine...');
-        const uiElements = document.querySelectorAll('.menubar, .toolbar, .panel, .bottom-panel, .tabs-bar');
-        uiElements.forEach(el => el.classList.add('hidden'));
-        
-        window.print();
-        
-        uiElements.forEach(el => el.classList.remove('hidden'));
-        Logger.log('PDF Export complete.');
+    zoom: (d) => { 
+        State.zoom = Math.max(0.2, Math.min(3.0, State.zoom + d)); 
+        State.osmd.setOptions({zoom: State.zoom}); 
+        State.osmd.render(); 
+        document.getElementById('selectionBox').style.display = 'none'; 
+        document.getElementById('noteSelectionBox').style.display = 'none';
     }
 };
 
 window.addEventListener('DOMContentLoaded', App.init);
-
 </script>
 </body>
 </html>
