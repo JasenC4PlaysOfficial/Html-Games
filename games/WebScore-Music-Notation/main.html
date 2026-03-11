@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebScore Studio - Advanced Notation Editor</title>
+    <title>WebScore Studio - MuseScore 4 Web Clone</title>
     
     <!-- External Libraries via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -14,98 +14,121 @@
 
     <style>
         :root {
-            --bg-dark: #1e1e1e;
-            --bg-panel: #252526;
-            --bg-toolbar: #333333;
+            /* MuseScore 4 Exact Color Palette */
+            --bg-dark: #222222;
+            --bg-panel: #2b2b2b;
+            --bg-toolbar: #323232;
+            --bg-canvas: #e6e6e6;
             --text-main: #cccccc;
             --text-light: #ffffff;
-            --accent: #007acc;
-            --accent-hover: #0098ff;
-            --border: #3e3e42;
-            --canvas-bg: #e0e0e0;
-            --select-color: rgba(0, 122, 204, 0.3);
-            --select-border: rgba(0, 122, 204, 0.8);
-            --note-select-color: #007acc;
+            --accent: #2e88f5;
+            --accent-hover: #4a9dfa;
+            --border: #1a1a1a;
+            --border-light: #444444;
+            --select-color: rgba(46, 136, 245, 0.2);
+            --select-border: rgba(46, 136, 245, 0.9);
+            --note-select-color: #2e88f5;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-        /* Menu Bar */
-        .menubar { background-color: var(--bg-toolbar); display: flex; padding: 0 10px; height: 30px; align-items: center; border-bottom: 1px solid var(--border); font-size: 13px; z-index: 2000; }
-        .menu-item { padding: 5px 10px; cursor: pointer; position: relative; }
-        .menu-item:hover { background-color: #505050; color: var(--text-light); }
-        .dropdown { display: none; position: absolute; top: 100%; left: 0; background-color: var(--bg-panel); border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 1000; min-width: 220px; }
-        .menu-item:hover .dropdown { display: block; }
-        .dropdown-item { padding: 8px 15px; display: flex; justify-content: space-between; }
-        .dropdown-item:hover { background-color: var(--accent); color: var(--text-light); }
-        .shortcut { color: #999; font-size: 11px; }
-
-        /* Toolbar */
-        .toolbar { background-color: var(--bg-panel); display: flex; padding: 5px 10px; gap: 15px; border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
-        .tool-group { display: flex; gap: 5px; border-right: 1px solid var(--border); padding-right: 15px; align-items: center; }
-        .btn { background: transparent; border: 1px solid transparent; color: var(--text-main); padding: 5px 8px; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-        .btn:hover { background-color: rgba(255,255,255,0.1); }
-        .btn.active { background-color: rgba(0, 122, 204, 0.4); border-color: var(--accent); color: var(--text-light); }
-        .btn.recording { color: #ff4444; animation: pulse 1s infinite; }
+        /* --- TOP HEADER --- */
+        .ms4-header { background-color: var(--bg-dark); display: flex; justify-content: space-between; align-items: center; height: 45px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; }
         
-        .voice-btn { font-weight: bold; font-size: 12px; }
-        .voice-1.active { color: #569cd6; border-color: #569cd6; }
-        .voice-2.active { color: #4ec9b0; border-color: #4ec9b0; }
-        .voice-3.active { color: #ce9178; border-color: #ce9178; }
-        .voice-4.active { color: #dcdcaa; border-color: #dcdcaa; }
+        .header-left { display: flex; height: 100%; align-items: center; padding-left: 10px; }
+        .header-tab { padding: 0 20px; height: 100%; display: flex; align-items: center; cursor: pointer; color: #999; border-bottom: 2px solid transparent; transition: color 0.1s; }
+        .header-tab:hover { color: var(--text-light); }
+        .header-tab.active { color: var(--text-light); border-bottom: 2px solid var(--accent); }
 
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .header-center { display: flex; gap: 0; background: var(--bg-panel); border-radius: 6px; overflow: hidden; border: 1px solid var(--border-light); }
+        .btn-toggle { background: transparent; color: #aaa; border: none; padding: 6px 16px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500; }
+        .btn-toggle:hover { color: white; background: rgba(255,255,255,0.05); }
+        .btn-toggle.active { background: #444; color: white; }
 
-        /* Tabs (Part Viewer) */
-        .tabs-bar { display: flex; background-color: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 5px 10px 0 10px; overflow-x: auto; flex-shrink: 0; }
-        .tab { padding: 6px 15px; background-color: #2d2d2d; border: 1px solid var(--border); border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 12px; margin-right: 2px; color: var(--text-main); white-space: nowrap; }
-        .tab:hover { background-color: #3d3d3d; }
-        .tab.active { background-color: var(--canvas-bg); color: #000; font-weight: bold; border-color: var(--canvas-bg); }
+        .header-right { display: flex; gap: 15px; align-items: center; padding-right: 15px; }
+        .play-controls { display: flex; gap: 12px; background: var(--bg-panel); padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border-light); }
+        .play-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .play-btn:hover { color: white; }
+        .play-btn.active { color: var(--accent); }
+        .play-info { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #999; display: flex; align-items: center; gap: 12px; border-left: 1px solid var(--border-light); padding-left: 12px;}
 
-        /* Main Workspace */
+        /* --- NOTE INPUT TOOLBAR --- */
+        .ms4-toolbar { background-color: var(--bg-toolbar); display: flex; padding: 6px 10px; gap: 8px; border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+        .tool-group { display: flex; gap: 2px; align-items: center; }
+        .divider { width: 1px; height: 24px; background: var(--border-light); margin: 0 4px; }
+        
+        .btn { background: transparent; border: 1px solid transparent; color: #ccc; padding: 6px 8px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; font-family: 'Times New Roman', serif; transition: all 0.1s;}
+        .btn i { font-size: 14px; font-family: "Font Awesome 6 Free"; }
+        .btn:hover { background-color: rgba(255,255,255,0.08); color: var(--text-light); }
+        .btn.active { background-color: rgba(46, 136, 245, 0.2); color: var(--accent); border-color: rgba(46, 136, 245, 0.4); }
+
+        .voice-btn { font-family: -apple-system, sans-serif; font-size: 12px; font-weight: bold; width: 26px; height: 26px; padding: 0; border-radius: 4px; }
+        .voice-1.active { background: rgba(86, 156, 214, 0.2); color: #569cd6; border-color: rgba(86, 156, 214, 0.4); }
+        .voice-2.active { background: rgba(78, 201, 176, 0.2); color: #4ec9b0; border-color: rgba(78, 201, 176, 0.4); }
+        .voice-3.active { background: rgba(206, 145, 120, 0.2); color: #ce9178; border-color: rgba(206, 145, 120, 0.4); }
+        .voice-4.active { background: rgba(220, 220, 170, 0.2); color: #dcdcaa; border-color: rgba(220, 220, 170, 0.4); }
+
+        /* --- MAIN WORKSPACE --- */
         .workspace { display: flex; flex: 1; overflow: hidden; }
 
-        /* Panels (Palettes & Inspector) */
-        .panel { width: 280px; background-color: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
-        .panel-right { border-right: none; border-left: 1px solid var(--border); }
-        .panel-header { padding: 10px; font-weight: bold; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); background-color: var(--bg-toolbar); display: flex; justify-content: space-between;}
-        .panel-content { flex: 1; overflow-y: auto; padding: 10px; }
+        /* Left Sidebar */
+        .sidebar { width: 280px; background-color: var(--bg-panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border-light); }
+        .sb-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 12px; color: #aaa; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 500; }
+        .sb-tab:hover { color: white; background: rgba(255,255,255,0.03); }
+        .sb-tab.active { color: white; border-bottom-color: var(--accent); }
         
-        /* Palettes specific */
-        .palette-group { margin-bottom: 10px; border: 1px solid var(--border); border-radius: 4px; }
-        .palette-title { padding: 6px 10px; background: #2d2d2d; cursor: pointer; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
-        .palette-title:hover { background: #3d3d3d; }
-        .palette-items { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 5px; background: #1e1e1e; }
-        .palette-item { background: #333; text-align: center; padding: 10px 0; border-radius: 3px; cursor: grab; font-family: serif; font-size: 18px; font-weight: bold; color: #ddd; }
-        .palette-item:hover { background: var(--accent); color: white; }
+        .sidebar-content { flex: 1; overflow-y: auto; display: none; padding-bottom:20px; }
+        .sidebar-content.active { display: block; }
+        
+        /* Palettes Specific */
+        .palette-search { padding: 12px; border-bottom: 1px solid var(--border-light); position: relative; }
+        .palette-search input { width: 100%; background: var(--bg-dark); border: 1px solid var(--border-light); color: white; padding: 8px 12px; border-radius: 4px; font-size: 12px; outline: none; }
+        .palette-search input:focus { border-color: var(--accent); }
+        
+        .palette-group { border-bottom: 1px solid var(--border-light); }
+        .palette-title { padding: 10px 15px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 10px; color: #ddd; font-weight: 500; }
+        .palette-title i { font-size: 10px; color: #888; width: 10px; text-align: center; }
+        .palette-title:hover { background: rgba(255,255,255,0.05); }
+        
+        .palette-items { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 10px; background: #222; }
+        .palette-item { background: #333; text-align: center; padding: 10px 0; border-radius: 4px; cursor: grab; font-family: serif; font-size: 20px; font-weight: bold; color: #eee; border: 1px solid transparent; }
+        .palette-item:hover { border-color: var(--accent); background: #3a3a3a; }
         .palette-item:active { cursor: grabbing; }
         .palette-item.text-item { font-size: 11px; font-family: sans-serif; display: flex; align-items: center; justify-content: center; padding: 5px; }
 
-        /* Canvas */
-        .canvas-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: var(--canvas-bg); cursor: default; position: relative; }
+        /* Properties Area */
+        .props-area { padding: 20px 15px; font-size: 12px; color: #ccc; }
+        .prop-section { background: var(--bg-dark); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px; margin-bottom: 15px; }
+        .prop-section-title { font-weight: bold; margin-bottom: 10px; color: white; }
+        .prop-row { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; }
+        .prop-label { color: #999; }
+        .prop-val { font-weight: bold; color: white; }
+
+        /* --- CANVAS AREA --- */
+        .canvas-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background-color: var(--bg-canvas); cursor: default; position: relative; }
         .canvas-area.entry-mode { cursor: crosshair; }
-        .canvas-container { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 20px; position: relative; }
-        #osmdCanvas { background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 100%; max-width: 1400px; min-height: 1000px; padding: 20px; position: relative; overflow: hidden; }
+        
+        .score-tabs-bar { display: flex; background-color: var(--bg-panel); padding: 8px 10px 0 10px; border-bottom: 1px solid #999; flex-shrink: 0; }
+        .score-tab { padding: 8px 20px; background-color: #333; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 12px; margin-right: 4px; color: #aaa; display: flex; align-items: center; gap: 10px; border-bottom: none; border: 1px solid transparent;}
+        .score-tab:hover { background-color: #444; color: white; }
+        .score-tab.active { background-color: var(--bg-canvas); color: #000; font-weight: 500; border-color: #aaa;}
+
+        .canvas-wrapper { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 40px; position: relative; }
+        
+        #osmdCanvas { background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; max-width: 1200px; min-height: 1000px; padding: 40px; position: relative; overflow: hidden; border-radius: 2px; }
         
         /* Interactive Overlays */
-        #uiOverlay { position: absolute; top: 20px; left: 0; width: 100%; max-width: 1400px; height: 1000px; pointer-events: none; z-index: 100; margin: 0 auto; display: flex; justify-content: center; }
-        #selectionBox { position: absolute; background-color: var(--select-color); border: 2px solid var(--select-border); display: none; border-radius: 3px; }
-        #noteSelectionBox { position: absolute; background-color: transparent; border: 2px solid var(--note-select-color); display: none; border-radius: 50%; width: 16px; height: 16px; transform: translate(-50%, -50%); box-shadow: 0 0 8px var(--note-select-color); }
-        .score-overlay-element { position: absolute; cursor: move; color: #000; font-family: serif; font-weight: bold; z-index: 500; user-select: none; pointer-events: auto; }
+        #uiOverlay { position: absolute; top: 40px; left: 0; width: 100%; max-width: 1200px; height: 1000px; pointer-events: none; z-index: 100; margin: 0 auto; display: flex; justify-content: center; }
+        #selectionBox { position: absolute; background-color: var(--select-color); border: 2px solid var(--select-border); display: none; border-radius: 2px; transition: all 0.1s ease; }
+        #noteSelectionBox { position: absolute; background-color: transparent; border: 2px solid var(--note-select-color); display: none; border-radius: 50%; width: 16px; height: 16px; transform: translate(-50%, -50%); box-shadow: 0 0 5px var(--note-select-color); transition: all 0.1s ease; }
         
-        /* Bottom Mixer / Status */
-        .bottom-panel { height: 140px; background-color: var(--bg-panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
-        .mixer { display: flex; padding: 10px; gap: 15px; flex: 1; overflow-x: auto; }
-        .channel { display: flex; flex-direction: column; align-items: center; width: 70px; font-size: 11px; background: #1e1e1e; padding: 5px; border-radius: 4px; border: 1px solid #333; }
-        .channel input[type=range] { writing-mode: bt-lr; -webkit-appearance: slider-vertical; height: 60px; margin: 5px 0; width: 20px; }
-        .channel-name { text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-bottom: 5px; }
-        .status-bar { height: 25px; background-color: var(--accent); display: flex; align-items: center; padding: 0 10px; font-size: 12px; color: white; justify-content: space-between; flex-shrink: 0; }
-
-        /* Inspector Details */
-        .inspector-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; border-bottom: 1px solid #333; padding-bottom: 4px; }
-        .inspector-label { color: #aaa; }
-        .inspector-val { font-weight: bold; color: #fff; }
+        /* Bottom Status Bar */
+        .status-bar { height: 30px; background-color: var(--bg-toolbar); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 15px; font-size: 11px; color: #aaa; justify-content: space-between; flex-shrink: 0; }
+        .status-right { display: flex; gap: 20px; align-items: center; }
+        .status-right i { cursor: pointer; }
+        .status-right i:hover { color: white; }
 
         /* Modals */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; }
@@ -116,113 +139,122 @@
         .btn-primary { background: var(--accent); color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .btn-primary:hover { background: var(--accent-hover); }
         
-        .inst-category { margin-top: 15px; font-weight: bold; color: var(--accent); border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; }
+        .inst-category { margin-top: 15px; font-weight: bold; color: var(--accent); border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
         .inst-item { display: flex; justify-content: space-between; padding: 8px; background: #1e1e1e; margin-bottom: 4px; border-radius: 3px; align-items: center; font-size: 13px; }
         .inst-item:hover { background: #333; }
 
         #devTerminal { background: #000; color: #0f0; font-family: monospace; font-size: 12px; padding: 10px; height: 200px; overflow-y: auto; white-space: pre-wrap; user-select: text;}
         .hidden { display: none !important; }
         input[type="file"] { display: none; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
         ::-webkit-scrollbar-track { background: var(--bg-dark); }
-        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 6px; border: 3px solid var(--bg-dark); }
         ::-webkit-scrollbar-thumb:hover { background: #777; }
     </style>
 </head>
 <body>
 
-    <!-- Menubar -->
-    <div class="menubar">
-        <div class="menu-item">File
-            <div class="dropdown">
-                <div class="dropdown-item" onclick="document.getElementById('fileInput').click()"><span>Open... (XML, MSCZ)</span> <span class="shortcut">Ctrl+O</span></div>
-                <div class="dropdown-item" onclick="App.saveProject()"><span>Save Project (.musicxml)</span> <span class="shortcut">Ctrl+S</span></div>
-                <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
-                <div class="dropdown-item" onclick="App.exportPNG()"><span>Export as PNG</span></div>
-                <div class="dropdown-item" onclick="App.exportPDF()"><span>Export as PDF</span> <span class="shortcut">Ctrl+E</span></div>
-                <div class="dropdown-item" onclick="AudioEngine.exportAudio()"><span>Export Audio (WAV/WebM)</span></div>
-            </div>
+    <!-- 1. Header -->
+    <div class="ms4-header">
+        <div class="header-left">
+            <div class="header-tab" onclick="document.getElementById('fileInput').click()"><i class="fas fa-folder-open" style="margin-right:6px;"></i> File</div>
+            <div class="header-tab active">Score</div>
+            <div class="header-tab" onclick="App.exportPDF()">Publish</div>
         </div>
-        <div class="menu-item">Edit
-            <div class="dropdown">
-                <div class="dropdown-item" onclick="History.undo()"><span>Undo</span> <span class="shortcut">Ctrl+Z</span></div>
-                <div class="dropdown-item" onclick="History.redo()"><span>Redo</span> <span class="shortcut">Ctrl+Y</span></div>
-                <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
-                <div class="dropdown-item" onclick="NoteEditor.deleteSelected()"><span>Delete Selected</span> <span class="shortcut">Del</span></div>
-                <hr style="border:0; border-top:1px solid var(--border); margin:5px 0;">
-                <div class="dropdown-item" onclick="UI.toggleModal('instrumentModal')"><span>Instruments...</span> <span class="shortcut">I</span></div>
-                <div class="dropdown-item" onclick="UI.toggleModal('keybindModal')"><span>Preferences / Keybinds</span></div>
-            </div>
+        <div class="header-center">
+            <button class="btn-toggle active" title="Parts View"><i class="fas fa-file-alt"></i> Parts</button>
+            <button class="btn-toggle" title="Developer Logs" onclick="UI.toggleModal('devModal')"><i class="fas fa-terminal"></i> Logs</button>
         </div>
-        <div class="menu-item">View
-            <div class="dropdown">
-                <div class="dropdown-item" onclick="UI.togglePanel('palettes')"><span>Toggle Palettes</span></div>
-                <div class="dropdown-item" onclick="UI.togglePanel('inspector')"><span>Toggle Inspector</span></div>
-                <div class="dropdown-item" onclick="UI.togglePanel('mixer')"><span>Toggle Mixer</span></div>
-                <div class="dropdown-item" onclick="UI.toggleModal('devModal')"><span>Developer Tools</span></div>
+        <div class="header-right">
+            <div class="play-controls">
+                <button class="play-btn" title="Rewind" onclick="AudioEngine.stop()"><i class="fas fa-step-backward"></i></button>
+                <button class="play-btn" id="playIcon" title="Play (Space)" onclick="AudioEngine.togglePlay()"><i class="fas fa-play"></i></button>
+                <button class="play-btn" title="Toggle Metronome" id="btnMetronome" onclick="AudioEngine.toggleMetronome()"><i class="fas fa-metronome"></i></button>
             </div>
-        </div>
-        <div class="menu-item">Help
-            <div class="dropdown">
-                <div class="dropdown-item" onclick="alert('WebScore Studio v4.5\n\nFeatures: Rest Splitting, Note-to-Rest Conversion, Measure Management (+/-), Safe Deletions.')"><span>About</span></div>
+            <div class="play-info">
+                <span id="ui-timer">0:00:00:0</span>
+                <span id="ui-measure">1.1</span>
+                <span>♩ = <span id="ui-tempo">120</span></span>
             </div>
         </div>
     </div>
     <input type="file" id="fileInput" accept=".xml,.musicxml,.mscz,.mid" onchange="FileIO.handleFileUpload(event)">
 
-    <!-- Toolbar -->
-    <div class="toolbar">
+    <!-- 2. Toolbar -->
+    <div class="ms4-toolbar">
         <div class="tool-group">
-            <button class="btn" title="Undo (Ctrl+Z)" onclick="History.undo()"><i class="fas fa-undo"></i></button>
-            <button class="btn" title="Redo (Ctrl+Y)" onclick="History.redo()"><i class="fas fa-redo"></i></button>
-            <button class="btn" title="Add Measure" onclick="NoteEditor.addMeasure()"><i class="fas fa-plus-square"></i></button>
-            <button class="btn" title="Remove Last Measure" onclick="NoteEditor.removeMeasure()"><i class="fas fa-minus-square"></i></button>
-            <button class="btn" title="Delete Selected Note/Measure (Del)" onclick="NoteEditor.deleteSelected()"><i class="fas fa-eraser"></i></button>
+            <button class="btn" title="Note Input (N)" id="btnNoteEntry" onclick="App.toggleNoteEntry()"><i class="fas fa-pen"></i></button>
         </div>
+        <div class="divider"></div>
         <div class="tool-group">
-            <button class="btn" title="Note Entry Mode (N)" id="btnNoteEntry" onclick="App.toggleNoteEntry()"><i class="fas fa-pen"></i></button>
+            <button class="btn note-duration-btn" data-dur="64th" title="64th Note (1)">𝅘𝅥𝅱</button>
+            <button class="btn note-duration-btn" data-dur="32nd" title="32nd Note (2)">𝅘𝅥𝅰</button>
+            <button class="btn note-duration-btn" data-dur="16th" title="16th Note (3)">𝅘𝅥𝅯</button>
+            <button class="btn note-duration-btn" data-dur="eighth" title="8th Note (4)">𝅘𝅥𝅮</button>
+            <button class="btn note-duration-btn active" data-dur="quarter" title="Quarter Note (5)">♩</button>
+            <button class="btn note-duration-btn" data-dur="half" title="Half Note (6)">𝅗𝅥</button>
+            <button class="btn note-duration-btn" data-dur="whole" title="Whole Note (7)">𝅝</button>
+            <button class="btn note-duration-btn" data-dur="breve" title="Double Whole Note (8)">𝅜</button>
         </div>
+        <div class="divider"></div>
         <div class="tool-group">
-            <button class="btn note-duration-btn" data-dur="whole" title="Whole Note (7)"><i class="fas fa-circle"></i></button>
-            <button class="btn note-duration-btn" data-dur="half" title="Half Note (6)"><i class="fas fa-circle-half-stroke"></i></button>
-            <button class="btn note-duration-btn active" data-dur="quarter" title="Quarter Note (5)"><i class="fas fa-music"></i></button>
-            <button class="btn note-duration-btn" data-dur="eighth" title="Eighth Note (4)"><i class="fas fa-music" style="font-size:10px;"></i></button>
+            <button class="btn" id="btnDot" title="Augmentation Dot (.)" onclick="App.toggleDot()">.</button>
+            <button class="btn" title="Tie (T)">‿</button>
+            <button class="btn" id="btnRestMode" title="Rest (0)" onclick="App.toggleRestMode()">𝄽</button>
         </div>
+        <div class="divider"></div>
         <div class="tool-group">
-            <button class="btn" title="Flat (♭)" onclick="NoteEditor.applyAccidental('flat')">♭</button>
-            <button class="btn" title="Natural (♮)" onclick="NoteEditor.applyAccidental('natural')">♮</button>
-            <button class="btn" title="Sharp (♯)" onclick="NoteEditor.applyAccidental('sharp')">♯</button>
+            <button class="btn" title="Flat (-)" onclick="NoteEditor.applyAccidental('flat')">♭</button>
+            <button class="btn" title="Natural (=)" onclick="NoteEditor.applyAccidental('natural')">♮</button>
+            <button class="btn" title="Sharp (+)" onclick="NoteEditor.applyAccidental('sharp')">♯</button>
         </div>
+        <div class="divider"></div>
         <div class="tool-group">
-            <button class="btn voice-btn voice-1 active" title="Voice 1">1</button>
-            <button class="btn voice-btn voice-2" title="Voice 2">2</button>
-        </div>
-        <div class="tool-group">
-            <button class="btn" title="Rewind" onclick="AudioEngine.stop()"><i class="fas fa-backward-step"></i></button>
-            <button class="btn" title="Play/Pause (Space)" onclick="AudioEngine.togglePlay()"><i class="fas fa-play" id="playIcon"></i></button>
-            <button class="btn" title="Toggle Metronome" id="btnMetronome" onclick="AudioEngine.toggleMetronome()"><i class="fas fa-metronome"></i></button>
-        </div>
-        <div class="tool-group" style="border:none;">
-            <button class="btn" title="Zoom In" onclick="App.zoom(0.1)"><i class="fas fa-search-plus"></i></button>
-            <button class="btn" title="Zoom Out" onclick="App.zoom(-0.1)"><i class="fas fa-search-minus"></i></button>
+            <button class="btn" id="btnMultiRest" title="Toggle Multi-Measure Rests (M)" onclick="App.toggleMultiRests()"><i class="fas fa-compress-arrows-alt"></i></button>
+            <button class="btn" title="Add Measure" onclick="NoteEditor.addMeasure()"><i class="fas fa-plus"></i></button>
+            <button class="btn" title="Delete Selection (Del)" onclick="NoteEditor.deleteSelected()"><i class="fas fa-trash"></i></button>
+            <button class="btn" title="Undo (Ctrl+Z)" onclick="History.undo()"><i class="fas fa-undo" style="font-size:12px;"></i></button>
+            <button class="btn" title="Redo (Ctrl+Y)" onclick="History.redo()"><i class="fas fa-redo" style="font-size:12px;"></i></button>
         </div>
     </div>
 
-    <!-- Workspace -->
+    <!-- 3. Workspace -->
     <div class="workspace">
-        <!-- Palettes Panel -->
-        <div class="panel" id="panel-palettes">
-            <div class="panel-header">Palettes <i class="fas fa-times" style="cursor:pointer" onclick="UI.togglePanel('palettes')"></i></div>
-            <div class="panel-content" id="palette-container">
-                <!-- Dynamically generated -->
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-tabs">
+                <div class="sb-tab active" onclick="UI.switchSidebarTab('palettes')">Palettes</div>
+                <div class="sb-tab" onclick="UI.switchSidebarTab('instruments')">Instruments</div>
+                <div class="sb-tab" onclick="UI.switchSidebarTab('properties')">Properties</div>
+            </div>
+            
+            <!-- Palettes -->
+            <div id="sb-palettes" class="sidebar-content active">
+                <div class="palette-search"><input type="text" placeholder="Search Palettes"> <i class="fas fa-search" style="position:absolute; right:20px; top:20px; color:#666;"></i></div>
+                <div id="palette-container"></div>
+            </div>
+
+            <!-- Instruments -->
+            <div id="sb-instruments" class="sidebar-content">
+                <!-- Dynamically populated by UI.renderInstrumentList() -->
+            </div>
+
+            <!-- Properties (Inspector) -->
+            <div id="sb-properties" class="sidebar-content props-area">
+                <div id="inspector-content">
+                    <p style="text-align:center; color:#666; margin-top:30px;">Select an element in the score to view properties.</p>
+                </div>
             </div>
         </div>
 
-        <!-- Main Canvas Area -->
+        <!-- Canvas -->
         <div class="canvas-area">
-            <div class="tabs-bar" id="score-tabs"></div>
+            <!-- Tabs / Parts Viewer -->
+            <div class="score-tabs-bar" id="score-tabs">
+                <div class="score-tab active"><i class="fas fa-book-open" style="color:#888;"></i> Full Score</div>
+            </div>
             
-            <div class="canvas-container" id="canvasContainer">
+            <div class="canvas-wrapper" id="canvasContainer">
                 <div id="uiOverlay">
                     <div id="selectionBox"></div>
                     <div id="noteSelectionBox"></div>
@@ -230,62 +262,71 @@
                 <div id="osmdCanvas"></div>
             </div>
         </div>
-
-        <!-- Inspector Panel -->
-        <div class="panel panel-right" id="panel-inspector">
-            <div class="panel-header">Inspector <i class="fas fa-times" style="cursor:pointer" onclick="UI.togglePanel('inspector')"></i></div>
-            <div class="panel-content">
-                <div id="inspector-content">
-                    <p style="color:#888; font-size:12px; text-align:center; margin-top:20px;">Select a note or measure to view properties.</p>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <!-- Bottom Mixer -->
-    <div class="bottom-panel" id="panel-mixer">
-        <div class="panel-header" style="border-bottom:none;">Mixer <i class="fas fa-times" style="cursor:pointer; float:right;" onclick="UI.togglePanel('mixer')"></i></div>
-        <div class="mixer" id="mixer-channels"></div>
-    </div>
-
-    <!-- Status Bar -->
+    <!-- 4. Bottom Status Bar -->
     <div class="status-bar">
-        <div id="statusText">Ready</div>
-        <div>Zoom: <span id="zoomLevel">100%</span> | Audio Engine: Active</div>
+        <div id="statusText">Workspace: Default</div>
+        <div class="status-right">
+            <span style="cursor:pointer;"><i class="fas fa-music"></i> Concert pitch</span>
+            <span style="cursor:pointer;"><i class="fas fa-file"></i> Page view</span>
+            <span style="display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-search-minus" onclick="App.zoom(-0.1)"></i>
+                <span id="zoomLevel" style="width:40px; text-align:center;">100%</span>
+                <i class="fas fa-search-plus" onclick="App.zoom(0.1)"></i>
+            </span>
+        </div>
     </div>
 
     <!-- Modals -->
-    <div class="modal-overlay" id="instrumentModal">
-        <div class="modal">
-            <div class="modal-header">Add Instruments <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('instrumentModal')"></i></div>
-            <div class="modal-body" id="instrumentListBody"></div>
+    <div class="modal-overlay" id="metadataModal">
+        <div class="modal" style="width: 400px;">
+            <div class="modal-header">Score Properties <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('metadataModal')"></i></div>
+            <div class="modal-body">
+                <label style="display:block; margin-bottom:5px; color:#aaa; font-size:12px;">Title</label>
+                <input type="text" id="metaTitle" style="width:100%; margin-bottom:15px; padding:8px; background:#1a1a1a; border:1px solid #444; color:white; border-radius:4px; outline:none;">
+                <label style="display:block; margin-bottom:5px; color:#aaa; font-size:12px;">Composer / Arranger</label>
+                <input type="text" id="metaComposer" style="width:100%; margin-bottom:15px; padding:8px; background:#1a1a1a; border:1px solid #444; color:white; border-radius:4px; outline:none;">
+            </div>
             <div class="modal-footer">
-                <button class="btn" onclick="UI.toggleModal('instrumentModal')">Cancel</button>
-                <button class="btn-primary" onclick="UI.toggleModal('instrumentModal'); alert('Instruments updated (Mock)');">Apply</button>
+                <button class="btn" onclick="UI.toggleModal('metadataModal')">Cancel</button>
+                <button class="btn-primary" onclick="App.saveMetadata()">Apply</button>
             </div>
         </div>
     </div>
 
+    <!-- Keybinds Modal (Restored) -->
     <div class="modal-overlay" id="keybindModal">
         <div class="modal" style="width: 500px;">
             <div class="modal-header">Preferences & Keybinds <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('keybindModal')"></i></div>
             <div class="modal-body">
-                <p style="font-size:12px; margin-bottom:10px; color:#aaa;">New: Use Up/Down arrows to change note pitch!</p>
+                <p style="font-size:12px; margin-bottom:10px; color:#aaa;">Keyboard Shortcuts:</p>
                 <table style="width:100%; text-align:left; font-size:13px; border-collapse: collapse;">
                     <thead><tr style="border-bottom:1px solid #555;"><th style="padding:5px;">Action</th><th style="padding:5px;">Shortcut</th></tr></thead>
-                    <tbody id="keybindTable"></tbody>
+                    <tbody>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Note Entry Mode</td><td style="padding:5px;"><kbd>N</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Play / Pause</td><td style="padding:5px;"><kbd>Space</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Delete Element</td><td style="padding:5px;"><kbd>Del</kbd> / <kbd>Backspace</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Toggle Multi-Measure Rests</td><td style="padding:5px;"><kbd>M</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Undo</td><td style="padding:5px;"><kbd>Ctrl+Z</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Redo</td><td style="padding:5px;"><kbd>Ctrl+Y</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Pitch Up/Down</td><td style="padding:5px;"><kbd>↑</kbd> / <kbd>↓</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Add Rest</td><td style="padding:5px;"><kbd>0</kbd></td></tr>
+                        <tr style="border-bottom:1px solid #333;"><td style="padding:5px;">Dotted Note</td><td style="padding:5px;"><kbd>.</kbd></td></tr>
+                        <tr><td style="padding:5px;">Add Specific Note (A-G)</td><td style="padding:5px;"><kbd>A</kbd>-<kbd>G</kbd></td></tr>
+                    </tbody>
                 </table>
             </div>
             <div class="modal-footer">
-                <button class="btn" onclick="KeybindManager.resetToDefault()">Reset</button>
                 <button class="btn-primary" onclick="UI.toggleModal('keybindModal')">Close</button>
             </div>
         </div>
     </div>
 
+    <!-- Developer Console -->
     <div class="modal-overlay" id="devModal">
         <div class="modal" style="width:600px;">
-            <div class="modal-header">Developer Tools & Logs <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('devModal')"></i></div>
+            <div class="modal-header">Developer Logs <i class="fas fa-times" style="cursor:pointer" onclick="UI.toggleModal('devModal')"></i></div>
             <div class="modal-body" style="padding:0;">
                 <div id="devTerminal">Initializing WebScore Studio Engine...
 </div>
@@ -299,68 +340,53 @@
 
 <script>
 /**
- * WebScore Studio Engine v4.5
+ * WebScore Studio Engine v6.5 (MuseScore 4 Replica)
  * ---------------------------------------------------------
- * Features: True Note-level selection, Note-to-Rest deletion conversion, 
- * Dynamic Duration splitting, Measure Adding/Removing.
+ * Features: Full 15-Key Signature Array, Interactive Instrument Management 
+ * (Add/Remove), Exact Multi-Part Tabs, Improved Layout safety.
  */
 
 const DEMO_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise version="3.1">
-  <work><work-title>WebScore Orchestra Demo</work-title></work>
+  <work><work-title>Untitled score</work-title></work>
+  <identification><creator type="composer">Composer</creator></identification>
   <part-list>
-    <score-part id="P1"><part-name>Flute</part-name></score-part>
-    <score-part id="P2"><part-name>Piano</part-name></score-part>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
   </part-list>
   <part id="P1">
     <measure number="1">
-      <attributes><divisions>4</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <attributes><divisions>16</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
       <direction placement="above"><direction-type><words font-weight="bold">♩ = 120</words></direction-type><sound tempo="120"/></direction>
-      <note><pitch><step>C</step><octave>5</octave></pitch><duration>8</duration><type>half</type></note>
-      <note><pitch><step>E</step><octave>5</octave></pitch><duration>8</duration><type>half</type></note>
+      <note><rest/><duration>64</duration><type>whole</type></note>
     </measure>
-    <measure number="2">
-        <note><pitch><step>G</step><octave>5</octave></pitch><duration>16</duration><type>whole</type></note>
-    </measure>
-  </part>
-  <part id="P2">
-    <measure number="1">
-      <attributes><divisions>4</divisions><key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>F</sign><line>4</line></clef></attributes>
-      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>quarter</type></note>
-      <note><pitch><step>E</step><octave>3</octave></pitch><duration>4</duration><type>quarter</type></note>
-      <note><pitch><step>G</step><octave>3</octave></pitch><duration>4</duration><type>quarter</type></note>
-      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>quarter</type></note>
-    </measure>
-    <measure number="2">
-        <note><pitch><step>C</step><octave>3</octave></pitch><duration>16</duration><type>whole</type></note>
-    </measure>
+    <measure number="2"><note><rest/><duration>64</duration><type>whole</type></note></measure>
+    <measure number="3"><note><rest/><duration>64</duration><type>whole</type></note></measure>
   </part>
 </score-partwise>`;
 
 const INSTRUMENT_LIB = {
-    "Woodwinds": [{ name: "Flute", gm: "flute" }, { name: "Oboe", gm: "oboe" }, { name: "Clarinet", gm: "clarinet" }],
-    "Brass": [{ name: "Trumpet", gm: "trumpet" }, { name: "Trombone", gm: "trombone" }, { name: "Tuba", gm: "tuba" }],
-    "Strings": [{ name: "Violin", gm: "violin" }, { name: "Cello", gm: "cello" }],
-    "Keyboards": [{ name: "Piano", gm: "acoustic_grand_piano" }]
+    "Woodwinds": [{ name: "Flute" }, { name: "Oboe" }, { name: "Clarinet" }],
+    "Brass": [{ name: "Trumpet" }, { name: "Trombone" }, { name: "Tuba" }],
+    "Strings": [{ name: "Violin" }, { name: "Cello" }, { name: "Contrabass" }],
+    "Keyboards": [{ name: "Piano" }, { name: "Harpsichord" }]
+};
+
+const State = {
+    osmd: null, zoom: 1.0, isPlaying: false, noteEntryMode: false, metronomeEnabled: false,
+    isDotted: false, isRestMode: false, multiRests: false,
+    currentScoreXML: DEMO_XML, currentPartIndex: 'full',
+    history: [], historyIndex: -1, selectedDuration: 'quarter',
+    selectedMeasure: -1, selectedStaff: -1, selectedNoteIndex: -1
 };
 
 const Logger = {
     log: (msg) => {
         const term = document.getElementById('devTerminal');
-        term.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
-        term.scrollTop = term.scrollHeight;
+        if(term) { term.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}\n`; term.scrollTop = term.scrollHeight; }
         console.log(`[WebScore] ${msg}`);
     },
-    error: (msg) => Logger.log(`ERROR: ${msg}`),
-    warn: (msg) => Logger.log(`WARN: ${msg}`)
-};
-
-const State = {
-    osmd: null, zoom: 1.0, isPlaying: false, noteEntryMode: false, metronomeEnabled: false,
-    currentScoreXML: DEMO_XML, currentPartIndex: 'full',
-    history: [], historyIndex: -1, selectedDuration: 'quarter',
-    selectedMeasure: -1, selectedStaff: -1, selectedNoteIndex: -1
+    error: (msg) => Logger.log(`ERROR: ${msg}`)
 };
 
 const History = {
@@ -391,7 +417,6 @@ const NoteEditor = {
     getClosestElement: (x, y) => {
         let closestMeasure = -1, closestStaff = -1, closestNote = -1, minDist = Infinity;
         let bestMeasureRect = null, bestNoteRect = null;
-        
         if (!State.osmd || !State.osmd.GraphicSheet) return null;
 
         for (let i = 0; i < State.osmd.GraphicSheet.MeasureList.length; i++) {
@@ -406,12 +431,9 @@ const NoteEditor = {
                 const mh = m.PositionAndShape.Size.height;
 
                 const distToMeasure = Math.sqrt(Math.pow(mx + mw/2 - x, 2) + Math.pow((my + mh/2 - y) * 5, 2));
-                
                 if (distToMeasure < minDist) { 
-                    minDist = distToMeasure; 
-                    closestMeasure = i; closestStaff = j; 
-                    bestMeasureRect = { x: mx, y: my, w: mw, h: mh };
-                    closestNote = -1;
+                    minDist = distToMeasure; closestMeasure = i; closestStaff = j; 
+                    bestMeasureRect = { x: mx, y: my, w: mw, h: mh }; closestNote = -1;
                 }
 
                 if (m.staffEntries) {
@@ -425,9 +447,8 @@ const NoteEditor = {
                                             const nx = n.PositionAndShape.AbsolutePosition.x;
                                             const ny = n.PositionAndShape.AbsolutePosition.y;
                                             const distToNote = Math.sqrt(Math.pow(nx - x, 2) + Math.pow((ny - y)*2, 2));
-                                            if (distToNote < 2.0 && distToNote < minDist) {
-                                                minDist = distToNote;
-                                                closestMeasure = i; closestStaff = j; closestNote = noteIndexCtr;
+                                            if (distToNote < 3.0 && distToNote < minDist) {
+                                                minDist = distToNote; closestMeasure = i; closestStaff = j; closestNote = noteIndexCtr;
                                                 bestNoteRect = { x: nx, y: ny, w: 1.5, h: 1.5 };
                                             }
                                         }
@@ -440,39 +461,35 @@ const NoteEditor = {
                 }
             }
         }
-        
         return closestMeasure >= 0 ? { measure: closestMeasure, staff: closestStaff, noteIndex: closestNote, rect: bestMeasureRect, noteRect: bestNoteRect } : null;
     },
 
     selectElement: (e) => {
         const svg = document.querySelector('#osmdCanvas svg');
         if(!svg) return;
-        
         const rect = svg.getBoundingClientRect();
         const unitX = (e.clientX - rect.left) / (10 * State.zoom);
         const unitY = (e.clientY - rect.top) / (10 * State.zoom);
 
         const target = NoteEditor.getClosestElement(unitX, unitY);
+        
+        const canvasContainer = document.getElementById('canvasContainer');
+        const containerRect = canvasContainer.getBoundingClientRect();
+        const svgOffsetX = rect.left - containerRect.left + canvasContainer.scrollLeft - 20; 
+        const svgOffsetY = rect.top - containerRect.top + canvasContainer.scrollTop - 20;
+
         if (target) {
-            State.selectedMeasure = target.measure;
-            State.selectedStaff = target.staff;
-            State.selectedNoteIndex = target.noteIndex;
-            
-            const mBox = document.getElementById('selectionBox');
-            const nBox = document.getElementById('noteSelectionBox');
-            const svgOffsetX = rect.left - document.getElementById('canvasContainer').getBoundingClientRect().left + document.getElementById('canvasContainer').scrollLeft;
-            const svgOffsetY = rect.top - document.getElementById('canvasContainer').getBoundingClientRect().top + document.getElementById('canvasContainer').scrollTop;
+            State.selectedMeasure = target.measure; State.selectedStaff = target.staff; State.selectedNoteIndex = target.noteIndex;
+            const mBox = document.getElementById('selectionBox'); const nBox = document.getElementById('noteSelectionBox');
 
             if (target.noteIndex !== -1 && target.noteRect) {
-                mBox.style.display = 'none';
-                nBox.style.display = 'block';
+                mBox.style.display = 'none'; nBox.style.display = 'block';
                 nBox.style.left = (target.noteRect.x * 10 * State.zoom + svgOffsetX) + 'px';
                 nBox.style.top = (target.noteRect.y * 10 * State.zoom + svgOffsetY) + 'px';
                 UI.setStatus(`Selected Staff ${target.staff + 1}, Measure ${target.measure + 1}, Note ${target.noteIndex + 1}`);
                 UI.updateInspector();
             } else {
-                nBox.style.display = 'none';
-                mBox.style.display = 'block';
+                nBox.style.display = 'none'; mBox.style.display = 'block';
                 mBox.style.left = (target.rect.x * 10 * State.zoom + svgOffsetX) + 'px';
                 mBox.style.top = (target.rect.y * 10 * State.zoom + svgOffsetY) + 'px';
                 mBox.style.width = (target.rect.w * 10 * State.zoom) + 'px';
@@ -480,73 +497,74 @@ const NoteEditor = {
                 UI.setStatus(`Selected Staff ${target.staff + 1}, Measure ${target.measure + 1}`);
                 UI.clearInspector();
             }
-            
-            if(State.noteEntryMode && target.noteIndex === -1) {
-                NoteEditor.insertNoteAtSelection('C');
+
+            if(State.noteEntryMode) {
+                let pitchStr = 'C'; let octave = 5;
+                if (target.rect) {
+                    const relativeY = unitY - target.rect.y;
+                    const scale = ['F','E','D','C','B','A','G']; 
+                    let stepIndex = Math.floor(relativeY * 2);
+                    if (stepIndex < 0) stepIndex = 0;
+                    if (stepIndex < scale.length) { pitchStr = scale[stepIndex]; octave = (pitchStr === 'C' || pitchStr === 'D' || pitchStr === 'E' || pitchStr === 'F') ? 5 : 4; } 
+                    else if (stepIndex < scale.length * 2) { pitchStr = scale[stepIndex % scale.length]; octave = (pitchStr === 'C' || pitchStr === 'D' || pitchStr === 'E' || pitchStr === 'F') ? 4 : 3; }
+                }
+                NoteEditor.insertNoteAtSelection(pitchStr, octave);
             }
         } else {
-            document.getElementById('selectionBox').style.display = 'none';
-            document.getElementById('noteSelectionBox').style.display = 'none';
+            document.getElementById('selectionBox').style.display = 'none'; document.getElementById('noteSelectionBox').style.display = 'none';
             State.selectedMeasure = -1; State.selectedStaff = -1; State.selectedNoteIndex = -1;
             UI.clearInspector();
         }
     },
 
-    insertNoteAtSelection: (pitchStr) => {
-        if (State.selectedMeasure === -1) { UI.setStatus("Click a measure to select it first."); return; }
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+    insertNoteAtSelection: (pitchStr, forcedOctave = null) => {
+        if (State.selectedMeasure === -1) { UI.setStatus("Click a measure first."); return; }
+        const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
         const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
         const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
         if (!targetMeasure) return;
 
-        let divisions = 1;
-        // Search backwards for the last divisions declaration
+        let divisions = 16; 
         for (let i = State.selectedMeasure; i >= 0; i--) {
             const divNode = targetPart.querySelectorAll('measure')[i].querySelector('divisions');
             if (divNode) { divisions = parseInt(divNode.textContent); break; }
         }
 
-        let durationVal = divisions; 
-        let typeStr = 'quarter';
-        if (State.selectedDuration === 'whole') { durationVal = divisions * 4; typeStr = 'whole'; }
-        else if (State.selectedDuration === 'half') { durationVal = divisions * 2; typeStr = 'half'; }
-        else if (State.selectedDuration === 'quarter') { durationVal = divisions; typeStr = 'quarter'; }
-        else if (State.selectedDuration === 'eighth') { durationVal = divisions / 2; typeStr = 'eighth'; }
+        const durMap = { 'breve': 8, 'whole': 4, 'half': 2, 'quarter': 1, 'eighth': 0.5, '16th': 0.25, '32nd': 0.125, '64th': 0.0625 };
+        let baseDur = durMap[State.selectedDuration] * divisions;
+        let typeStr = State.selectedDuration;
+        let durationVal = State.isDotted ? baseDur * 1.5 : baseDur;
 
-        let octave = State.selectedStaff === 0 ? '5' : '3';
-        if (State.selectedStaff === 0 && ['C','D','E'].includes(pitchStr)) octave = '5';
-        if (State.selectedStaff === 0 && ['F','G','A','B'].includes(pitchStr)) octave = '4';
-
-        let notes = Array.from(targetMeasure.querySelectorAll('note'));
-        let targetNote = null;
-        
-        if (State.selectedNoteIndex !== -1 && notes[State.selectedNoteIndex]) {
-            targetNote = notes[State.selectedNoteIndex];
-        } else {
-            // Find first rest to overwrite
-            targetNote = notes.find(n => n.querySelector('rest'));
+        let octave = forcedOctave;
+        if (!octave) {
+            octave = State.selectedStaff === 0 ? '5' : '3';
+            if (State.selectedStaff === 0 && ['C','D','E'].includes(pitchStr)) octave = '5';
+            if (State.selectedStaff === 0 && ['F','G','A','B'].includes(pitchStr)) octave = '4';
         }
 
+        let notes = Array.from(targetMeasure.querySelectorAll('note'));
+        let targetNote = State.selectedNoteIndex !== -1 && notes[State.selectedNoteIndex] ? notes[State.selectedNoteIndex] : notes.find(n => n.querySelector('rest'));
+
         const newNote = xmlDoc.createElement('note');
-        newNote.innerHTML = `<pitch><step>${pitchStr}</step><octave>${octave}</octave></pitch><duration>${durationVal}</duration><type>${typeStr}</type>`;
+        let noteContent = `<duration>${durationVal}</duration><type>${typeStr}</type>`;
+        if(State.isDotted) noteContent += `<dot/>`;
+        
+        if(State.isRestMode) {
+            noteContent = `<rest/>` + noteContent;
+        } else {
+            noteContent = `<pitch><step>${pitchStr}</step><octave>${octave}</octave></pitch>` + noteContent;
+        }
+        newNote.innerHTML = noteContent;
         
         if (targetNote) {
             let targetDurNode = targetNote.querySelector('duration');
             let targetDur = targetDurNode ? parseFloat(targetDurNode.textContent) : 0;
-            
             targetMeasure.insertBefore(newNote, targetNote);
             
             if (durationVal < targetDur) {
                 let remainder = targetDur - durationVal;
-                let remainderType = 'quarter';
-                if (remainder >= divisions * 4) remainderType = 'whole';
-                else if (remainder >= divisions * 2) remainderType = 'half';
-                else if (remainder === divisions) remainderType = 'quarter';
-                else remainderType = 'eighth';
-                
                 let remainderRest = xmlDoc.createElement('note');
-                remainderRest.innerHTML = `<rest/><duration>${remainder}</duration><type>${remainderType}</type>`;
+                remainderRest.innerHTML = `<rest/><duration>${remainder}</duration>`;
                 targetMeasure.insertBefore(remainderRest, targetNote);
             } else if (durationVal > targetDur) {
                 let durationNeeded = durationVal - targetDur;
@@ -554,69 +572,41 @@ const NoteEditor = {
                 while (nextNote && nextNote.tagName === 'note' && durationNeeded > 0) {
                     let nextDurNode = nextNote.querySelector('duration');
                     let nextDur = nextDurNode ? parseFloat(nextDurNode.textContent) : 0;
-                    if (nextDur <= durationNeeded) {
-                        durationNeeded -= nextDur;
-                        let toDel = nextNote;
-                        nextNote = nextNote.nextElementSibling;
-                        toDel.remove();
-                    } else {
-                        let newNextDur = nextDur - durationNeeded;
-                        if (nextDurNode) nextDurNode.textContent = newNextDur;
-                        durationNeeded = 0;
-                    }
+                    if (nextDur <= durationNeeded) { durationNeeded -= nextDur; let toDel = nextNote; nextNote = nextNote.nextElementSibling; toDel.remove(); } 
+                    else { nextDurNode.textContent = nextDur - durationNeeded; durationNeeded = 0; }
                 }
             }
             targetNote.remove();
-            
-            if (State.selectedNoteIndex !== -1) State.selectedNoteIndex++;
-        } else {
-            targetMeasure.appendChild(newNote);
-        }
+            if (State.selectedNoteIndex !== -1 && !State.isRestMode) State.selectedNoteIndex++;
+        } else { targetMeasure.appendChild(newNote); }
 
+        NoteEditor.recalculateBeams(xmlDoc);
         App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
-        UI.setStatus(`Inserted ${pitchStr} ${typeStr}.`);
     },
 
     deleteSelected: () => {
-        if (State.selectedMeasure === -1) { UI.setStatus("Select a note or measure first to delete."); return; }
-
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        if (State.selectedMeasure === -1) return;
+        const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
         const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
         const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
-        if (!targetMeasure) return;
-
         const notes = targetMeasure.querySelectorAll('note');
-        let noteToDelete = null;
-        
-        if (State.selectedNoteIndex !== -1 && notes[State.selectedNoteIndex]) {
-            noteToDelete = notes[State.selectedNoteIndex];
-        } else if (notes.length > 0) {
-            noteToDelete = notes[notes.length - 1]; // Fallback to last note in measure
-        }
+        let noteToDelete = State.selectedNoteIndex !== -1 && notes[State.selectedNoteIndex] ? notes[State.selectedNoteIndex] : (notes.length > 0 ? notes[notes.length - 1] : null);
 
         if (noteToDelete) {
             const pitch = noteToDelete.querySelector('pitch');
             if (pitch) {
-                // Feature 1: Convert to rest instead of removing to prevent empty measure crash
                 pitch.remove();
-                if (!noteToDelete.querySelector('rest')) {
-                    const rest = xmlDoc.createElement('rest');
-                    noteToDelete.insertBefore(rest, noteToDelete.firstChild);
-                }
-                UI.setStatus('Converted note to rest.');
-                State.selectedNoteIndex = -1; // Reset note selection
-            } else {
-                UI.setStatus('Already a rest.');
+                if (!noteToDelete.querySelector('rest')) noteToDelete.insertBefore(xmlDoc.createElement('rest'), noteToDelete.firstChild);
+                State.selectedNoteIndex = -1;
             }
         }
-
+        
+        NoteEditor.recalculateBeams(xmlDoc);
         App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
     },
 
     changeSelectedDuration: (newType) => {
         if (State.selectedNoteIndex === -1 || State.selectedMeasure === -1) return;
-
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
         const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
@@ -624,14 +614,14 @@ const NoteEditor = {
         const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
         if (!targetNote) return;
 
-        let divisions = 1;
+        let divisions = 16;
         for (let i = State.selectedMeasure; i >= 0; i--) {
             const divNode = targetPart.querySelectorAll('measure')[i].querySelector('divisions');
             if (divNode) { divisions = parseInt(divNode.textContent); break; }
         }
 
-        const typeToDur = { 'whole': 4, 'half': 2, 'quarter': 1, 'eighth': 0.5 };
-        const newDurValue = typeToDur[newType] * divisions;
+        const durMap = { 'breve': 8, 'whole': 4, 'half': 2, 'quarter': 1, 'eighth': 0.5, '16th': 0.25, '32nd': 0.125, '64th': 0.0625 };
+        const newDurValue = durMap[newType] * divisions * (State.isDotted ? 1.5 : 1);
         
         const currentDurNode = targetNote.querySelector('duration');
         const currentDurValue = currentDurNode ? parseFloat(currentDurNode.textContent) : newDurValue;
@@ -639,76 +629,93 @@ const NoteEditor = {
         if (newDurValue === currentDurValue) return;
 
         if (newDurValue < currentDurValue) {
-            // Split note/rest and generate properly typed remainder rest
             if(currentDurNode) currentDurNode.textContent = newDurValue;
             let typeNode = targetNote.querySelector('type');
             if (!typeNode) { typeNode = xmlDoc.createElement('type'); targetNote.appendChild(typeNode); }
             typeNode.textContent = newType;
+            
+            if(State.isDotted && !targetNote.querySelector('dot')) targetNote.appendChild(xmlDoc.createElement('dot'));
+            if(!State.isDotted && targetNote.querySelector('dot')) targetNote.querySelector('dot').remove();
 
             let remainder = currentDurValue - newDurValue;
-            let remainderType = 'quarter';
-            if (remainder >= divisions * 4) remainderType = 'whole';
-            else if (remainder >= divisions * 2) remainderType = 'half';
-            else if (remainder === divisions) remainderType = 'quarter';
-            else remainderType = 'eighth';
-
             let remainderRest = xmlDoc.createElement('note');
-            remainderRest.innerHTML = `<rest/><duration>${remainder}</duration><type>${remainderType}</type>`;
+            remainderRest.innerHTML = `<rest/><duration>${remainder}</duration>`;
             targetMeasure.insertBefore(remainderRest, targetNote.nextSibling);
-
-            UI.setStatus(`Split element into ${newType} and remainder rest.`);
         } else {
-            // Increase duration (Overwrites locally, eats subsequent notes)
             let durationNeeded = newDurValue - currentDurValue;
             let nextNote = targetNote.nextElementSibling;
-            
             while (nextNote && nextNote.tagName === 'note' && durationNeeded > 0) {
                 let nextDurNode = nextNote.querySelector('duration');
                 let nextDur = nextDurNode ? parseFloat(nextDurNode.textContent) : 0;
-                
-                if (nextDur <= durationNeeded) {
-                    durationNeeded -= nextDur;
-                    let toDelete = nextNote;
-                    nextNote = nextNote.nextElementSibling;
-                    toDelete.remove();
-                } else {
-                    let newNextDur = nextDur - durationNeeded;
-                    if (nextDurNode) nextDurNode.textContent = newNextDur;
-                    
-                    let nextTypeNode = nextNote.querySelector('type');
-                    let newNextType = 'eighth';
-                    if (newNextDur >= divisions * 4) newNextType = 'whole';
-                    else if (newNextDur >= divisions * 2) newNextType = 'half';
-                    else if (newNextDur >= divisions) newNextType = 'quarter';
-                    if(nextTypeNode) nextTypeNode.textContent = newNextType;
-                    
-                    durationNeeded = 0;
-                }
+                if (nextDur <= durationNeeded) { durationNeeded -= nextDur; let toDelete = nextNote; nextNote = nextNote.nextElementSibling; toDelete.remove(); } 
+                else { nextDurNode.textContent = nextDur - durationNeeded; durationNeeded = 0; }
             }
-
             if(currentDurNode) currentDurNode.textContent = newDurValue;
             let typeNode = targetNote.querySelector('type');
             if (!typeNode) { typeNode = xmlDoc.createElement('type'); targetNote.appendChild(typeNode); }
             typeNode.textContent = newType;
-            UI.setStatus(`Changed duration to ${newType}.`);
+            if(State.isDotted && !targetNote.querySelector('dot')) targetNote.appendChild(xmlDoc.createElement('dot'));
+            if(!State.isDotted && targetNote.querySelector('dot')) targetNote.querySelector('dot').remove();
         }
+
+        NoteEditor.recalculateBeams(xmlDoc);
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+        setTimeout(() => UI.updateInspector(), 150);
+    },
+
+    shiftPitch: (direction) => {
+        if (State.selectedNoteIndex === -1 || State.selectedMeasure === -1) return;
+        const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
+        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
+        const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
+        if (!targetNote) return;
+        const pitchNode = targetNote.querySelector('pitch');
+        if (!pitchNode) return; 
+
+        const stepNode = pitchNode.querySelector('step'); const octaveNode = pitchNode.querySelector('octave');
+        const scale = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+        let currentIndex = scale.indexOf(stepNode.textContent); let octave = parseInt(octaveNode.textContent);
+
+        if (direction === 'up') { currentIndex++; if (currentIndex >= scale.length) { currentIndex = 0; octave++; } } 
+        else if (direction === 'down') { currentIndex--; if (currentIndex < 0) { currentIndex = scale.length - 1; octave--; } }
+        stepNode.textContent = scale[currentIndex]; octaveNode.textContent = octave;
 
         App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
         setTimeout(() => UI.updateInspector(), 150);
     },
 
-    addMeasure: () => {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
-        const parts = xmlDoc.querySelectorAll('part');
+    applyAccidental: (type) => {
+        if (State.selectedNoteIndex === -1 || State.selectedMeasure === -1) { UI.setStatus("Select a note first."); return; }
+        const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
+        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
+        const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
+        
+        if (targetNote && targetNote.querySelector('pitch')) {
+            const pitchNode = targetNote.querySelector('pitch');
+            let alterNode = pitchNode.querySelector('alter');
+            if (!alterNode) { alterNode = xmlDoc.createElement('alter'); pitchNode.insertBefore(alterNode, pitchNode.querySelector('octave')); }
+            
+            let accNode = targetNote.querySelector('accidental');
+            if (!accNode) { accNode = xmlDoc.createElement('accidental'); targetNote.appendChild(accNode); }
 
-        parts.forEach(part => {
-            const measures = part.querySelectorAll('measure');
-            const lastMeasure = measures[measures.length - 1];
+            if (type === 'sharp') { alterNode.textContent = '1'; accNode.textContent = 'sharp'; }
+            else if (type === 'flat') { alterNode.textContent = '-1'; accNode.textContent = 'flat'; }
+            else if (type === 'natural') { alterNode.textContent = '0'; accNode.textContent = 'natural'; }
+            
+            App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+            UI.setStatus(`Applied ${type}.`);
+        }
+    },
+    
+    addMeasure: () => {
+        const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        xmlDoc.querySelectorAll('part').forEach(part => {
+            const measures = part.querySelectorAll('measure'); const lastMeasure = measures[measures.length - 1];
             const newMeasure = xmlDoc.createElement('measure');
             newMeasure.setAttribute('number', parseInt(lastMeasure.getAttribute('number') || measures.length) + 1);
-
-            let divisions = 1, beats = 4, beatType = 4;
+            let divisions = 16, beats = 4, beatType = 4;
             for (let i = measures.length - 1; i >= 0; i--) {
                 const m = measures[i];
                 if (m.querySelector('divisions')) divisions = parseInt(m.querySelector('divisions').textContent);
@@ -716,68 +723,68 @@ const NoteEditor = {
                 if (m.querySelector('time beat-type')) beatType = parseInt(m.querySelector('time beat-type').textContent);
                 if (m.querySelector('divisions') && m.querySelector('time')) break;
             }
-
-            const totalDuration = (beats * 4 * divisions) / beatType;
-            newMeasure.innerHTML = `<note><rest/><duration>${totalDuration}</duration><type>whole</type></note>`;
+            newMeasure.innerHTML = `<note><rest/><duration>${(beats * 4 * divisions) / beatType}</duration><type>whole</type></note>`;
             part.appendChild(newMeasure);
         });
-
         App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
-        UI.setStatus('Added measure to end of score.');
     },
 
-    removeMeasure: () => {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
-        const parts = xmlDoc.querySelectorAll('part');
-        let removed = false;
+    recalculateBeams: (xmlDoc) => {
+        let divisions = 16;
+        let timeBeats = 4;
+        let timeBeatType = 4;
+        xmlDoc.querySelectorAll('part').forEach(part => {
+            part.querySelectorAll('measure').forEach(measure => {
+                const divNode = measure.querySelector('attributes divisions');
+                if (divNode) divisions = parseInt(divNode.textContent);
+                
+                const timeNode = measure.querySelector('attributes time');
+                if (timeNode) {
+                    const bNode = timeNode.querySelector('beats');
+                    const btNode = timeNode.querySelector('beat-type');
+                    if (bNode) timeBeats = parseInt(bNode.textContent);
+                    if (btNode) timeBeatType = parseInt(btNode.textContent);
+                }
 
-        parts.forEach(part => {
-            const measures = part.querySelectorAll('measure');
-            if (measures.length > 1) { // Prevent blank page crash
-                measures[measures.length - 1].remove();
-                removed = true;
-            }
+                let groupBoundary = divisions; 
+                if (timeBeats % 3 === 0 && timeBeatType === 8) {
+                    groupBoundary = divisions * 1.5; // Group by dotted quarter in 6/8, 9/8
+                }
+
+                measure.querySelectorAll('beam').forEach(b => b.remove());
+                
+                let position = 0;
+                let beamGroup = [];
+                const flush = () => {
+                    if (beamGroup.length > 1) {
+                        beamGroup.forEach((n, i) => {
+                            let b = xmlDoc.createElement('beam');
+                            b.setAttribute('number', '1');
+                            b.textContent = i === 0 ? 'begin' : (i === beamGroup.length - 1 ? 'end' : 'continue');
+                            n.appendChild(b);
+                        });
+                    }
+                    beamGroup = [];
+                };
+                
+                Array.from(measure.querySelectorAll('note')).forEach(note => {
+                    const dur = note.querySelector('duration') ? parseFloat(note.querySelector('duration').textContent) : 0;
+                    const type = note.querySelector('type') ? note.querySelector('type').textContent : '';
+                    const isRest = note.querySelector('rest') !== null;
+                    
+                    if (['eighth', '16th', '32nd', '64th'].includes(type) && !isRest) {
+                        if (position % groupBoundary < 0.001) flush();
+                        beamGroup.push(note);
+                    } else {
+                        flush();
+                    }
+                    
+                    position += dur;
+                    if (position % groupBoundary < 0.001) flush();
+                });
+                flush();
+            });
         });
-
-        if (removed) {
-            App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
-            UI.setStatus('Removed last measure.');
-        } else {
-            UI.setStatus('Cannot remove the only measure.');
-        }
-    },
-
-    shiftPitch: (direction) => {
-        if (State.selectedNoteIndex === -1 || State.selectedMeasure === -1) return;
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
-        const targetPart = xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0];
-        const targetMeasure = targetPart.querySelectorAll('measure')[State.selectedMeasure];
-        const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
-        if (!targetNote) return;
-
-        const pitchNode = targetNote.querySelector('pitch');
-        if (!pitchNode) return; 
-
-        const stepNode = pitchNode.querySelector('step');
-        const octaveNode = pitchNode.querySelector('octave');
-        const scale = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-        let currentIndex = scale.indexOf(stepNode.textContent);
-        let octave = parseInt(octaveNode.textContent);
-
-        if (direction === 'up') {
-            currentIndex++; if (currentIndex >= scale.length) { currentIndex = 0; octave++; }
-        } else if (direction === 'down') {
-            currentIndex--; if (currentIndex < 0) { currentIndex = scale.length - 1; octave--; }
-        }
-
-        stepNode.textContent = scale[currentIndex];
-        octaveNode.textContent = octave;
-
-        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
-        UI.setStatus(`Shifted pitch to ${scale[currentIndex]}${octave}`);
-        setTimeout(() => UI.updateInspector(), 150);
     }
 };
 
@@ -785,135 +792,233 @@ const PaletteHandler = {
     dragStart: (e, item) => { e.dataTransfer.setData('text/plain', item); e.dataTransfer.effectAllowed = 'copy'; },
     dragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; },
     drop: (e) => {
-        e.preventDefault();
-        const item = e.dataTransfer.getData('text/plain');
-        if (!item) return;
+        e.preventDefault(); const item = e.dataTransfer.getData('text/plain'); if (!item) return;
         
+        if (item === 'Title') { App.openMetadataEditor(); return; }
+
         const svg = document.querySelector('#osmdCanvas svg');
+        if(!svg) return;
         const rect = svg.getBoundingClientRect();
-        const unitX = (e.clientX - rect.left) / (10 * State.zoom);
-        const unitY = (e.clientY - rect.top) / (10 * State.zoom);
-        const target = NoteEditor.getClosestElement(unitX, unitY);
+        const unitX = (e.clientX - rect.left) / (10 * State.zoom); const unitY = (e.clientY - rect.top) / (10 * State.zoom);
+        const target = NoteEditor.getClosestElement(unitX, unitY); 
         if (!target) return;
 
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
-        let modifiedXML = false;
+        try {
+            const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+            let modifiedXML = false;
+            const targetPart = xmlDoc.querySelectorAll('part')[target.staff] || xmlDoc.querySelectorAll('part')[0];
+            const targetMeasure = targetPart.querySelectorAll('measure')[target.measure];
+            let attributes = targetMeasure.querySelector('attributes');
+            if (!attributes) { attributes = xmlDoc.createElement('attributes'); targetMeasure.insertBefore(attributes, targetMeasure.firstChild); }
+            let firstNote = targetMeasure.querySelector('note');
 
-        const targetPart = xmlDoc.querySelectorAll('part')[target.staff] || xmlDoc.querySelectorAll('part')[0];
-        const targetMeasure = targetPart.querySelectorAll('measure')[target.measure];
-        let attributes = targetMeasure.querySelector('attributes');
-        if (!attributes) { attributes = xmlDoc.createElement('attributes'); targetMeasure.insertBefore(attributes, targetMeasure.firstChild); }
-        let firstNote = targetMeasure.querySelector('note');
-
-        const artMap = { 'staccato': 'staccato', 'accent': 'accent', 'tenuto': 'tenuto', 'fermata': 'fermata' };
-        if (artMap[item]) {
-            let targetNoteTag = target.noteIndex !== -1 ? (targetMeasure.querySelectorAll('note')[target.noteIndex] || firstNote) : firstNote;
-            if (targetNoteTag) {
-                let notations = targetNoteTag.querySelector('notations');
-                if (!notations) { notations = xmlDoc.createElement('notations'); targetNoteTag.appendChild(notations); }
-                if (item === 'fermata') { let f = xmlDoc.createElement('fermata'); f.setAttribute('type', 'upright'); notations.appendChild(f); } 
-                else {
-                    let articulations = notations.querySelector('articulations');
-                    if (!articulations) { articulations = xmlDoc.createElement('articulations'); notations.appendChild(articulations); }
-                    articulations.appendChild(xmlDoc.createElement(artMap[item]));
+            const artMap = { 'staccato': 'staccato', 'accent': 'accent', 'tenuto': 'tenuto', 'fermata': 'fermata' };
+            if (artMap[item]) {
+                let targetNoteTag = target.noteIndex !== -1 ? (targetMeasure.querySelectorAll('note')[target.noteIndex] || firstNote) : firstNote;
+                if (targetNoteTag) {
+                    let notations = targetNoteTag.querySelector('notations');
+                    if (!notations) { notations = xmlDoc.createElement('notations'); targetNoteTag.appendChild(notations); }
+                    if (item === 'fermata') { let f = xmlDoc.createElement('fermata'); f.setAttribute('type', 'upright'); notations.appendChild(f); } 
+                    else {
+                        let articulations = notations.querySelector('articulations');
+                        if (!articulations) { articulations = xmlDoc.createElement('articulations'); notations.appendChild(articulations); }
+                        articulations.appendChild(xmlDoc.createElement(artMap[item]));
+                    }
+                    modifiedXML = true;
                 }
-                modifiedXML = true; UI.setStatus(`Applied ${item}.`);
             }
-        }
-        else if (item.includes('Maj') || item.includes('min')) {
-            const keyMap = { 'C Maj / a min': '0', 'G Maj (1♯)': '1', 'D Maj (2♯)': '2', 'A Maj (3♯)': '3', 'E Maj (4♯)': '4', 'B Maj (5♯)': '5', 'F♯ Maj (6♯)': '6', 'C♯ Maj (7♯)': '7', 'F Maj (1♭)': '-1', 'Bb Maj (2♭)': '-2', 'Eb Maj (3♭)': '-3', 'Ab Maj (4♭)': '-4', 'Db Maj (5♭)': '-5', 'Gb Maj (6♭)': '-6', 'Cb Maj (7♭)': '-7' };
-            if(keyMap[item] !== undefined) {
-                let keyNode = attributes.querySelector('key');
-                if (!keyNode) { keyNode = xmlDoc.createElement('key'); attributes.appendChild(keyNode); }
-                keyNode.innerHTML = `<fifths>${keyMap[item]}</fifths>`;
+            else if (['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'].includes(item)) {
+                let beats = '4', beatType = '4';
+                if (item === 'C') { beats = '4'; beatType = '4'; } else if (item === '𝄴') { beats = '2'; beatType = '2'; } else { [beats, beatType] = item.split('/'); }
+                
+                let oldBeats = 4;
+                let timeNode = attributes.querySelector('time');
+                if (timeNode && timeNode.querySelector('beats')) oldBeats = parseInt(timeNode.querySelector('beats').textContent);
+                if (!timeNode) { timeNode = xmlDoc.createElement('time'); attributes.appendChild(timeNode); }
+                timeNode.innerHTML = `<beats>${beats}</beats><beat-type>${beatType}</beat-type>`;
+                
+                if (parseInt(beats) < oldBeats) {
+                    let divisions = parseInt(attributes.querySelector('divisions')?.textContent || 16);
+                    let newCapacity = (parseInt(beats) * 4 * divisions) / parseInt(beatType);
+                    let currentDur = 0;
+                    let overflowNotes = [];
+                    
+                    Array.from(targetMeasure.querySelectorAll('note')).forEach(n => {
+                        let dur = parseInt(n.querySelector('duration')?.textContent || 0);
+                        if (currentDur + dur > newCapacity) {
+                            if (currentDur < newCapacity) {
+                                let keep = newCapacity - currentDur;
+                                n.querySelector('duration').textContent = keep;
+                                let over = n.cloneNode(true);
+                                over.querySelector('duration').textContent = dur - keep;
+                                overflowNotes.push(over);
+                            } else {
+                                overflowNotes.push(n.cloneNode(true));
+                                n.remove();
+                            }
+                        }
+                        currentDur += dur;
+                    });
+                    
+                    if (overflowNotes.length > 0) {
+                        let nextM = targetMeasure.nextElementSibling;
+                        if (!nextM) {
+                            nextM = xmlDoc.createElement('measure');
+                            nextM.setAttribute('number', parseInt(targetMeasure.getAttribute('number'))+1);
+                            targetPart.appendChild(nextM);
+                        }
+                        for(let i = overflowNotes.length-1; i>=0; i--) nextM.insertBefore(overflowNotes[i], nextM.firstChild);
+                    }
+                }
                 modifiedXML = true;
             }
-        }
-        else if (['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'].includes(item)) {
-            let beats = '4', beatType = '4';
-            if (item === 'C') { beats = '4'; beatType = '4'; } else if (item === '𝄴') { beats = '2'; beatType = '2'; } else { [beats, beatType] = item.split('/'); }
-            let timeNode = attributes.querySelector('time');
-            if (!timeNode) { timeNode = xmlDoc.createElement('time'); attributes.appendChild(timeNode); }
-            timeNode.innerHTML = `<beats>${beats}</beats><beat-type>${beatType}</beat-type>`;
-            modifiedXML = true;
-        }
-        else if (['𝄞', '𝄢', '𝄡'].includes(item)) {
-            let sign = 'G', line = '2';
-            if (item === '𝄢') { sign = 'F'; line = '4'; } if (item === '𝄡') { sign = 'C'; line = '3'; }
-            let clefNode = attributes.querySelector('clef');
-            if (!clefNode) { clefNode = xmlDoc.createElement('clef'); attributes.appendChild(clefNode); }
-            clefNode.innerHTML = `<sign>${sign}</sign><line>${line}</line>`;
-            modifiedXML = true;
-        }
-        else if (['p', 'mp', 'mf', 'f', 'ff', 'sfz'].includes(item)) {
-            const direction = xmlDoc.createElement('direction');
-            direction.setAttribute('placement', 'below');
-            direction.innerHTML = `<direction-type><dynamics><${item}/></dynamics></direction-type>`;
-            if (firstNote) targetMeasure.insertBefore(direction, firstNote); else targetMeasure.appendChild(direction);
-            modifiedXML = true;
-        }
-        else if (item === 'Title') { App.editTitle(); }
-        else if (item === 'Tempo') {
-            const bpm = prompt("Enter tempo (BPM):", "120");
-            if (bpm) {
-                const dir = xmlDoc.createElement('direction');
-                dir.setAttribute('placement', 'above');
-                dir.innerHTML = `<direction-type><words font-weight="bold">♩ = ${bpm}</words></direction-type><sound tempo="${bpm}"/>`;
-                if (firstNote) targetMeasure.insertBefore(dir, firstNote); else targetMeasure.appendChild(dir);
+            else if (item.includes('Maj') || item.includes('min') || item.includes('♯') || item.includes('♭')) {
+                // Perfect Mapping of all Key Signatures requested
+                const keyMap = { 
+                    'C Maj / a min': '0', 'G Maj (1♯)': '1', 'D Maj (2♯)': '2', 'A Maj (3♯)': '3', 'E Maj (4♯)': '4', 'B Maj (5♯)': '5', 'F♯ Maj (6♯)': '6', 'C♯ Maj (7♯)': '7', 
+                    'F Maj (1♭)': '-1', 'Bb Maj (2♭)': '-2', 'Eb Maj (3♭)': '-3', 'Ab Maj (4♭)': '-4', 'Db Maj (5♭)': '-5', 'Gb Maj (6♭)': '-6', 'Cb Maj (7♭)': '-7' 
+                };
+                let mappedVal = keyMap[item];
+                if(mappedVal !== undefined) {
+                    let keyNode = attributes.querySelector('key');
+                    if (!keyNode) { keyNode = xmlDoc.createElement('key'); attributes.appendChild(keyNode); }
+                    keyNode.innerHTML = `<fifths>${mappedVal}</fifths>`;
+                    modifiedXML = true;
+                }
+            }
+            else if (['𝄞', '𝄢', '𝄡'].includes(item)) {
+                let sign = 'G', line = '2';
+                if (item === '𝄢') { sign = 'F'; line = '4'; } if (item === '𝄡') { sign = 'C'; line = '3'; }
+                let clefNode = attributes.querySelector('clef');
+                if (!clefNode) { clefNode = xmlDoc.createElement('clef'); attributes.appendChild(clefNode); }
+                clefNode.innerHTML = `<sign>${sign}</sign><line>${line}</line>`;
                 modifiedXML = true;
             }
+            else if (['p', 'mp', 'mf', 'f', 'ff', 'sfz'].includes(item)) {
+                const direction = xmlDoc.createElement('direction'); direction.setAttribute('placement', 'below');
+                direction.innerHTML = `<direction-type><dynamics><${item}/></dynamics></direction-type>`;
+                if (firstNote) targetMeasure.insertBefore(direction, firstNote); else targetMeasure.appendChild(direction);
+                modifiedXML = true;
+            }
+            else if (item === 'Tempo') {
+                const bpm = prompt("Enter tempo (BPM):", "120");
+                if (bpm && !isNaN(parseInt(bpm))) {
+                    const dir = xmlDoc.createElement('direction');
+                    dir.setAttribute('placement', 'above');
+                    dir.innerHTML = `<direction-type><words font-weight="bold">♩ = ${bpm}</words></direction-type><sound tempo="${bpm}"/>`;
+                    if (firstNote) targetMeasure.insertBefore(dir, firstNote); else targetMeasure.appendChild(dir);
+                    modifiedXML = true;
+                }
+            }
+            if (modifiedXML) {
+                NoteEditor.recalculateBeams(xmlDoc);
+                App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+            }
+        } catch (err) {
+            Logger.error(`Palette drop failed: ${err.message}`);
+            UI.setStatus("Invalid drop target.");
         }
-        if (modifiedXML) App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
     }
 };
 
 const UI = {
     init: () => {
         UI.renderPalettes();
+        
         document.querySelectorAll('.note-duration-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.note-duration-btn').forEach(b => b.classList.remove('active'));
                 e.currentTarget.classList.add('active');
                 const dur = e.currentTarget.getAttribute('data-dur');
                 State.selectedDuration = dur;
-                // If a note/rest is already selected, visually split/change it immediately
-                if (State.selectedNoteIndex !== -1) {
-                    NoteEditor.changeSelectedDuration(dur);
-                }
+                if (State.selectedNoteIndex !== -1) NoteEditor.changeSelectedDuration(dur);
             });
         });
+        
         const container = document.getElementById('canvasContainer');
-        container.addEventListener('dblclick', (e) => { if(e.clientY < 150) App.editTitle(); });
+        container.addEventListener('dblclick', App.handleDoubleClick);
         container.addEventListener('mousedown', NoteEditor.selectElement);
+    },
+    switchSidebarTab: (id) => {
+        document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sidebar-content').forEach(c => c.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        document.getElementById('sb-' + id).classList.add('active');
     },
     renderPalettes: () => {
         const pData = [
-            { title: 'Clefs', items: ['𝄞', '𝄢', '𝄡'] },
-            { title: 'Key Signatures', items: [
+            { title: '<i class="fas fa-caret-down"></i> Clefs', items: ['𝄞', '𝄢', '𝄡'] },
+            { title: '<i class="fas fa-caret-down"></i> Key signatures', items: [
                 'C Maj / a min', 'G Maj (1♯)', 'D Maj (2♯)', 'A Maj (3♯)', 'E Maj (4♯)', 'B Maj (5♯)', 'F♯ Maj (6♯)', 'C♯ Maj (7♯)',
                 'F Maj (1♭)', 'Bb Maj (2♭)', 'Eb Maj (3♭)', 'Ab Maj (4♭)', 'Db Maj (5♭)', 'Gb Maj (6♭)', 'Cb Maj (7♭)'
             ]},
-            { title: 'Time Signatures', items: ['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'] },
-            { title: 'Articulations', items: ['staccato', 'accent', 'tenuto', 'fermata'] },
-            { title: 'Dynamics', items: ['p', 'mp', 'mf', 'f', 'ff', 'sfz'] },
-            { title: 'Text', items: ['Title', 'Tempo', 'Lyrics', 'Chord'] }
+            { title: '<i class="fas fa-caret-down"></i> Time signatures', items: ['4/4', '3/4', '2/4', '6/8', 'C', '𝄴'] },
+            { title: '<i class="fas fa-caret-right"></i> Tempo', items: ['Tempo'] },
+            { title: '<i class="fas fa-caret-right"></i> Pitch', items: [] },
+            { title: '<i class="fas fa-caret-down"></i> Accidentals', items: ['♭', '♮', '♯', '𝄫', '𝄪'] },
+            { title: '<i class="fas fa-caret-down"></i> Dynamics', items: ['p', 'mp', 'mf', 'f', 'ff', 'sfz'] },
+            { title: '<i class="fas fa-caret-down"></i> Articulations', items: ['staccato', 'accent', 'tenuto', 'fermata'] },
+            { title: '<i class="fas fa-caret-right"></i> Text', items: ['Title', 'Lyrics', 'Chord'] }
         ];
         const container = document.getElementById('palette-container');
-        pData.forEach(g => {
+        container.innerHTML = '';
+        pData.forEach((g, idx) => {
             let items = g.items.map(i => {
                 let display = i;
                 if(i==='staccato') display='.'; if(i==='accent') display='>'; if(i==='tenuto') display='_'; if(i==='fermata') display='𝄐';
                 return `<div class="palette-item ${display.length > 2 ? 'text-item' : ''}" draggable="true" title="Drag ${i}" ondragstart="PaletteHandler.dragStart(event, '${i}')">${display}</div>`;
             }).join('');
-            container.innerHTML += `<div class="palette-group"><div class="palette-title" onclick="this.nextElementSibling.classList.toggle('hidden')">${g.title}</div><div class="palette-items">${items}</div></div>`;
+            let displayStyle = (g.title.includes('caret-right')) ? 'display:none;' : ''; 
+            container.innerHTML += `<div class="palette-group"><div class="palette-title" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'grid' : 'none'; const i=this.querySelector('i'); if(i.className.includes('down')){i.className='fas fa-caret-right'}else{i.className='fas fa-caret-down'}">${g.title}</div><div class="palette-items" style="${displayStyle}">${items}</div></div>`;
         });
+    },
+    renderInstrumentList: () => {
+        const body = document.getElementById('sb-instruments');
+        if (!body) return;
+        
+        let html = '';
+        html += `<div style="padding:10px 15px; font-weight:bold; color:white; border-bottom:1px solid #444; background:#333;">Score Instruments</div>`;
+        html += `<div style="padding:10px;">`;
+        
+        try {
+            const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
+            const scoreParts = xmlDoc.querySelectorAll('score-part');
+            scoreParts.forEach((sp) => {
+                const id = sp.getAttribute('id');
+                const name = sp.querySelector('part-name')?.textContent || 'Instrument';
+                const disableRemove = scoreParts.length <= 1 ? 'disabled' : '';
+                const opacity = scoreParts.length <= 1 ? '0.3' : '1';
+                html += `<div class="inst-item" style="border-left:3px solid var(--accent); background:#222;">
+                    <span>${name}</span>
+                    <button class="btn" style="padding: 4px 8px; font-size:12px; opacity:${opacity};" onclick="App.removeInstrument('${id}')" ${disableRemove} title="Remove"><i class="fas fa-trash" style="color:#ff5555;"></i></button>
+                </div>`;
+            });
+        } catch(e) {}
+        
+        html += `</div>`;
+        html += `<div style="padding:10px 15px; font-weight:bold; color:white; border-bottom:1px solid #444; border-top:1px solid #444; background:#333;">Add Instruments</div>`;
+        html += `<div style="padding:10px;">`;
+        for (const [category, insts] of Object.entries(INSTRUMENT_LIB)) {
+            let listHtml = insts.map(inst => `<div class="inst-item"><span>${inst.name}</span><button class="btn" style="padding: 2px 8px; font-size:11px; border:1px solid #444;" onclick="App.addInstrument('${inst.name}')">Add</button></div>`).join('');
+            html += `<div class="inst-category">${category}</div>${listHtml}`;
+        }
+        html += `</div>`;
+        
+        body.innerHTML = html;
     },
     renderTabs: () => {
         const tabs = document.getElementById('score-tabs');
         if(!State.osmd || !State.osmd.sheet) return;
-        let html = `<div class="tab ${State.currentPartIndex === 'full' ? 'active' : ''}" onclick="App.setView('full')">Full Score</div>`;
-        State.osmd.sheet.Instruments.forEach((inst, i) => html += `<div class="tab ${State.currentPartIndex === i ? 'active' : ''}" onclick="App.setView(${i})">${inst.NameLabel.text}</div>`);
+        
+        const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
+        let title = xmlDoc.querySelector('work-title')?.textContent || "Untitled score";
+        
+        let html = `<div class="score-tab ${State.currentPartIndex === 'full' ? 'active' : ''}" onclick="App.setView('full')" style="min-width: 120px;"><i class="fas fa-book-open" style="color:#888;"></i> Full Score</div>`;
+        
+        State.osmd.sheet.Instruments.forEach((inst, i) => {
+            html += `<div class="score-tab ${State.currentPartIndex === i ? 'active' : ''}" onclick="App.setView(${i})"><i class="fas fa-file-alt" style="color:#888;"></i> ${inst.NameLabel.text}</div>`;
+        });
+        
         tabs.innerHTML = html;
     },
     updateInspector: () => {
@@ -935,18 +1040,24 @@ const UI = {
             if(type) durStr = type.textContent;
             
             pane.innerHTML = `
-                <div class="inspector-row"><span class="inspector-label">Element Type</span><span class="inspector-val">Note</span></div>
-                <div class="inspector-row"><span class="inspector-label">Pitch</span><span class="inspector-val">${pitchStr}</span></div>
-                <div class="inspector-row"><span class="inspector-label">Duration Type</span><span class="inspector-val" style="text-transform:capitalize;">${durStr}</span></div>
-                <div class="inspector-row"><span class="inspector-label">Voice</span><span class="inspector-val">1</span></div>
-                <p style="color:#888; font-size:11px; margin-top:15px; text-align:center;">Tip: Use Up/Down arrows to shift pitch.</p>
+                <div class="prop-section">
+                    <div class="prop-section-title">Note</div>
+                    <div class="prop-row"><span class="prop-label">Pitch</span><span class="prop-val">${pitchStr}</span></div>
+                    <div class="prop-row"><span class="prop-label">Duration</span><span class="prop-val" style="text-transform:capitalize;">${durStr}</span></div>
+                    <div class="prop-row"><span class="prop-label">Voice</span><span class="prop-val">1</span></div>
+                    <div class="prop-row"><span class="prop-label">Dotted</span><span class="prop-val">${targetNote.querySelector('dot') ? 'Yes' : 'No'}</span></div>
+                </div>
+                <div class="prop-section">
+                    <div class="prop-section-title">Playback</div>
+                    <div class="prop-row"><span class="prop-label">Play</span><span class="prop-val"><input type="checkbox" checked></span></div>
+                    <div class="prop-row"><span class="prop-label">Velocity offset</span><span class="prop-val">0</span></div>
+                </div>
             `;
         }
     },
     clearInspector: () => {
-        document.getElementById('inspector-content').innerHTML = `<p style="color:#888; font-size:12px; text-align:center; margin-top:20px;">Select a specific note to view properties.</p>`;
+        document.getElementById('inspector-content').innerHTML = `<p style="color:#777; font-size:12px; text-align:center; margin-top:30px;">Select an element in the score to view and edit its properties.</p>`;
     },
-    togglePanel: (id) => document.getElementById(`panel-${id}`).classList.toggle('hidden'),
     toggleModal: (id) => document.getElementById(id).style.display = document.getElementById(id).style.display === 'flex' ? 'none' : 'flex',
     setStatus: (text) => document.getElementById('statusText').innerText = text
 };
@@ -954,16 +1065,19 @@ const UI = {
 const KeybindManager = {
     init: () => window.addEventListener('keydown', (e) => {
         if(e.target.tagName === 'INPUT') return;
-        
         if(e.key.toLowerCase() === 'n') { App.toggleNoteEntry(); e.preventDefault(); return; }
         if(e.key === ' ' || e.code === 'Space') { AudioEngine.togglePlay(); e.preventDefault(); return; }
         if(e.key === 'Delete' || e.key === 'Backspace') { NoteEditor.deleteSelected(); e.preventDefault(); return; }
+        if(e.key.toLowerCase() === 'm') { App.toggleMultiRests(); e.preventDefault(); return; }
         if(e.ctrlKey && e.key.toLowerCase() === 'z') { History.undo(); e.preventDefault(); return; }
         if(e.ctrlKey && e.key.toLowerCase() === 'y') { History.redo(); e.preventDefault(); return; }
         if(e.key === 'ArrowUp') { NoteEditor.shiftPitch('up'); e.preventDefault(); return; }
         if(e.key === 'ArrowDown') { NoteEditor.shiftPitch('down'); e.preventDefault(); return; }
         
         if (State.noteEntryMode) {
+            if (e.key === '0') { App.toggleRestMode(); e.preventDefault(); return; }
+            if (e.key === '.') { App.toggleDot(); e.preventDefault(); return; }
+            
             const letter = e.key.toUpperCase();
             if (['A','B','C','D','E','F','G'].includes(letter)) {
                 NoteEditor.insertNoteAtSelection(letter);
@@ -1006,14 +1120,13 @@ const AudioEngine = {
         if(!State.osmd) return;
         State.isPlaying = true;
         document.getElementById('playIcon').className = 'fas fa-pause';
-        UI.setStatus('Playing...');
         
         const font = await AudioEngine.loadSoundFont('acoustic_grand_piano');
         State.osmd.cursor.show();
-        
         let currentTempo = 120;
         const tempoMatch = State.currentScoreXML.match(/<sound[^>]*tempo="(\d+)"/);
         if (tempoMatch) currentTempo = parseInt(tempoMatch[1]);
+        document.getElementById('ui-tempo').innerText = currentTempo;
         
         AudioEngine.isRunningLoop = true;
         while(State.isPlaying && !State.osmd.cursor.iterator.EndReached && AudioEngine.isRunningLoop) {
@@ -1030,6 +1143,11 @@ const AudioEngine = {
             });
             if (longestRealValue === 0) longestRealValue = 0.25; 
             let waitMs = (longestRealValue * 4 * 60 * 1000) / currentTempo;
+            
+            // Format timer for UI
+            let seconds = Math.floor(AudioEngine.ctx.currentTime);
+            document.getElementById('ui-timer').innerText = `0:00:${seconds < 10 ? '0'+seconds : seconds}:0`;
+            
             State.osmd.cursor.next();
             await new Promise(r => setTimeout(r, waitMs));
         }
@@ -1038,7 +1156,6 @@ const AudioEngine = {
     stop: () => {
         State.isPlaying = false; AudioEngine.isRunningLoop = false;
         document.getElementById('playIcon').className = 'fas fa-play';
-        UI.setStatus('Ready');
         if (State.osmd) { State.osmd.cursor.hide(); State.osmd.cursor.reset(); }
     }
 };
@@ -1055,7 +1172,7 @@ const FileIO = {
                     let title = "Imported MSCZ";
                     let match = text.match(/<metaTag name="workTitle">([^<]+)<\/metaTag>/);
                     if(match) title = match[1];
-                    alert(`MSCZ extracted.\n\nWARNING: MuseScore uses proprietary internal formats (.mscx). Standard browsers require standard MusicXML.\n\nApplying fallback: Creating standard XML with extracted title: "${title}".`);
+                    alert(`MSCZ extracted. Applying fallback conversion.`);
                     let newXml = DEMO_XML.replace(/<work-title>.*<\/work-title>/, `<work-title>${title}</work-title>`);
                     App.loadScoreXML(newXml);
                 }
@@ -1066,7 +1183,12 @@ const FileIO = {
 
 const App = {
     init: () => {
-        State.osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmdCanvas", { autoResize: true, backend: "svg", drawTitle: true });
+        State.osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmdCanvas", { 
+            autoResize: true, 
+            backend: "svg", 
+            drawTitle: true,
+            autoGenerateMultipleRestMeasuresFromRestMeasures: false
+        });
         UI.init(); KeybindManager.init();
         document.getElementById('canvasContainer').addEventListener('dragover', PaletteHandler.dragOver);
         document.getElementById('canvasContainer').addEventListener('drop', PaletteHandler.drop);
@@ -1078,29 +1200,162 @@ const App = {
         State.osmd.load(xml).then(() => { 
             State.osmd.render(); 
             UI.renderTabs(); 
+            UI.renderInstrumentList();
             document.getElementById('selectionBox').style.display = 'none';
             document.getElementById('noteSelectionBox').style.display = 'none';
         });
     },
-    editTitle: () => {
-        const newTitle = prompt("Enter new Score Title:");
-        if (newTitle) {
-            const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
-            let titleNode = xmlDoc.querySelector('work-title');
-            if (titleNode) { titleNode.textContent = newTitle; } 
-            else {
-                let work = xmlDoc.createElement('work');
-                work.innerHTML = `<work-title>${newTitle}</work-title>`;
-                xmlDoc.documentElement.insertBefore(work, xmlDoc.querySelector('part-list'));
+    setView: (index) => {
+        State.currentPartIndex = index;
+        if (State.osmd && State.osmd.sheet) {
+            if (index === 'full') {
+                State.osmd.sheet.Instruments.forEach(inst => inst.Visible = true);
+            } else {
+                State.osmd.sheet.Instruments.forEach((inst, i) => inst.Visible = (i === index));
             }
-            App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+            State.osmd.render();
+            UI.renderTabs();
+            document.getElementById('selectionBox').style.display = 'none';
+            document.getElementById('noteSelectionBox').style.display = 'none';
+            State.selectedMeasure = -1; State.selectedStaff = -1; State.selectedNoteIndex = -1;
         }
+    },
+    addInstrument: (name) => {
+        const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        
+        const partList = xmlDoc.querySelector('part-list');
+        const existingParts = xmlDoc.querySelectorAll('score-part');
+        let maxId = 0;
+        existingParts.forEach(p => {
+            const num = parseInt(p.getAttribute('id').replace('P', ''));
+            if (!isNaN(num) && num > maxId) maxId = num;
+        });
+        const newId = 'P' + (maxId + 1);
+        
+        const newScorePart = xmlDoc.createElement('score-part');
+        newScorePart.setAttribute('id', newId);
+        newScorePart.innerHTML = `<part-name>${name}</part-name>`;
+        partList.appendChild(newScorePart);
+        
+        const firstPart = xmlDoc.querySelector('part');
+        const newPart = xmlDoc.createElement('part');
+        newPart.setAttribute('id', newId);
+        
+        firstPart.querySelectorAll('measure').forEach(m => {
+            const newM = xmlDoc.createElement('measure');
+            newM.setAttribute('number', m.getAttribute('number'));
+            
+            const attr = m.querySelector('attributes');
+            if (attr) newM.appendChild(attr.cloneNode(true));
+            
+            let divisions = 16, beats = 4, beatType = 4;
+            if (m.querySelector('divisions')) divisions = parseInt(m.querySelector('divisions').textContent);
+            if (m.querySelector('time beats')) beats = parseInt(m.querySelector('time beats').textContent);
+            if (m.querySelector('time beat-type')) beatType = parseInt(m.querySelector('time beat-type').textContent);
+            
+            newM.innerHTML += `<note><rest/><duration>${(beats * 4 * divisions) / beatType}</duration><type>whole</type></note>`;
+            newPart.appendChild(newM);
+        });
+        
+        xmlDoc.documentElement.appendChild(newPart);
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+        UI.setStatus(`Added ${name} to score.`);
+    },
+    removeInstrument: (id) => {
+        const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+        const scorePart = xmlDoc.querySelector(`score-part[id="${id}"]`);
+        const part = xmlDoc.querySelector(`part[id="${id}"]`);
+        
+        if (scorePart) scorePart.remove();
+        if (part) part.remove();
+
+        State.currentPartIndex = 'full'; // Safe reset to full score to avoid crashing OSMD
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+        UI.setStatus('Instrument removed.');
+    },
+    handleDoubleClick: (e) => {
+        if (e.target && e.target.tagName === 'text') {
+            const textContent = e.target.textContent || '';
+            const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
+
+            if (textContent.includes('♩') || textContent.includes('=')) {
+                const bpm = prompt("Enter new tempo (BPM):", textContent.replace(/[^0-9]/g, ''));
+                if (bpm && !isNaN(parseInt(bpm))) {
+                    const soundNodes = xmlDoc.querySelectorAll('sound[tempo]');
+                    soundNodes.forEach(n => n.setAttribute('tempo', bpm));
+                    const wordsNodes = xmlDoc.querySelectorAll('direction-type words');
+                    wordsNodes.forEach(n => {
+                        if (n.textContent.includes('♩') || n.textContent.includes('=')) n.textContent = `♩ = ${bpm}`;
+                    });
+                    App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+                }
+                return;
+            }
+        }
+        if (e.clientY < 250) App.openMetadataEditor();
+    },
+    openMetadataEditor: () => {
+        const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
+        const titleNode = xmlDoc.querySelector('work-title');
+        const creatorNode = Array.from(xmlDoc.querySelectorAll('creator')).find(c => c.getAttribute('type') === 'composer');
+        
+        document.getElementById('metaTitle').value = titleNode ? titleNode.textContent : "";
+        document.getElementById('metaComposer').value = creatorNode ? creatorNode.textContent : "";
+        UI.toggleModal('metadataModal');
+    },
+    saveMetadata: () => {
+        const xmlDoc = new DOMParser().parseFromString(State.currentScoreXML, "text/xml");
+        let titleNode = xmlDoc.querySelector('work-title');
+        if (!titleNode) {
+            let work = xmlDoc.querySelector('work');
+            if (!work) { work = xmlDoc.createElement('work'); xmlDoc.documentElement.insertBefore(work, xmlDoc.querySelector('part-list')); }
+            titleNode = xmlDoc.createElement('work-title'); work.appendChild(titleNode);
+        }
+        titleNode.textContent = document.getElementById('metaTitle').value;
+        
+        let creatorNode = Array.from(xmlDoc.querySelectorAll('creator')).find(c => c.getAttribute('type') === 'composer');
+        if (!creatorNode) {
+            let ident = xmlDoc.querySelector('identification');
+            if (!ident) { ident = xmlDoc.createElement('identification'); xmlDoc.documentElement.insertBefore(ident, xmlDoc.querySelector('part-list')); }
+            creatorNode = xmlDoc.createElement('creator'); creatorNode.setAttribute('type', 'composer'); ident.appendChild(creatorNode);
+        }
+        creatorNode.textContent = document.getElementById('metaComposer').value;
+        
+        UI.toggleModal('metadataModal');
+        App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
     },
     toggleNoteEntry: () => {
         State.noteEntryMode = !State.noteEntryMode;
         document.getElementById('btnNoteEntry').classList.toggle('active');
         document.querySelector('.canvas-area').classList.toggle('entry-mode');
-        UI.setStatus(State.noteEntryMode ? 'Note Entry: Select a measure and press A-G to add notes.' : 'Ready');
+    },
+    toggleMultiRests: () => {
+        State.multiRests = !State.multiRests;
+        document.getElementById('btnMultiRest').classList.toggle('active');
+        State.osmd.setOptions({ autoGenerateMultipleRestMeasuresFromRestMeasures: State.multiRests });
+        App.loadScoreXML(State.currentScoreXML, true); // Force rebuild
+        UI.setStatus(State.multiRests ? 'Multi-measure rests Enabled.' : 'Multi-measure rests Disabled.');
+    },
+    toggleRestMode: () => {
+        State.isRestMode = !State.isRestMode;
+        document.getElementById('btnRestMode').classList.toggle('active');
+        
+        if (State.isRestMode && State.selectedNoteIndex !== -1) {
+            const parser = new DOMParser(); const xmlDoc = parser.parseFromString(State.currentScoreXML, "text/xml");
+            const targetMeasure = (xmlDoc.querySelectorAll('part')[State.selectedStaff] || xmlDoc.querySelectorAll('part')[0]).querySelectorAll('measure')[State.selectedMeasure];
+            const targetNote = targetMeasure.querySelectorAll('note')[State.selectedNoteIndex];
+            if (targetNote && targetNote.querySelector('pitch')) {
+                targetNote.querySelector('pitch').remove();
+                targetNote.insertBefore(xmlDoc.createElement('rest'), targetNote.firstChild);
+                App.loadScoreXML(new XMLSerializer().serializeToString(xmlDoc));
+            }
+            State.isRestMode = false;
+            document.getElementById('btnRestMode').classList.remove('active');
+        }
+    },
+    toggleDot: () => {
+        State.isDotted = !State.isDotted;
+        document.getElementById('btnDot').classList.toggle('active');
     },
     zoom: (d) => { 
         State.zoom = Math.max(0.2, Math.min(3.0, State.zoom + d)); 
@@ -1108,6 +1363,32 @@ const App = {
         State.osmd.render(); 
         document.getElementById('selectionBox').style.display = 'none'; 
         document.getElementById('noteSelectionBox').style.display = 'none';
+        document.getElementById('zoomLevel').innerText = Math.round(State.zoom * 100) + '%';
+    },
+    saveProject: () => {
+        const blob = new Blob([State.currentScoreXML], {type: "text/xml"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "Untitled_Score.musicxml"; a.click();
+        URL.revokeObjectURL(url);
+    },
+    exportPNG: async () => {
+        UI.setStatus('Generating PNG...');
+        document.getElementById('uiOverlay').style.display = 'none';
+        try {
+            const canvas = await html2canvas(document.getElementById('osmdCanvas'), { scale: 2 });
+            const a = document.createElement("a");
+            a.href = canvas.toDataURL("image/png"); a.download = "WebScore_Export.png"; a.click();
+            UI.setStatus('PNG Export Complete.');
+        } catch(e) { UI.setStatus('Export Failed.'); }
+        document.getElementById('uiOverlay').style.display = 'flex';
+    },
+    exportPDF: () => {
+        const uiElements = document.querySelectorAll('.ms4-header, .ms4-toolbar, .sidebar, .bottom-panel, .score-tabs-bar, #uiOverlay');
+        uiElements.forEach(el => el.classList.add('hidden'));
+        window.print();
+        uiElements.forEach(el => el.classList.remove('hidden'));
+        UI.setStatus('PDF Export complete.');
     }
 };
 
