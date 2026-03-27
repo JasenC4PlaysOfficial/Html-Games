@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Five Nights at BIG O's</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=VT323&display=swap');
+
+        body {
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            user-select: none;
+            font-family: 'VT323', monospace;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background-color: #0a0a0a;
+            overflow: hidden;
+            perspective: 1000px;
+        }
+
+        /* Screen Shake Animation */
+        @keyframes stompShake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            10% { transform: translate(-15px, -15px) rotate(-1deg); }
+            20% { transform: translate(15px, 10px) rotate(1deg); }
+            30% { transform: translate(-10px, 15px) rotate(0deg); }
+            40% { transform: translate(10px, -15px) rotate(1deg); }
+            50% { transform: translate(-15px, 10px) rotate(-1deg); }
+            60% { transform: translate(15px, 15px) rotate(0deg); }
+            70% { transform: translate(-10px, -10px) rotate(1deg); }
+            80% { transform: translate(10px, 15px) rotate(-1deg); }
+            90% { transform: translate(-15px, -10px) rotate(0deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        .shake-active {
+            animation: stompShake 0.6s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        /* Door Animations */
+        .door-side {
+            transition: transform 0.3s ease-in-out;
+            background: linear-gradient(90deg, #2a2a2a, #1a1a1a);
+            border: 2px solid #000;
+        }
+        
+        .door-front {
+            transition: transform 0.5s ease-in-out;
+            background: repeating-linear-gradient(
+                0deg,
+                #222,
+                #222 10px,
+                #111 10px,
+                #111 20px
+            );
+            border-bottom: 4px solid #444;
+        }
+
+        #left-door { transform: translateX(-100%); }
+        #left-door.closed { transform: translateX(0); }
+
+        #right-door { transform: translateX(100%); }
+        #right-door.closed { transform: translateX(0); }
+
+        #front-door { transform: translateY(-100%); }
+        #front-door.closed { transform: translateY(0); }
+
+        /* Monitor / Camera Animations */
+        #monitor-overlay {
+            transition: bottom 0.4s ease-in-out;
+            background-image: repeating-linear-gradient(
+                0deg,
+                rgba(255,255,255,0.03),
+                rgba(255,255,255,0.03) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+        }
+        #monitor-overlay.hidden-monitor { bottom: -100vh; }
+        #monitor-overlay.active-monitor { bottom: 0; }
+
+        @keyframes staticFlicker {
+            0% { opacity: 0.1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 0.1; }
+        }
+        .static-effect {
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)"/></svg>');
+            animation: staticFlicker 0.1s infinite;
+            opacity: 0.15;
+            mix-blend-mode: overlay;
+            pointer-events: none;
+        }
+
+        /* UI Elements */
+        .button-press:active { transform: scale(0.95); }
+        .door-btn { box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 2px solid #333; }
+        .door-btn.active { background-color: #ef4444; border-color: #991b1b; box-shadow: inset 0 4px 6px rgba(0,0,0,0.5); }
+        .light-btn { box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 2px solid #333; background-color: #cbd5e1; color: #000; }
+        .light-btn.active { background-color: #facc15; box-shadow: 0 0 15px rgba(253, 224, 71, 0.6); }
+
+        /* Room Visuals */
+        .room-dark { filter: brightness(0.05); transition: filter 0.1s; }
+        .room-lit { filter: brightness(1.2); transition: filter 0.1s; }
+        .bg-hallway { background: linear-gradient(to bottom, #111 20%, transparent 20%, transparent 80%, #222 80%), repeating-linear-gradient(90deg, #322 0px, #322 30px, #111 30px, #111 34px); background-color: #000; }
+        .bg-cafeteria { background: linear-gradient(to bottom, #222 25%, transparent 25%, transparent 75%, #111 75%), conic-gradient(from 0deg, #ccc 90deg, transparent 90deg, transparent 180deg, #ccc 180deg, transparent 180deg, transparent 270deg, #ccc 270deg); background-size: 100% 100%, 80px 80px; background-color: #333; }
+        .bg-dining { background: linear-gradient(to bottom, #111 30%, transparent 30%, transparent 70%, #211 70%), repeating-linear-gradient(to right, #321 0px, #321 20px, #100 20px, #100 22px); background-color: #1a1a1a; }
+        
+        .cam-btn { border: 2px solid #555; background: #111; color: #fff; cursor: pointer; transition: background 0.2s; font-weight: bold; }
+        .cam-btn:hover { background: #333; }
+        .cam-btn.active-cam { background: #4ade80; border-color: #fff; color: #000; text-shadow: none; box-shadow: 0 0 10px rgba(74, 222, 128, 0.5); }
+
+        /* New CSS for Apple and Maintenance */
+        #apple-mask { transition: bottom 0.3s ease-in-out; }
+        .hidden-apple { bottom: -100vh; }
+        .active-apple { bottom: 0; }
+        
+        #maintenance-overlay { transition: left 0.4s ease-in-out; }
+        .hidden-maint { left: -100vw; }
+        .active-maint { left: 0; }
+
+        .fix-btn { background: #333; border: 2px solid #555; padding: 10px; margin-bottom: 10px; width: 100%; text-align: left; transition: background 0.2s; cursor: pointer; }
+        .fix-btn:hover { background: #444; }
+        .fix-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .progress-bar { height: 4px; background: #fff; width: 0%; transition: width 0.1s linear; margin-top: 4px; }
+        
+        .sys-error { color: red; animation: staticFlicker 0.5s infinite; }
+
+        /* Typography */
+        .title-font { font-family: 'Creepster', cursive; }
+        
+        /* Jumpscare */
+        @keyframes jumpscareZoom {
+            0% { transform: scale(1) translateY(50px); opacity: 0; }
+            10% { opacity: 1; }
+            100% { transform: scale(3) translateY(-20px); opacity: 1; }
+        }
+        .jumpscare-anim {
+            animation: jumpscareZoom 0.8s forwards;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    
+    <!-- TITLE SCREEN -->
+    <div id="title-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black">
+        <div class="static-effect absolute inset-0 z-0"></div>
+        <h1 class="title-font text-6xl md:text-8xl text-red-600 mb-2 z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.8)] text-center">Five Nights at BIG O's</h1>
+        <p class="text-xl mb-12 z-10 text-gray-400">The Band Director is Hungry.</p>
+        <button id="start-btn" class="button-press z-10 px-8 py-4 text-3xl font-bold bg-zinc-800 border-2 border-zinc-600 rounded hover:bg-zinc-700 hover:text-red-500 transition-colors">NEW GAME</button>
+        <p class="mt-8 text-sm text-gray-500 z-10 text-center max-w-md">
+            Survive until 6 AM. Use the cameras to track him. <br>
+            Close the left, right, and front garage doors if he approaches. <br>
+            Don't run out of power.
+        </p>
+    </div>
+
+    <!-- MAIN GAMEPLAY (OFFICE) -->
+    <div id="office" class="absolute inset-0 hidden bg-zinc-900">
+        <!-- Room background / depth -->
+        <div class="absolute inset-0 flex justify-between items-center px-[15%] pt-10" style="background: radial-gradient(circle at center, #2a2a2a 0%, #050505 100%);">
+            
+            <!-- Left Doorway -->
+            <div class="relative w-48 h-full bg-black border-r-8 border-zinc-800 overflow-hidden">
+                <div id="room-left" class="absolute inset-0 bg-hallway room-dark flex items-end justify-center pb-10">
+                    <!-- Big O at Left Door -->
+                    <div id="enemy-left" class="absolute bottom-0 left-0 w-full h-3/4 hidden flex items-end justify-center">
+                        <svg class="w-48 h-64 drop-shadow-2xl" viewBox="0 0 100 100"><use href="#big-o-sprite"></use></svg>
+                    </div>
+                </div>
+                <!-- The Door -->
+                <div id="left-door" class="door-side absolute inset-0 z-10"></div>
+            </div>
+
+            <!-- Front Window / Garage -->
+            <div class="relative w-96 h-3/4 mb-32 bg-black border-4 border-zinc-700 flex justify-center items-end overflow-hidden">
+                <div id="room-front" class="absolute inset-0 bg-cafeteria room-dark flex items-end justify-center pb-2">
+                    <!-- Big O at Front Door -->
+                    <div id="enemy-front" class="absolute bottom-0 w-full h-full hidden flex items-end justify-center">
+                        <svg class="w-64 h-80 drop-shadow-2xl" viewBox="0 0 100 100"><use href="#big-o-sprite"></use></svg>
+                    </div>
+                </div>
+                <!-- The Garage Door -->
+                <div id="front-door" class="door-front absolute inset-0 z-10 w-full"></div>
+            </div>
+
+            <!-- Right Doorway -->
+            <div class="relative w-48 h-full bg-black border-l-8 border-zinc-800 overflow-hidden">
+                <div id="room-right" class="absolute inset-0 bg-hallway room-dark flex items-end justify-center pb-10">
+                    <!-- Big O at Right Door -->
+                    <div id="enemy-right" class="absolute bottom-0 right-0 w-full h-3/4 hidden flex items-end justify-center">
+                        <svg class="w-48 h-64 drop-shadow-2xl" viewBox="0 0 100 100"><use href="#big-o-sprite"></use></svg>
+                    </div>
+                </div>
+                <!-- The Door -->
+                <div id="right-door" class="door-side absolute inset-0 z-10"></div>
+            </div>
+        </div>
+
+        <!-- Concession Stand Desk -->
+        <div class="absolute bottom-0 w-full h-40 bg-zinc-800 border-t-8 border-zinc-700 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] z-20 flex justify-center items-start pt-4">
+            <!-- Desk Props -->
+            <div class="w-24 h-16 bg-zinc-900 rounded mx-4 flex items-center justify-center border-2 border-zinc-600 shadow-inner">
+                <span class="text-red-500 font-mono text-xl animate-pulse">00:00</span>
+            </div>
+            
+            <div class="flex gap-4 mx-4">
+                <!-- Front Door Garage Button -->
+                <button id="btn-front" class="door-btn button-press w-32 h-16 bg-green-700 rounded-lg text-xl font-bold flex flex-col items-center justify-center">
+                    <span>CONCESSION</span>
+                </button>
+                <!-- Front Light Button -->
+                <button id="btn-light-front" class="light-btn button-press w-32 h-16 rounded-lg text-xl font-bold flex flex-col items-center justify-center">
+                    <span>LIGHT</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Left Wall Buttons -->
+        <div class="absolute left-8 top-1/2 transform -translate-y-1/2 z-20 flex flex-col gap-4">
+            <button id="btn-left" class="door-btn button-press w-16 h-24 bg-green-700 rounded-lg text-xl font-bold flex items-center justify-center">
+                <span class="transform -rotate-90 block">DOOR</span>
+            </button>
+            <button id="btn-light-left" class="light-btn button-press w-16 h-24 rounded-lg text-xl font-bold flex items-center justify-center">
+                <span class="transform -rotate-90 block">LIGHT</span>
+            </button>
+        </div>
+
+        <!-- Right Wall Buttons -->
+        <div class="absolute right-8 top-1/2 transform -translate-y-1/2 z-20 flex flex-col gap-4">
+            <button id="btn-right" class="door-btn button-press w-16 h-24 bg-green-700 rounded-lg text-xl font-bold flex items-center justify-center">
+                <span class="transform rotate-90 block">DOOR</span>
+            </button>
+            <button id="btn-light-right" class="light-btn button-press w-16 h-24 rounded-lg text-xl font-bold flex items-center justify-center">
+                <span class="transform rotate-90 block">LIGHT</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- UI LAYER -->
+    <div id="ui-layer" class="absolute inset-0 pointer-events-none hidden z-40">
+        <!-- Time & Night -->
+        <div class="absolute top-4 right-8 text-right">
+            <div class="text-5xl font-bold mb-1" id="time-display">12 AM</div>
+            <div class="text-2xl text-gray-300" id="night-display">Night 1</div>
+        </div>
+        
+        <!-- Power -->
+        <div class="absolute bottom-4 left-8">
+            <div class="text-2xl mb-1">Power left: <span id="power-display">100</span>%</div>
+            <div class="flex gap-1" id="usage-display">
+                <div class="w-4 h-6 bg-green-500"></div>
+            </div>
+            <div class="text-sm text-gray-400 mt-1">Usage</div>
+        </div>
+
+        <!-- Mask & Maintenance Toggles -->
+        <div class="absolute bottom-4 left-1/4 transform -translate-x-1/2 pointer-events-auto">
+            <div id="maint-toggle" class="w-48 h-8 bg-zinc-700 opacity-50 hover:opacity-100 cursor-pointer border-2 border-white flex justify-center items-center transition-opacity rounded-t-lg">
+                <span class="text-white font-bold tracking-widest text-sm">MAINTENANCE</span>
+            </div>
+        </div>
+        
+        <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 pointer-events-auto flex gap-4">
+            <div id="apple-toggle" class="w-48 h-8 bg-red-800 opacity-80 hover:opacity-100 cursor-pointer border-2 border-red-400 flex justify-center items-center transition-opacity rounded-t-lg">
+                <span class="text-white font-bold tracking-widest text-sm">APPLE MASK</span>
+            </div>
+            <div id="monitor-toggle" class="w-48 h-8 bg-zinc-700 opacity-50 hover:opacity-100 cursor-pointer border-2 border-white flex justify-center items-center transition-opacity rounded-t-lg">
+                <div class="w-16 h-2 bg-white rounded"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAMERA SYSTEM -->
+    <div id="monitor-overlay" class="absolute w-full h-full bg-black z-30 hidden-monitor flex font-mono text-white">
+        <!-- Static Effect always on top of camera -->
+        <div class="static-effect absolute inset-0 z-20 pointer-events-none opacity-20"></div>
+        
+        <!-- Camera View Area (Full Screen) -->
+        <div class="absolute inset-0 bg-zinc-900 overflow-hidden z-0">
+            <!-- Room Backgrounds -->
+            <div id="cam-bg-hallway" class="cam-bg absolute inset-0 bg-hallway opacity-60"></div>
+            <div id="cam-bg-cafeteria" class="cam-bg absolute inset-0 bg-cafeteria opacity-60 hidden"></div>
+            <div id="cam-bg-dining" class="cam-bg absolute inset-0 bg-dining opacity-60 hidden"></div>
+
+            <!-- Big O Camera Silhouette -->
+            <div id="cam-enemy" class="absolute bottom-10 left-1/2 transform -translate-x-1/2 hidden opacity-90 filter grayscale drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+                <svg class="w-96 h-[30rem]"><use href="#big-o-sprite"></use></svg>
+            </div>
+            
+            <!-- Camera Name & Overlay Info -->
+            <div class="absolute top-8 left-8 z-20 p-2">
+                <div class="flex items-center gap-3 border-2 border-white p-2 mb-2 w-max bg-black bg-opacity-70">
+                    <div class="w-4 h-4 rounded-full bg-red-600 animate-pulse"></div>
+                    <span class="text-2xl tracking-widest">REC</span>
+                </div>
+                <div class="text-3xl font-bold tracking-widest drop-shadow-lg" id="cam-name">CAM 01 - BAND ROOM</div>
+            </div>
+        </div>
+
+        <!-- Map & Controls (Floating Bottom Right) -->
+        <div class="absolute bottom-12 right-12 w-[350px] h-auto z-30 flex flex-col">
+            <div class="text-right text-xl font-bold mb-2 tracking-widest border-b border-zinc-500 pb-1">CAFETERIA MAP</div>
+            
+            <!-- Minimap Container -->
+            <div class="relative flex-grow border-2 border-zinc-600 bg-black bg-opacity-80 mt-2 p-2 shadow-lg shadow-black h-[250px]">
+                <!-- Rooms layout -->
+                <div class="absolute top-2 left-2 right-2 h-1/3 border-2 border-zinc-700"></div>
+                <div class="absolute top-[35%] left-1/4 right-1/4 h-1/4 border-2 border-zinc-700"></div>
+                <div class="absolute bottom-12 left-2 right-2 h-1/4 border-2 border-zinc-700 flex justify-center">
+                    <div class="w-1/3 h-full border-l-2 border-r-2 border-zinc-700"></div>
+                </div>
+                <div class="absolute bottom-2 left-1/3 right-1/3 h-8 bg-zinc-800 border-2 border-green-500 flex justify-center items-center text-sm font-bold text-green-500 tracking-widest">YOU</div>
+
+                <!-- Camera Buttons -->
+                <button class="cam-btn active-cam absolute top-4 left-4 px-4 py-2" data-cam="1">CAM 01</button>
+                <button class="cam-btn absolute top-4 right-4 px-4 py-2" data-cam="2">CAM 02</button>
+                <button class="cam-btn absolute top-[40%] left-1/2 transform -translate-x-1/2 px-4 py-2" data-cam="3">CAM 03</button>
+                <button class="cam-btn absolute bottom-16 left-4 px-4 py-2" data-cam="4">CAM 04</button>
+                <button class="cam-btn absolute bottom-16 right-4 px-4 py-2" data-cam="5">CAM 05</button>
+            </div>
+            
+            <button id="play-audio-btn" class="mt-4 border-2 border-yellow-500 bg-black text-yellow-500 font-bold py-2 hover:bg-yellow-900 transition-colors cursor-pointer pointer-events-auto">
+                PLAY MCDONALD'S SOUND
+            </button>
+            <div id="audio-status" class="text-right text-xs mt-1 text-gray-400">READY</div>
+
+            <div id="cam-error-msg" class="text-right mt-2 text-xl text-red-500 font-bold hidden sys-error">
+                CAMERA SYSTEM ERROR
+            </div>
+            <div class="text-right mt-2 text-sm text-red-500 animate-pulse tracking-widest">
+                WARNING: MOTION DETECTED
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLE MASK OVERLAY -->
+    <div id="apple-mask" class="absolute w-full h-full z-40 hidden-apple flex items-end justify-center pointer-events-none">
+        <svg viewBox="0 0 100 100" class="w-[40rem] h-[40rem] drop-shadow-2xl">
+            <!-- Apple Shape -->
+            <path d="M 50 90 C 20 90, 10 60, 20 30 C 30 10, 45 15, 50 25 C 55 15, 70 10, 80 30 C 90 60, 80 90, 50 90" fill="#dc2626"/>
+            <!-- Stem -->
+            <path d="M 50 25 C 50 15, 55 5, 60 5" fill="none" stroke="#78350f" stroke-width="4"/>
+            <!-- Leaf -->
+            <path d="M 50 25 C 40 15, 30 20, 40 30 C 50 35, 55 30, 50 25" fill="#16a34a"/>
+        </svg>
+    </div>
+
+    <!-- MAINTENANCE PANEL -->
+    <div id="maintenance-overlay" class="absolute w-full h-full bg-zinc-900 z-50 hidden-maint p-12 font-mono flex flex-col items-center justify-center">
+        <div class="w-full max-w-2xl border-4 border-zinc-600 p-8 bg-black shadow-2xl relative z-10 pointer-events-auto">
+            <h2 class="text-4xl text-white mb-8 border-b-2 border-zinc-600 pb-2">SYSTEMS REBOOT</h2>
+            
+            <button id="fix-cams" class="fix-btn text-2xl text-white group">
+                <div class="flex justify-between"><span>CAMERA SYSTEM</span><span id="cams-status" class="text-green-500">ONLINE</span></div>
+                <div class="progress-bar" id="cams-progress"></div>
+            </button>
+            
+            <button id="fix-audio" class="fix-btn text-2xl text-white group">
+                <div class="flex justify-between"><span>AUDIO DEVICES</span><span id="audio-status-sys" class="text-green-500">ONLINE</span></div>
+                <div class="progress-bar" id="audio-progress"></div>
+            </button>
+            
+            <button id="fix-all" class="fix-btn text-2xl text-white mt-8 border-yellow-600">
+                <div class="flex justify-between text-yellow-500"><span>REBOOT ALL</span></div>
+                <div class="progress-bar bg-yellow-500" id="all-progress"></div>
+            </button>
+            
+            <button id="exit-maint" class="mt-8 px-6 py-2 bg-zinc-700 text-white font-bold hover:bg-zinc-600 border border-zinc-500">EXIT</button>
+        </div>
+        <div class="static-effect absolute inset-0 z-0 pointer-events-none opacity-30"></div>
+    </div>
+    
+    <!-- ENEMY IN OFFICE (PRE-JUMPSCARE) -->
+    <div id="enemy-in-office" class="absolute inset-0 z-30 hidden flex items-center justify-center pointer-events-none">
+        <svg class="w-full h-full drop-shadow-2xl max-w-4xl" viewBox="0 0 100 100"><use href="#big-o-sprite"></use></svg>
+    </div>
+
+    <!-- JUMPSCARE SCREEN -->
+    <div id="jumpscare-screen" class="absolute inset-0 bg-black z-50 hidden flex items-center justify-center overflow-hidden">
+        <svg id="jumpscare-svg" class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+            <rect width="100" height="100" fill="#000"/>
+            <g class="jumpscare-anim">
+                <!-- Replace the href link below with your image's direct web URL -->
+                <image href="https://raw.githubusercontent.com/JasenC4PlaysOfficial/amongus3dvrmodmenuexternalimages/refs/heads/main/image.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+            </g>
+        </svg>
+        <div class="static-effect absolute inset-0 z-10 opacity-50"></div>
+    </div>
+
+    <!-- GAME OVER / WIN SCREEN -->
+    <div id="end-screen" class="absolute inset-0 z-50 hidden flex flex-col items-center justify-center bg-black">
+        <div class="static-effect absolute inset-0 z-0"></div>
+        <h1 id="end-title" class="title-font text-6xl text-red-600 mb-8 z-10 text-center">GAME OVER</h1>
+        <button id="restart-btn" class="button-press z-10 px-6 py-3 text-2xl font-bold bg-zinc-800 border border-zinc-600 rounded hover:bg-white hover:text-black transition-colors">RETURN TO MENU</button>
+    </div>
+
+</div>
+
+<!-- SVG Sprite definitions -->
+<svg width="0" height="0" class="hidden">
+    <defs>
+        <g id="big-o-sprite">
+            <!-- Replace the href link below with your image's direct web URL -->
+            <image href="https://raw.githubusercontent.com/JasenC4PlaysOfficial/amongus3dvrmodmenuexternalimages/refs/heads/main/image.png" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+        </g>
+    </defs>
+</svg>
+
+<script>
+    /** --- AUDIO ENGINE (Web Audio API Synthesizer) --- */
+    const AudioEngine = (function() {
+        let ctx = null;
+        let isInitialized = false;
+
+        function init() {
+            if (isInitialized) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            ctx = new AudioContext();
+            isInitialized = true;
+        }
+
+        function playStomp() {
+            if (!ctx) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(80, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.3);
+            
+            gain.gain.setValueAtTime(1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5);
+        }
+
+        function playDoorThud() {
+            if (!ctx) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(120, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.2);
+            
+            gain.gain.setValueAtTime(0.5, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start();
+            osc.stop(ctx.currentTime + 0.2);
+        }
+
+        function playMcDonalds() {
+            if (!ctx) return;
+            const freqs = [392.00, 392.00, 440.00, 329.63, 392.00]; // Approximate "ba da ba ba ba"
+            const times = [0, 0.2, 0.4, 0.6, 0.8];
+            
+            freqs.forEach((f, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(f, ctx.currentTime + times[i]);
+                
+                gain.gain.setValueAtTime(0, ctx.currentTime + times[i]);
+                gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + times[i] + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + times[i] + 0.2);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + times[i]);
+                osc.stop(ctx.currentTime + times[i] + 0.2);
+            });
+        }
+
+        function playError() {
+            if (!ctx) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.4, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5);
+        }
+
+        function playStatic(duration = 0.5) {
+            if (!ctx) return;
+            const bufferSize = ctx.sampleRate * duration;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = ctx.createGain();
+            gain.gain.value = 0.05;
+            noise.connect(gain);
+            gain.connect(ctx.destination);
+            noise.start();
+        }
+
+        function playJumpscare() {
+            if (!ctx) return;
+            const duration = 2.0;
+            
+            // Noise burst
+            const bufferSize = ctx.sampleRate * duration;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.8, ctx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+            noise.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+            noise.start();
+
+            // Dissonant tones
+            const freqs = [300, 315, 330, 450, 475];
+            freqs.forEach(f => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = f;
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            });
+        }
+
+        function playWinChime() {
+            if(!ctx) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+            osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.5); // E5
+            osc.frequency.setValueAtTime(783.99, ctx.currentTime + 1.0); // G5
+            osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 1.5); // C6
+            
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime + 2.5);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 3.0);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 3.0);
+        }
+
+        return { init, playStomp, playDoorThud, playStatic, playJumpscare, playWinChime, playMcDonalds, playError };
+    })();
+
+    /** --- GAME LOGIC --- */
+    const Game = (function() {
+        // State
+        let state = 'title'; // title, playing, jumpscare, gameover, win
+        let power = 100;
+        let timeHour = 0; // 0 = 12AM, 1 = 1AM... 6 = 6AM
+        let nightSeconds = 0;
+        let currentNight = 1;
+        const SECONDS_PER_HOUR = 85; // 85 seconds per hour (FNAF pacing)
+        let gameInterval = null;
+        let aiInterval = null;
+
+        // Mechanics State
+        let doors = { left: false, right: false, front: false };
+        let lights = { left: false, right: false, front: false };
+        let monitorActive = false;
+        let maintActive = false;
+        let appleActive = false;
+        let currentCam = 1;
+
+        // FNAF 3 Systems
+        let camsWorking = true;
+        let audioWorking = true;
+        let audioCooldown = 0; // 15 seconds
+        let systemBreakTimer = 30; // 30-60s
+        let isFixing = false;
+        let officeEnemyState = 0; // 0 = normal, 1 = in office waiting
+
+        // Big O AI State
+        // Nodes: 1 (Band Room), 2 (Hallway), 3 (Dining), 4 (Left Door), 5 (Right Door), 6 (Front Window)
+        let enemyPos = 1; 
+        let enemyDifficulty = 3; // 1-20
+
+        // DOM Elements
+        const container = document.getElementById('game-container');
+        const screens = {
+            title: document.getElementById('title-screen'),
+            office: document.getElementById('office'),
+            ui: document.getElementById('ui-layer'),
+            monitor: document.getElementById('monitor-overlay'),
+            maint: document.getElementById('maintenance-overlay'),
+            jumpscare: document.getElementById('jumpscare-screen'),
+            end: document.getElementById('end-screen')
+        };
+        
+        // Door Elements
+        const doorEls = {
+            left: document.getElementById('left-door'),
+            right: document.getElementById('right-door'),
+            front: document.getElementById('front-door')
+        };
+        const btnEls = {
+            left: document.getElementById('btn-left'),
+            right: document.getElementById('btn-right'),
+            front: document.getElementById('btn-front')
+        };
+        const btnLightEls = {
+            left: document.getElementById('btn-light-left'),
+            right: document.getElementById('btn-light-right'),
+            front: document.getElementById('btn-light-front')
+        };
+        const roomEls = {
+            left: document.getElementById('room-left'),
+            right: document.getElementById('room-right'),
+            front: document.getElementById('room-front')
+        };
+
+        // Enemy visual locations
+        const enemyVis = {
+            left: document.getElementById('enemy-left'),
+            right: document.getElementById('enemy-right'),
+            front: document.getElementById('enemy-front'),
+            cam: document.getElementById('cam-enemy')
+        };
+
+        // UI Displays
+        const displays = {
+            time: document.getElementById('time-display'),
+            power: document.getElementById('power-display'),
+            usage: document.getElementById('usage-display'),
+            camName: document.getElementById('cam-name')
+        };
+
+        const camNames = {
+            1: "CAM 01 - BAND ROOM",
+            2: "CAM 02 - HALLWAY",
+            3: "CAM 03 - DINING AREA",
+            4: "CAM 04 - CAFETERIA",
+            5: "CAM 05 - EAST CORRIDOR"
+        };
+
+        // Utility helper to safely add event listeners without crashing if an HTML element was missed
+        function safeAddEvent(id, eventType, handler) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener(eventType, handler);
+        }
+
+        function init() {
+            // Bind Title Screen
+            safeAddEvent('start-btn', 'click', () => {
+                AudioEngine.init();
+                startGame();
+            });
+
+            safeAddEvent('restart-btn', 'click', () => {
+                const startBtn = document.getElementById('start-btn');
+                if (startBtn) startBtn.innerText = currentNight > 1 ? 'CONTINUE (NIGHT ' + currentNight + ')' : 'NEW GAME';
+                showScreen('title');
+            });
+
+            // Bind Doors and Lights
+            ['left', 'right', 'front'].forEach(side => {
+                bindDoor(side);
+                bindLight(side);
+            });
+
+            // Bind Monitor
+            safeAddEvent('monitor-toggle', 'click', toggleMonitor);
+
+            // Bind Cameras safely
+            document.querySelectorAll('.cam-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    if(power <= 0 || !camsWorking) return;
+                    const camId = parseInt(e.target.dataset.cam);
+                    switchCamera(camId);
+                });
+            });
+            
+            // Mask Toggle
+            safeAddEvent('apple-toggle', 'mousedown', () => toggleApple(true));
+            safeAddEvent('apple-toggle', 'mouseup', () => toggleApple(false));
+            safeAddEvent('apple-toggle', 'mouseleave', () => toggleApple(false));
+
+            // Maint Toggle
+            safeAddEvent('maint-toggle', 'click', toggleMaint);
+            safeAddEvent('exit-maint', 'click', toggleMaint);
+            
+            // Audio Lure
+            safeAddEvent('play-audio-btn', 'click', triggerMcDonaldsAudio);
+            
+            // Fix Systems
+            safeAddEvent('fix-cams', 'click', () => fixSystem('cams'));
+            safeAddEvent('fix-audio', 'click', () => fixSystem('audio'));
+            safeAddEvent('fix-all', 'click', () => fixSystem('all'));
+
+            // Cheat code: Shift + 3 to skip night
+            document.addEventListener('keydown', (e) => {
+                if (e.shiftKey && (e.key === '3' || e.code === 'Digit3')) {
+                    if (state === 'playing') {
+                        winGame();
+                    }
+                }
+            });
+        }
+
+        function showScreen(screenName) {
+            Object.values(screens).forEach(s => {
+                if (s) s.classList.add('hidden');
+            });
+            
+            if(screenName === 'title' && screens.title) {
+                screens.title.classList.remove('hidden');
+            } else if (screenName === 'playing' && screens.office && screens.ui) {
+                screens.office.classList.remove('hidden');
+                screens.ui.classList.remove('hidden');
+            } else if (screenName === 'jumpscare' && screens.jumpscare) {
+                screens.jumpscare.classList.remove('hidden');
+            } else if (screenName === 'end' && screens.end) {
+                screens.end.classList.remove('hidden');
+            }
+            state = screenName;
+        }
+
+        function updateUI() {
+            if (displays.time) displays.time.innerText = "12 AM";
+            if (displays.power) displays.power.innerText = "100";
+            
+            const nightDisplay = document.getElementById('night-display');
+            if (nightDisplay) nightDisplay.innerText = "Night " + currentNight;
+            
+            updateUsage();
+            if (displays.camName) displays.camName.innerText = camNames[currentCam];
+            
+            // Reset system visuals
+            const err = document.getElementById('cam-error-msg');
+            if(err) err.classList.add('hidden');
+            
+            const camStat = document.getElementById('cams-status');
+            if(camStat) { camStat.innerText = 'ONLINE'; camStat.className = 'text-green-500'; }
+            
+            const audStat = document.getElementById('audio-status-sys');
+            if(audStat) { audStat.innerText = 'ONLINE'; audStat.className = 'text-green-500'; }
+            
+            document.querySelectorAll('.progress-bar').forEach(b => b.style.width = '0%');
+        }
+
+        function startGame() {
+            power = 100;
+            timeHour = 0;
+            nightSeconds = 0;
+            enemyPos = 1;
+            monitorActive = false;
+            maintActive = false;
+            appleActive = false;
+            isFixing = false;
+            camsWorking = true;
+            audioWorking = true;
+            audioCooldown = 0;
+            systemBreakTimer = 30 + Math.random() * 30;
+            officeEnemyState = 0;
+            
+            const enemyInOffice = document.getElementById('enemy-in-office');
+            if(enemyInOffice) enemyInOffice.classList.add('hidden');
+            
+            const appleMask = document.getElementById('apple-mask');
+            if(appleMask) appleMask.classList.remove('active-apple');
+            
+            // Difficulty scaling - Night 1 is slow, gets faster
+            enemyDifficulty = 1 + (currentNight * 2); 
+            
+            // Reset doors and lights
+            ['left', 'right', 'front'].forEach(d => {
+                doors[d] = false;
+                if(doorEls[d]) doorEls[d].classList.remove('closed');
+                if(btnEls[d]) btnEls[d].classList.remove('active');
+                
+                lights[d] = false;
+                if(roomEls[d]) roomEls[d].classList.replace('room-lit', 'room-dark');
+                if(btnLightEls[d]) btnLightEls[d].classList.remove('active');
+            });
+
+            if(screens.monitor) screens.monitor.classList.replace('active-monitor', 'hidden-monitor');
+            if(screens.maint) screens.maint.classList.replace('active-maint', 'hidden-maint');
+            switchCamera(1);
+            updateUI();
+            updateEnemyVisibility();
+            showScreen('playing');
+
+            clearInterval(gameInterval);
+            clearInterval(aiInterval);
+            
+            gameInterval = setInterval(gameTick, 1000); // 1 sec tick
+            aiInterval = setInterval(aiTick, 3500); // AI moves every 3.5s
+        }
+
+        function triggerShake() {
+            AudioEngine.playStomp();
+            if(container) {
+                container.classList.remove('shake-active');
+                // Trigger reflow to restart animation
+                void container.offsetWidth;
+                container.classList.add('shake-active');
+            }
+        }
+
+        function bindDoor(side) {
+            const btn = btnEls[side];
+            if (!btn) return;
+            
+            btn.addEventListener('click', () => {
+                if(power <= 0) return;
+                doors[side] = !doors[side];
+                
+                if(doors[side]) {
+                    doorEls[side].classList.add('closed');
+                    btn.classList.add('active');
+                    AudioEngine.playDoorThud();
+                } else {
+                    doorEls[side].classList.remove('closed');
+                    btn.classList.remove('active');
+                    AudioEngine.playDoorThud();
+                }
+                updateUsage();
+            });
+        }
+
+        function bindLight(side) {
+            const btn = btnLightEls[side];
+            if (!btn) return;
+
+            const turnOn = (e) => {
+                if(e) e.preventDefault();
+                if(power <= 0) return;
+                lights[side] = true;
+                if(roomEls[side]) roomEls[side].classList.replace('room-dark', 'room-lit');
+                btn.classList.add('active');
+                AudioEngine.playStatic(0.05); // Buzz sound for light
+                updateUsage();
+                updateEnemyVisibility();
+            };
+            const turnOff = (e) => {
+                if(e) e.preventDefault();
+                if(power <= 0 && !lights[side]) return; // if already out, skip
+                lights[side] = false;
+                if(roomEls[side]) roomEls[side].classList.replace('room-lit', 'room-dark');
+                btn.classList.remove('active');
+                updateUsage();
+                updateEnemyVisibility();
+            };
+            
+            // Mouse/Touch events for hold-to-light
+            btn.addEventListener('mousedown', turnOn);
+            btn.addEventListener('mouseup', turnOff);
+            btn.addEventListener('mouseleave', turnOff);
+            btn.addEventListener('touchstart', turnOn);
+            btn.addEventListener('touchend', turnOff);
+            btn.addEventListener('touchcancel', turnOff);
+        }
+
+        function toggleMonitor() {
+            if(power <= 0 || appleActive || maintActive) return;
+            monitorActive = !monitorActive;
+            if(monitorActive) {
+                screens.monitor.classList.replace('hidden-monitor', 'active-monitor');
+                screens.monitor.classList.remove('hidden');
+                switchCamera(currentCam); // Refresh view
+            } else {
+                screens.monitor.classList.replace('active-monitor', 'hidden-monitor');
+                setTimeout(() => { if(!monitorActive) screens.monitor.classList.add('hidden'); }, 400);
+            }
+            AudioEngine.playDoorThud();
+            updateUsage();
+        }
+
+        function toggleApple(active) {
+            if(power <= 0 || monitorActive || maintActive) return;
+            appleActive = active;
+            const maskEl = document.getElementById('apple-mask');
+            if(!maskEl) return;
+            
+            if (active) {
+                maskEl.classList.add('active-apple');
+                maskEl.classList.remove('hidden-apple');
+            } else {
+                maskEl.classList.remove('active-apple');
+                maskEl.classList.add('hidden-apple');
+            }
+        }
+        
+        function toggleMaint() {
+            if(power <= 0 || appleActive || monitorActive) return;
+            maintActive = !maintActive;
+            if(maintActive) {
+                if(screens.maint) {
+                    screens.maint.classList.replace('hidden-maint', 'active-maint');
+                    screens.maint.classList.remove('hidden');
+                }
+            } else {
+                if(screens.maint) {
+                    screens.maint.classList.replace('active-maint', 'hidden-maint');
+                    setTimeout(() => { if(!maintActive) screens.maint.classList.add('hidden'); }, 400);
+                }
+            }
+        }
+        
+        function triggerMcDonaldsAudio() {
+            if(audioCooldown > 0 || !audioWorking) return;
+            
+            AudioEngine.playMcDonalds();
+            audioCooldown = 15;
+            
+            const statEl = document.getElementById('audio-status');
+            if(statEl) statEl.innerText = 'COOLDOWN';
+            
+            const btnEl = document.getElementById('play-audio-btn');
+            if(btnEl) {
+                btnEl.classList.replace('border-yellow-500', 'border-gray-500');
+                btnEl.classList.replace('text-yellow-500', 'text-gray-500');
+            }
+            
+            // Shake screen violently
+            if(container) {
+                container.style.animation = 'none';
+                void container.offsetWidth;
+                container.style.animation = 'stompShake 0.1s infinite';
+            }
+            
+            // Enemy runs to the camera after 5 seconds
+            setTimeout(() => {
+                if (state === 'playing') {
+                    if(container) container.style.animation = ''; // Stop violent shake
+                    
+                    // Map camera ID to nodes: 1->1, 2->2, 3->3, 4(Cafeteria)->6, 5(EastCor)->5
+                    const camToNode = {1:1, 2:2, 3:3, 4:6, 5:5};
+                    const targetNode = camToNode[currentCam];
+                    
+                    // Pull him back if he hasn't breached the office yet
+                    if (officeEnemyState === 0) {
+                        enemyPos = targetNode;
+                        triggerShake();
+                        updateEnemyVisibility();
+                    }
+                }
+            }, 5000);
+        }
+        
+        function fixSystem(sys) {
+            if (isFixing) return;
+            isFixing = true;
+            document.querySelectorAll('.fix-btn').forEach(b => b.disabled = true);
+            
+            const bar = sys === 'all' ? document.getElementById('all-progress') : document.getElementById(sys + '-progress');
+            if(bar) {
+                bar.style.transition = 'width 5s linear';
+                bar.style.width = '100%';
+            }
+            
+            setTimeout(() => {
+                if (state !== 'playing') return;
+                
+                if (sys === 'cams' || sys === 'all') {
+                    camsWorking = true;
+                    const camsStat = document.getElementById('cams-status');
+                    if(camsStat) { camsStat.innerText = 'ONLINE'; camsStat.className = 'text-green-500'; }
+                    const msg = document.getElementById('cam-error-msg');
+                    if(msg) msg.classList.add('hidden');
+                    if(monitorActive) switchCamera(currentCam); // Restore view
+                }
+                if (sys === 'audio' || sys === 'all') {
+                    audioWorking = true;
+                    const audStat = document.getElementById('audio-status-sys');
+                    if(audStat) { audStat.innerText = 'ONLINE'; audStat.className = 'text-green-500'; }
+                }
+                
+                isFixing = false;
+                document.querySelectorAll('.fix-btn').forEach(b => b.disabled = false);
+                if(bar) {
+                    bar.style.transition = 'none';
+                    bar.style.width = '0%';
+                }
+            }, 5000);
+        }
+
+        function switchCamera(id) {
+            currentCam = id;
+            if(displays.camName) displays.camName.innerText = camNames[id];
+            
+            // Update UI Map Buttons
+            document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active-cam'));
+            const activeBtn = document.querySelector(`.cam-btn[data-cam="${id}"]`);
+            if(activeBtn) activeBtn.classList.add('active-cam');
+            
+            // Map camera ID to background class
+            document.querySelectorAll('.cam-bg').forEach(bg => bg.classList.add('hidden'));
+            let bgType = 'hallway';
+            if (id === 4) bgType = 'cafeteria';
+            if (id === 3) bgType = 'dining';
+            const bgEl = document.getElementById(`cam-bg-${bgType}`);
+            if(bgEl) bgEl.classList.remove('hidden');
+            
+            const err = document.getElementById('cam-error-msg');
+            const overlayEffect = document.querySelector('#monitor-overlay .static-effect');
+            const camEnem = document.getElementById('cam-enemy');
+
+            if (!camsWorking) {
+                // Cameras broken - show heavy static and hide enemy
+                if(err) err.classList.remove('hidden');
+                if(overlayEffect) overlayEffect.style.opacity = '1';
+                document.querySelectorAll('.cam-bg').forEach(bg => bg.classList.add('hidden'));
+                if(camEnem) camEnem.classList.add('hidden');
+            } else {
+                if(err) err.classList.add('hidden');
+                if(overlayEffect) overlayEffect.style.opacity = '0.2';
+                AudioEngine.playStatic(0.2);
+                updateEnemyVisibility();
+            }
+        }
+
+        function updateUsage() {
+            let usage = 1; // Base usage
+            if(doors.left) usage++;
+            if(doors.right) usage++;
+            if(doors.front) usage++;
+            if(lights.left) usage++;
+            if(lights.right) usage++;
+            if(lights.front) usage++;
+            if(monitorActive) usage++;
+
+            let html = '';
+            for(let i=0; i<usage; i++) {
+                let color = i < 2 ? 'bg-green-500' : (i < 4 ? 'bg-yellow-500' : 'bg-red-500');
+                html += `<div class="w-4 h-6 ${color}"></div>`;
+            }
+            if(displays.usage) displays.usage.innerHTML = html;
+            return usage;
+        }
+
+        function gameTick() {
+            if(state !== 'playing') return;
+
+            // Time
+            nightSeconds++;
+            
+            // Cooldowns
+            if (audioCooldown > 0) {
+                audioCooldown--;
+                if (audioCooldown <= 0) {
+                    const statEl = document.getElementById('audio-status');
+                    if(statEl) statEl.innerText = 'READY';
+                    const btnEl = document.getElementById('play-audio-btn');
+                    if(btnEl) {
+                        btnEl.classList.replace('border-gray-500', 'border-yellow-500');
+                        btnEl.classList.replace('text-gray-500', 'text-yellow-500');
+                    }
+                }
+            }
+            
+            // System breaks
+            systemBreakTimer--;
+            if (systemBreakTimer <= 0) {
+                systemBreakTimer = 30 + Math.random() * 30; // Reset timer
+                const breakCam = Math.random() > 0.5;
+                if (breakCam && camsWorking) {
+                    camsWorking = false;
+                    const camsStat = document.getElementById('cams-status');
+                    if(camsStat) { camsStat.innerText = 'ERROR'; camsStat.className = 'text-red-500 sys-error'; }
+                    if(monitorActive) switchCamera(currentCam); // Trigger visual break
+                    AudioEngine.playError();
+                } else if (!breakCam && audioWorking) {
+                    audioWorking = false;
+                    const audStat = document.getElementById('audio-status-sys');
+                    if(audStat) { audStat.innerText = 'ERROR'; audStat.className = 'text-red-500 sys-error'; }
+                    AudioEngine.playError();
+                }
+            }
+
+            if(nightSeconds >= SECONDS_PER_HOUR) {
+                nightSeconds = 0;
+                timeHour++;
+                if(displays.time) displays.time.innerText = timeHour === 0 ? "12 AM" : timeHour + " AM";
+                
+                // Increase difficulty slightly each hour
+                enemyDifficulty += 1;
+
+                if(timeHour >= 6) {
+                    winGame();
+                    return;
+                }
+            }
+
+            // Power
+            const usage = updateUsage();
+            const drainRate = usage * 0.15; 
+            power = Math.max(0, power - drainRate);
+            if(displays.power) displays.power.innerText = Math.floor(power);
+
+            if(power <= 0) {
+                powerOutage();
+            }
+        }
+
+        function aiTick() {
+            if(state !== 'playing' || power <= 0 || officeEnemyState === 1) return;
+
+            // Random chance to move based on difficulty (1-20 scale)
+            const roll = Math.floor(Math.random() * 20) + 1;
+            if(roll > enemyDifficulty) return; // Failed to move
+
+            const prevPos = enemyPos;
+            
+            // Movement Logic Network
+            // 1(Band Room) -> 2(Hallway)
+            // 2(Hallway) -> 3(Dining) or 5(East Corridor - Right)
+            // 3(Dining) -> 4(Kitchen - Left) or 6(Front Window)
+            
+            if(enemyPos === 1) enemyPos = 2;
+            else if(enemyPos === 2) enemyPos = Math.random() > 0.5 ? 3 : 5;
+            else if(enemyPos === 3) enemyPos = Math.random() > 0.5 ? 4 : 6;
+            else if(enemyPos === 5) {
+                // At East Corridor (Right Cam). Can attack right door.
+                if(Math.random() > 0.3) {
+                    attackDoor('right');
+                    return; // Don't trigger standard move update yet
+                } else {
+                    enemyPos = 2; // Retreat
+                }
+            }
+            else if(enemyPos === 4) {
+                // At Kitchen (Left Cam). Can attack left door.
+                if(Math.random() > 0.3) {
+                    attackDoor('left');
+                    return;
+                } else {
+                    enemyPos = 3; // Retreat
+                }
+            }
+            else if(enemyPos === 6) {
+                // At Front. Can attack front.
+                attackDoor('front');
+                return;
+            }
+            else if(enemyPos === 10) {
+                // At Left Door. Evaluate attack/retreat.
+                attackDoor('left');
+                return;
+            }
+            else if(enemyPos === 11) {
+                // At Right Door. Evaluate attack/retreat.
+                attackDoor('right');
+                return;
+            }
+            else if(enemyPos === 12) {
+                // At Front Garage. Evaluate attack/retreat.
+                attackDoor('front');
+                return;
+            }
+
+            if(prevPos !== enemyPos) {
+                triggerShake();
+                updateEnemyVisibility();
+            }
+        }
+
+        function attackDoor(side) {
+            // Position mapping for office visual: Left=10, Right=11, Front=12
+            const posMap = { 'left': 10, 'right': 11, 'front': 12 };
+            
+            if(enemyPos < 10) {
+                // Moving into position
+                enemyPos = posMap[side];
+                triggerShake();
+                updateEnemyVisibility();
+            } else {
+                // Already at door, evaluate attack
+                if(doors[side]) {
+                    // Door is closed. Retreat.
+                    enemyPos = 1; // Reset to start
+                    triggerShake();
+                    updateEnemyVisibility();
+                } else {
+                    // Door is open. Delayed Jumpscare (Office Wait)
+                    if (monitorActive) toggleMonitor(); // Force lower monitor
+                    if (maintActive) toggleMaint(); // Force lower maint
+                    
+                    officeEnemyState = 1;
+                    const enemyOfficeEl = document.getElementById('enemy-in-office');
+                    if(enemyOfficeEl) enemyOfficeEl.classList.remove('hidden');
+                    AudioEngine.playStomp(); // Heavy entry sound
+                    
+                    // 2 seconds to put on mask
+                    setTimeout(() => {
+                        if (state !== 'playing') return;
+                        
+                        if (appleActive) {
+                            // Mask worked! Retreat
+                            officeEnemyState = 0;
+                            enemyPos = 1;
+                            if(enemyOfficeEl) enemyOfficeEl.classList.add('hidden');
+                            triggerShake(); // Stomp away
+                            updateEnemyVisibility();
+                        } else {
+                            // Jumpscare
+                            if(enemyOfficeEl) enemyOfficeEl.classList.add('hidden');
+                            triggerJumpscare();
+                        }
+                    }, 2000);
+                }
+            }
+        }
+
+        function updateEnemyVisibility() {
+            if (!camsWorking && monitorActive) return; // Don't show if cams broken
+            
+            // Hide all first
+            if(enemyVis.left) enemyVis.left.classList.add('hidden');
+            if(enemyVis.right) enemyVis.right.classList.add('hidden');
+            if(enemyVis.front) enemyVis.front.classList.add('hidden');
+            if(enemyVis.cam) enemyVis.cam.classList.add('hidden');
+
+            // Office views - Only visible if the corresponding light is ON
+            if(enemyPos === 10 && !monitorActive && lights.left && enemyVis.left) enemyVis.left.classList.remove('hidden');
+            if(enemyPos === 11 && !monitorActive && lights.right && enemyVis.right) enemyVis.right.classList.remove('hidden');
+            if(enemyPos === 12 && !monitorActive && lights.front && enemyVis.front) enemyVis.front.classList.remove('hidden');
+
+            // Camera view mapping
+            const camMap = {
+                1: 1, // Band Room
+                2: 2, // Hall
+                3: 3, // Dining
+                4: 4, // Kitchen (Left path)
+                5: 5  // East Cor (Right path)
+            };
+
+            if(monitorActive && enemyPos === camMap[currentCam] && enemyVis.cam) {
+                enemyVis.cam.classList.remove('hidden');
+            }
+        }
+
+        function powerOutage() {
+            // Open all doors and turn off all lights
+            ['left', 'right', 'front'].forEach(d => {
+                doors[d] = false;
+                if(doorEls[d]) doorEls[d].classList.remove('closed');
+                if(btnEls[d]) btnEls[d].classList.remove('active');
+
+                lights[d] = false;
+                if(roomEls[d]) roomEls[d].classList.replace('room-lit', 'room-dark');
+                if(btnLightEls[d]) btnLightEls[d].classList.remove('active');
+            });
+            
+            // Turn off monitor
+            monitorActive = false;
+            if(screens.monitor) {
+                screens.monitor.classList.replace('active-monitor', 'hidden-monitor');
+                screens.monitor.classList.add('hidden');
+            }
+
+            // Lights out effect
+            const officeEl = document.getElementById('office');
+            if(officeEl) officeEl.style.background = '#000';
+            if(displays.usage) displays.usage.innerHTML = '';
+            
+            // Wait a few seconds then jumpscare
+            setTimeout(() => {
+                if(state === 'playing') triggerJumpscare();
+            }, 5000 + Math.random() * 5000);
+        }
+
+        function triggerJumpscare() {
+            clearInterval(gameInterval);
+            clearInterval(aiInterval);
+            showScreen('jumpscare');
+            AudioEngine.playJumpscare();
+            
+            setTimeout(() => {
+                const titleEl = document.getElementById('end-title');
+                if(titleEl) {
+                    titleEl.innerText = "GAME OVER";
+                    titleEl.classList.replace('text-yellow-400', 'text-red-600');
+                }
+                const btnEl = document.getElementById('restart-btn');
+                if(btnEl) btnEl.innerText = "RETURN TO MENU";
+                showScreen('end');
+            }, 2000);
+        }
+
+        function winGame() {
+            clearInterval(gameInterval);
+            clearInterval(aiInterval);
+            AudioEngine.playWinChime();
+            
+            // Hide monitor if up
+            if(screens.monitor) {
+                screens.monitor.classList.replace('active-monitor', 'hidden-monitor');
+                screens.monitor.classList.add('hidden');
+            }
+            
+            setTimeout(() => {
+                const titleEl = document.getElementById('end-title');
+                const btnEl = document.getElementById('restart-btn');
+                
+                if (currentNight < 5) {
+                    currentNight++;
+                    if(titleEl) {
+                        titleEl.innerText = "6 AM\nNIGHT SURVIVED";
+                        titleEl.classList.replace('text-red-600', 'text-yellow-400');
+                    }
+                    if(btnEl) btnEl.innerText = "NEXT NIGHT";
+                } else {
+                    if(titleEl) {
+                        titleEl.innerText = "6 AM\nYOU BEAT ALL 5 NIGHTS!";
+                        titleEl.classList.replace('text-red-600', 'text-yellow-400');
+                    }
+                    if(btnEl) btnEl.innerText = "MAIN MENU";
+                    currentNight = 1; // Reset game after beating Night 5
+                }
+                showScreen('end');
+            }, 3000);
+        }
+
+        return { init };
+    })();
+
+    // Initialize when DOM loads
+    document.addEventListener('DOMContentLoaded', () => {
+        Game.init();
+    });
+
+</script>
+
+</body>
+</html>
