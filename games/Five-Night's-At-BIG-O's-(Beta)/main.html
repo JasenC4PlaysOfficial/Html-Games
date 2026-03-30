@@ -87,14 +87,17 @@
         #monitor-overlay.active-monitor { bottom: 0; }
 
         @keyframes staticFlicker {
-            0% { opacity: 0.1; }
-            50% { opacity: 0.3; }
-            100% { opacity: 0.1; }
+            0% { background-position: 0 0; opacity: 0.15; }
+            25% { background-position: -50px 50px; opacity: 0.18; }
+            50% { background-position: 50px -50px; opacity: 0.15; }
+            75% { background-position: -50px -50px; opacity: 0.2; }
+            100% { background-position: 0 0; opacity: 0.15; }
         }
         .static-effect {
             background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)"/></svg>');
-            animation: staticFlicker 0.1s infinite;
-            opacity: 0.15;
+            background-size: 200px 200px;
+            animation: staticFlicker 0.2s steps(4) infinite;
+            opacity: 0.2;
             mix-blend-mode: overlay;
             pointer-events: none;
         }
@@ -132,6 +135,16 @@
         .progress-bar { height: 4px; background: #fff; width: 0%; transition: width 0.1s linear; margin-top: 4px; }
         
         .sys-error { color: red; animation: staticFlicker 0.5s infinite; }
+        .title-static { mix-blend-mode: lighten !important; filter: brightness(2); }
+
+        /* Pause & Settings Menus */
+        .menu-overlay { background-color: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); }
+        .title-enemy { opacity: 0.3; animation: titleFlicker 4s infinite alternate; }
+        @keyframes titleFlicker {
+            0% { opacity: 0.1; transform: scale(1); filter: brightness(0.5); }
+            50% { opacity: 0.4; transform: scale(1.02); filter: brightness(1); }
+            100% { opacity: 0.2; transform: scale(1); filter: brightness(0.8); }
+        }
 
         /* Typography */
         .title-font { font-family: 'Creepster', cursive; }
@@ -152,22 +165,63 @@
 <div id="game-container">
     
     <!-- TITLE SCREEN -->
-    <div id="title-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black">
-        <div class="static-effect absolute inset-0 z-0"></div>
-        <h1 class="title-font text-6xl md:text-8xl text-red-600 mb-2 z-10 drop-shadow-[0_0_15px_rgba(220,38,38,0.8)] text-center">Five Nights at BIG O's</h1>
-        <p class="text-xl mb-12 z-10 text-gray-400">The Band Director is Hungry.</p>
-        <button id="start-btn" class="button-press z-10 px-8 py-4 text-3xl font-bold bg-zinc-800 border-2 border-zinc-600 rounded hover:bg-zinc-700 hover:text-red-500 transition-colors">NEW GAME</button>
-        <p class="mt-8 text-sm text-gray-500 z-10 text-center max-w-md">
+    <div id="title-screen" class="absolute inset-0 z-50 bg-black overflow-hidden">
+        <!-- Static Effect (Stronger for Title) -->
+        <div class="static-effect title-static absolute inset-0 z-20 pointer-events-none"></div>
+        
+        <!-- Scary Title Enemy Background (Right Side) -->
+        <div class="absolute inset-y-0 right-0 z-0 flex items-center justify-end pointer-events-none overflow-visible title-enemy w-1/2">
+            <svg viewBox="0 0 100 100" class="w-[80rem] h-[80rem] min-w-[800px] drop-shadow-[0_0_50px_rgba(255,0,0,0.5)] transform translate-x-1/4 md:translate-x-[15%]"><use href="#big-o-sprite"></use></svg>
+        </div>
+
+        <!-- Title Text (Top Left) -->
+        <div class="absolute top-16 left-16 z-30 flex flex-col items-start">
+            <h1 class="title-font text-6xl md:text-8xl text-red-600 mb-2 drop-shadow-[0_0_15px_rgba(220,38,38,0.8)] text-left leading-none">Five Nights at<br>BIG O's</h1>
+            <p class="text-xl text-gray-400 text-left">The Band Director is Hungry.</p>
+        </div>
+
+        <!-- Buttons (Bottom Left) -->
+        <div class="absolute bottom-32 left-16 z-30 flex flex-col items-start gap-4">
+            <button id="start-btn" class="button-press text-4xl font-bold text-white hover:text-red-500 transition-colors tracking-widest bg-transparent border-none text-left">NEW GAME</button>
+            <button id="settings-btn" class="button-press text-3xl font-bold text-white hover:text-red-500 transition-colors tracking-widest bg-transparent border-none text-left">SETTINGS</button>
+        </div>
+
+        <p class="absolute bottom-8 left-16 text-sm text-gray-500 z-30 text-left max-w-md pointer-events-none">
             Survive until 6 AM. Use the cameras to track him. <br>
             Close the left, right, and front garage doors if he approaches. <br>
-            Don't run out of power.
+            Don't run out of power. Press [P] or [ESC] to Pause.
         </p>
     </div>
 
+    <!-- SETTINGS MENU -->
+    <div id="settings-menu" class="absolute inset-0 z-[60] hidden flex flex-col items-center justify-center menu-overlay font-mono">
+        <div class="bg-black border-4 border-zinc-600 p-8 flex flex-col items-center w-96 relative shadow-2xl">
+            <h2 class="text-4xl text-white mb-8 border-b-2 border-zinc-600 pb-2">SETTINGS</h2>
+            <button id="toggle-fullscreen" class="w-full py-3 mb-4 bg-zinc-800 border-2 border-zinc-500 hover:bg-zinc-700 text-xl font-bold text-white transition-colors">TOGGLE FULLSCREEN</button>
+            <div class="w-full mb-4">
+                <label class="block text-gray-400 mb-2">RESOLUTION SCALE:</label>
+                <select id="res-scale" class="w-full bg-zinc-800 border-2 border-zinc-500 text-white p-2 text-lg outline-none cursor-pointer">
+                    <option value="1">100% (Default)</option>
+                    <option value="0.75">75%</option>
+                    <option value="0.5">50%</option>
+                    <option value="1.25">125%</option>
+                </select>
+            </div>
+            <button id="close-settings" class="mt-4 px-8 py-2 bg-red-800 text-white font-bold hover:bg-red-700 border border-red-500 transition-colors">BACK</button>
+        </div>
+    </div>
+
+    <!-- PAUSE MENU -->
+    <div id="pause-menu" class="absolute inset-0 z-[60] hidden flex flex-col items-center justify-center menu-overlay font-mono">
+        <h1 class="title-font text-6xl text-white mb-8 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] tracking-widest">PAUSED</h1>
+        <button id="resume-btn" class="button-press px-8 py-4 mb-4 text-3xl font-bold bg-zinc-800 border-2 border-white text-white hover:bg-white hover:text-black transition-colors w-64">RESUME</button>
+        <button id="quit-btn" class="button-press px-8 py-4 text-3xl font-bold bg-red-900 border-2 border-red-500 text-white hover:bg-red-600 transition-colors w-64">QUIT TO MENU</button>
+    </div>
+
     <!-- MAIN GAMEPLAY (OFFICE) -->
-    <div id="office" class="absolute inset-0 hidden bg-zinc-900">
+    <div id="office" class="absolute top-0 left-0 w-[130vw] h-full hidden bg-zinc-900">
         <!-- Room background / depth -->
-        <div class="absolute inset-0 flex justify-between items-center px-[15%] pt-10" style="background: radial-gradient(circle at center, #2a2a2a 0%, #050505 100%);">
+        <div class="absolute inset-0 flex justify-between items-center px-[5%] pt-10" style="background: radial-gradient(circle at center, #2a2a2a 0%, #050505 100%);">
             
             <!-- Left Doorway -->
             <div class="relative w-48 h-full bg-black border-r-8 border-zinc-800 overflow-hidden">
@@ -208,24 +262,58 @@
 
         <!-- Concession Stand Desk -->
         <div class="absolute bottom-0 w-full h-40 bg-zinc-800 border-t-8 border-zinc-700 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] z-20 flex justify-center items-start pt-4">
-            <!-- Desk Props -->
-            <div class="w-24 h-16 bg-zinc-900 rounded mx-4 flex items-center justify-center border-2 border-zinc-600 shadow-inner">
-                <span class="text-red-500 font-mono text-xl animate-pulse">00:00</span>
+        <div class="absolute right-[22%] bottom-2 w-14 h-20 shadow-2xl flex flex-col items-center transform -rotate-3 z-30" style="background: repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 10px, #ffffff 10px, #ffffff 20px);">
+            <!-- Popcorn kernels -->
+            <div class="flex flex-wrap w-[130%] h-8 -mt-6 justify-center">
+                <div class="w-4 h-4 bg-yellow-100 rounded-full border border-yellow-200 -mb-1 shadow-sm"></div>
+                <div class="w-5 h-5 bg-yellow-200 rounded-full border border-yellow-300 shadow-sm"></div>
+                <div class="w-4 h-4 bg-yellow-100 rounded-full border border-yellow-200 z-10"></div>
+                <div class="w-5 h-4 bg-yellow-200 rounded-full border border-yellow-300 -mt-2 shadow-sm"></div>
+                <div class="w-4 h-5 bg-yellow-100 rounded-full border border-yellow-200 -ml-1"></div>
             </div>
-            
-            <div class="flex gap-4 mx-4">
-                <!-- Front Door Garage Button -->
-                <button id="btn-front" class="door-btn button-press w-32 h-16 bg-green-700 rounded-lg text-xl font-bold flex flex-col items-center justify-center">
-                    <span>CONCESSION</span>
-                </button>
-                <!-- Front Light Button -->
-                <button id="btn-light-front" class="light-btn button-press w-32 h-16 rounded-lg text-xl font-bold flex flex-col items-center justify-center">
-                    <span>LIGHT</span>
-                </button>
+            <div class="mt-2 bg-white px-1 border-2 border-red-500 rounded text-[8px] font-bold text-red-600 shadow-sm">POP</div>
+        </div>
+
+        <!-- Chips -->
+        <div class="absolute right-[12%] bottom-2 w-16 h-20 bg-blue-600 shadow-2xl rounded-b flex flex-col items-center justify-start overflow-visible transform rotate-6 z-30">
+            <!-- Chips sticking out -->
+            <div class="flex gap-1 -mt-4">
+                <div class="w-4 h-6 bg-yellow-400 rounded-full border border-yellow-500 transform -rotate-12 shadow-sm"></div>
+                <div class="w-4 h-8 bg-yellow-300 rounded-full border border-yellow-400 mt-1 shadow-sm z-10"></div>
+                <div class="w-4 h-5 bg-yellow-500 rounded-full border border-yellow-600 transform rotate-12 mt-2 shadow-sm"></div>
+            </div>
+            <div class="mt-2 text-white text-xs font-sans font-black tracking-widest transform -rotate-12">CHIPS</div>
+        </div>
+
+        <!-- Hotdog -->
+        <div class="absolute right-[5%] bottom-4 w-20 h-8 bg-amber-600 rounded-full shadow-xl flex items-center justify-center transform rotate-[15deg] border-b-4 border-amber-800 z-30">
+            <!-- Wiener -->
+            <div class="w-16 h-4 bg-red-900 rounded-full relative overflow-hidden shadow-inner">
+                <!-- Mustard Squiggle -->
+                <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                    <path d="M 0 2 Q 4 0, 8 2 T 16 2 T 24 2 T 32 2 T 40 2 T 48 2 T 56 2 T 64 2" fill="none" stroke="#eab308" stroke-width="1.5"/>
+                </svg>
             </div>
         </div>
 
-        <!-- Left Wall Buttons -->
+        <!-- Desk Props (Center) -->
+        <div class="w-24 h-16 bg-zinc-900 rounded mx-4 flex items-center justify-center border-2 border-zinc-600 shadow-inner z-30">
+            <span class="text-red-500 font-mono text-xl animate-pulse">00:00</span>
+        </div>
+        
+        <div class="flex gap-4 mx-4 z-30">
+            <!-- Front Door Garage Button -->
+            <button id="btn-front" class="door-btn button-press w-32 h-16 bg-green-700 rounded-lg text-xl font-bold flex flex-col items-center justify-center">
+                <span>CONCESSION</span>
+            </button>
+            <!-- Front Light Button -->
+            <button id="btn-light-front" class="light-btn button-press w-32 h-16 rounded-lg text-xl font-bold flex flex-col items-center justify-center">
+                <span>LIGHT</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Left Wall Buttons -->
         <div class="absolute left-8 top-1/2 transform -translate-y-1/2 z-20 flex flex-col gap-4">
             <button id="btn-left" class="door-btn button-press w-16 h-24 bg-green-700 rounded-lg text-xl font-bold flex items-center justify-center">
                 <span class="transform -rotate-90 block">DOOR</span>
@@ -609,6 +697,7 @@
         let systemBreakTimer = 30; // 30-60s
         let isFixing = false;
         let officeEnemyState = 0; // 0 = normal, 1 = in office waiting
+        let isPaused = false;
 
         // Big O AI State
         // Nodes: 1 (Band Room), 2 (Hallway), 3 (Dining), 4 (Left Door), 5 (Right Door), 6 (Front Window)
@@ -624,7 +713,9 @@
             monitor: document.getElementById('monitor-overlay'),
             maint: document.getElementById('maintenance-overlay'),
             jumpscare: document.getElementById('jumpscare-screen'),
-            end: document.getElementById('end-screen')
+            end: document.getElementById('end-screen'),
+            settings: document.getElementById('settings-menu'),
+            pause: document.getElementById('pause-menu')
         };
         
         // Door Elements
@@ -692,6 +783,38 @@
                 showScreen('title');
             });
 
+            // Bind Settings
+            safeAddEvent('settings-btn', 'click', () => {
+                if(screens.settings) screens.settings.classList.remove('hidden');
+            });
+            safeAddEvent('close-settings', 'click', () => {
+                if(screens.settings) screens.settings.classList.add('hidden');
+            });
+            safeAddEvent('toggle-fullscreen', 'click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`));
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            });
+            safeAddEvent('res-scale', 'change', (e) => {
+                const scale = e.target.value;
+                document.getElementById('game-container').style.transform = `scale(${scale})`;
+                document.getElementById('game-container').style.transformOrigin = 'center';
+            });
+
+            // Bind Pause Menu
+            safeAddEvent('resume-btn', 'click', togglePause);
+            safeAddEvent('quit-btn', 'click', () => {
+                isPaused = false;
+                if(screens.pause) screens.pause.classList.add('hidden');
+                clearInterval(gameInterval);
+                clearInterval(aiInterval);
+                showScreen('title');
+            });
+
             // Bind Doors and Lights
             ['left', 'right', 'front'].forEach(side => {
                 bindDoor(side);
@@ -727,14 +850,78 @@
             safeAddEvent('fix-audio', 'click', () => fixSystem('audio'));
             safeAddEvent('fix-all', 'click', () => fixSystem('all'));
 
-            // Cheat code: Shift + 3 to skip night
+            // Bind Settings Menu
+            safeAddEvent('settings-btn', 'click', () => {
+                if(screens.settings) screens.settings.classList.remove('hidden');
+            });
+            safeAddEvent('close-settings', 'click', () => {
+                if(screens.settings) screens.settings.classList.add('hidden');
+            });
+            safeAddEvent('toggle-fullscreen', 'click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => console.log(err));
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                }
+            });
+            safeAddEvent('res-scale', 'change', (e) => {
+                const scale = e.target.value;
+                if(container) {
+                    container.style.transform = `scale(${scale})`;
+                    container.style.transformOrigin = 'center center';
+                }
+            });
+
+            // Bind Pause Menu
+            safeAddEvent('resume-btn', 'click', togglePause);
+            safeAddEvent('quit-btn', 'click', () => {
+                isPaused = false;
+                if(screens.pause) screens.pause.classList.add('hidden');
+                clearInterval(gameInterval);
+                clearInterval(aiInterval);
+                showScreen('title');
+            });
+
+            // Cheat code & Pause Keys
             document.addEventListener('keydown', (e) => {
                 if (e.shiftKey && (e.key === '3' || e.code === 'Digit3')) {
-                    if (state === 'playing') {
+                    if (state === 'playing' && !isPaused) {
                         winGame();
                     }
                 }
+                if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                    if (state === 'playing') {
+                        togglePause();
+                    }
+                }
             });
+
+            // Office Panning (FNAF 1 style)
+            document.addEventListener('mousemove', (e) => {
+                if (state === 'playing' && !isPaused) {
+                    const officeEl = document.getElementById('office');
+                    if (officeEl && !officeEl.classList.contains('hidden')) {
+                        const overflow = officeEl.offsetWidth - window.innerWidth;
+                        if (overflow > 0) {
+                            const percent = e.clientX / window.innerWidth;
+                            officeEl.style.transform = `translateX(-${percent * overflow}px)`;
+                        }
+                    }
+                }
+            });
+        }
+
+        function togglePause() {
+            if (state !== 'playing' || officeEnemyState === 1) return; // Don't pause mid-jumpscare sequence
+            
+            isPaused = !isPaused;
+            if (isPaused) {
+                if(screens.pause) screens.pause.classList.remove('hidden');
+                if(container) container.style.animationPlayState = 'paused';
+            } else {
+                if(screens.pause) screens.pause.classList.add('hidden');
+                if(container) container.style.animationPlayState = 'running';
+            }
         }
 
         function showScreen(screenName) {
@@ -787,6 +974,7 @@
             maintActive = false;
             appleActive = false;
             isFixing = false;
+            isPaused = false;
             camsWorking = true;
             audioWorking = true;
             audioCooldown = 0;
@@ -1070,7 +1258,7 @@
         }
 
         function gameTick() {
-            if(state !== 'playing') return;
+            if(state !== 'playing' || isPaused) return;
 
             // Time
             nightSeconds++;
@@ -1134,7 +1322,7 @@
         }
 
         function aiTick() {
-            if(state !== 'playing' || power <= 0 || officeEnemyState === 1) return;
+            if(state !== 'playing' || power <= 0 || officeEnemyState === 1 || isPaused) return;
 
             // Random chance to move based on difficulty (1-20 scale)
             const roll = Math.floor(Math.random() * 20) + 1;
