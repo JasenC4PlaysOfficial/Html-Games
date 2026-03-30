@@ -850,13 +850,14 @@
             currentGameHTML = ""; 
 
             try {
-                // 1. Fetch from JSDelivr (Text only)
-                const cdnUrl = CDN_BASE_URL(game.owner, game.repo, game.branch) + game.fullPath;
-                const response = await fetch(cdnUrl + '?t=' + Date.now(), { cache: 'no-store' });
+                // 1. Fetch from Raw GitHub to bypass jsDelivr cache for the HTML file
+                const rawUrl = `https://raw.githubusercontent.com/${game.owner}/${game.repo}/${game.branch}/${game.fullPath}`;
+                const response = await fetch(rawUrl + '?t=' + Date.now(), { cache: 'no-store' });
                 if (!response.ok) throw new Error("Failed to fetch game");
                 let htmlCode = await response.text();
 
                 // 2. Base Path for Assets (via JSDelivr)
+                const cdnUrl = CDN_BASE_URL(game.owner, game.repo, game.branch) + game.fullPath;
                 const assetBaseDir = cdnUrl.substring(0, cdnUrl.lastIndexOf('/') + 1);
 
                 // 3. Inject <base> tag to force relative assets to load from CDN
