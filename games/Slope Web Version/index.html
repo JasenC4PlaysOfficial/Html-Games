@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Slope Vector — a faithful fan-made neon endless-descent game for the browser.">
+  <title>Slope // Vector</title>
+  <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+  <main id="app">
+    <canvas id="gameCanvas" aria-label="Slope Vector game canvas"></canvas>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <header class="gamebar">
+      <button class="brand mini" id="menuLogo" aria-label="Return to main menu">
+        SLOPE<span>//VECTOR</span>
+      </button>
+      <div class="gamebar-actions">
+        <button class="icon-btn" id="soundBtn" aria-label="Toggle sound" title="Toggle sound">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a4 4 0 0 0-2.1-3.5v7A4 4 0 0 0 16.5 12Zm0-7.1v2.2a6 6 0 0 1 0 9.8v2.2a8 8 0 0 0 0-14.2Z"/></svg>
+        </button>
+        <button class="icon-btn" id="settingsQuickBtn" aria-label="Open settings" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19.1 13 .1-1-.1-1 2.1-1.6-2-3.4-2.5 1a7.8 7.8 0 0 0-1.7-1L14.6 3h-4l-.4 2.9a7.8 7.8 0 0 0-1.7 1L6 6 4 9.4 6.1 11 6 12l.1 1L4 14.6 6 18l2.5-1a7.8 7.8 0 0 0 1.7 1l.4 3h4l.4-3a7.8 7.8 0 0 0 1.7-1l2.5 1 2-3.4-2.1-1.6ZM12.6 15.4a3.5 3.5 0 1 1-1.2-6.8 3.5 3.5 0 0 1 1.2 6.8Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="hud" id="hud" aria-live="polite">
+      <div class="hud-block score-block">
+        <span class="hud-label">SCORE</span>
+        <strong id="scoreValue">0</strong>
+      </div>
+      <div class="hud-block best-block">
+        <span class="hud-label">BEST</span>
+        <strong id="bestValue">000</strong>
+      </div>
+      <div class="speed-block">
+        <div class="speed-copy"><span>SPEED</span><strong id="speedValue">086</strong></div>
+        <div class="speed-track"><i id="speedFill"></i></div>
+      </div>
+    </section>
+    <button class="pause-btn" id="pauseBtn" aria-label="Pause game">
+      <i></i><i></i>
+    </button>
+
+    <section class="screen menu-screen" id="menuScreen">
+      <div class="menu-shell">
+        <p class="eyebrow">ENDLESS DESCENT SYSTEM // ONLINE</p>
+        <h1 class="brand hero" aria-label="Slope Vector">SLOPE<span>//VECTOR</span></h1>
+        <p class="tagline">STAY ON THE GRID. DODGE THE RED. KEEP ROLLING.</p>
+        <div class="menu-actions">
+          <button class="primary action-btn" id="startBtn"><span>START RUN</span><kbd>ENTER</kbd></button>
+          <button class="secondary action-btn" id="settingsBtn"><span>SETTINGS</span><span class="arrow">↗</span></button>
+          <button class="secondary action-btn" id="howBtn"><span>HOW TO PLAY</span><span class="arrow">↗</span></button>
+        </div>
+        <div class="menu-meta">
+          <span><i class="status-dot"></i> PROCEDURAL COURSE</span>
+          <span>LOCAL BEST <b id="menuBest">000</b></span>
+        </div>
+      </div>
+      <div class="control-hint" aria-hidden="true">
+        <div><kbd>A</kbd><kbd>←</kbd></div><span>STEER</span><div><kbd>→</kbd><kbd>D</kbd></div>
+      </div>
+    </section>
+
+    <section class="screen compact-screen hidden" id="pauseScreen" aria-labelledby="pauseTitle">
+      <div class="compact-panel">
+        <p class="eyebrow">RUN SUSPENDED</p>
+        <h2 id="pauseTitle">PAUSED</h2>
+        <div class="compact-stats"><span>DISTANCE <b id="pauseScore">0</b></span><span>SPEED <b id="pauseSpeed">0</b></span></div>
+        <div class="stack-actions">
+          <button class="primary action-btn" id="resumeBtn"><span>RESUME</span><kbd>P</kbd></button>
+          <button class="secondary action-btn" id="restartBtn"><span>RESTART RUN</span></button>
+          <button class="secondary action-btn" id="pauseSettingsBtn"><span>SETTINGS</span></button>
+          <button class="ghost action-btn" id="pauseMenuBtn"><span>MAIN MENU</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen compact-screen hidden" id="overScreen" aria-labelledby="overTitle">
+      <div class="compact-panel danger-panel">
+        <p class="eyebrow red" id="crashReason">SIGNAL LOST // COLLISION</p>
+        <h2 id="overTitle">RUN OVER</h2>
+        <div class="result-number" id="finalScore">000</div>
+        <p class="result-label">DISTANCE CLEARED</p>
+        <div class="best-callout" id="bestCallout">BEST // 000</div>
+        <div class="stack-actions">
+          <button class="primary action-btn" id="retryBtn"><span>RUN AGAIN</span><kbd>ENTER</kbd></button>
+          <button class="secondary action-btn" id="overSettingsBtn"><span>TUNE RUN</span></button>
+          <button class="ghost action-btn" id="overMenuBtn"><span>MAIN MENU</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="modal hidden" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-panel settings-panel">
+        <div class="modal-heading">
+          <div><p class="eyebrow">SYSTEM CONFIGURATION</p><h2 id="settingsTitle">SETTINGS</h2></div>
+          <button class="close-btn" id="settingsClose" aria-label="Close settings">×</button>
+        </div>
+
+        <div class="settings-grid">
+          <div class="setting-group">
+            <h3>RUN MODEL</h3>
+            <label class="setting-row select-row"><span><b>Difficulty</b><small>Global challenge profile</small></span>
+              <select data-setting="difficulty">
+                <option value="chill">Chill</option>
+                <option value="classic">Classic</option>
+                <option value="brutal">Brutal</option>
+              </select>
+            </label>
+            <label class="setting-row"><span><b>Starting speed</b><small>Initial forward velocity</small></span><output data-for="startSpeed">24</output>
+              <input type="range" min="16" max="36" step="1" data-setting="startSpeed">
+            </label>
+            <label class="setting-row"><span><b>Top speed</b><small>Maximum run velocity</small></span><output data-for="maxSpeed">58</output>
+              <input type="range" min="38" max="82" step="1" data-setting="maxSpeed">
+            </label>
+            <label class="setting-row"><span><b>Acceleration</b><small>Speed gained over time</small></span><output data-for="acceleration">0.72</output>
+              <input type="range" min="0.2" max="1.4" step="0.04" data-setting="acceleration">
+            </label>
+            <label class="setting-row"><span><b>Track width</b><small>Applied on the next run</small></span><output data-for="trackWidth">7.4</output>
+              <input type="range" min="8.8" max="14.8" step="0.2" data-setting="trackWidth">
+            </label>
+            <label class="setting-row"><span><b>Obstacle density</b><small>Applied on the next run</small></span><output data-for="obstacleDensity">1.00×</output>
+              <input type="range" min="0.45" max="1.65" step="0.05" data-setting="obstacleDensity">
+            </label>
+            <label class="setting-row"><span><b>Course seed</b><small>Blank generates a fresh course</small></span>
+              <input class="text-input" type="text" maxlength="20" placeholder="RANDOM" data-setting="seed">
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <h3>CONTROL + CAMERA</h3>
+            <label class="setting-row select-row"><span><b>Render mode</b><small>Auto scales detail to hold a smooth frame rate</small></span>
+              <select data-setting="renderMode">
+                <option value="auto">Auto</option>
+                <option value="performance">Performance</option>
+                <option value="balanced">Balanced</option>
+                <option value="crisp">Crisp</option>
+              </select>
+            </label>
+            <label class="setting-row"><span><b>Steering</b><small>Horizontal response</small></span><output data-for="sensitivity">1.00×</output>
+              <input type="range" min="0.55" max="1.65" step="0.05" data-setting="sensitivity">
+            </label>
+            <label class="setting-row"><span><b>Field of view</b><small>Higher feels faster</small></span><output data-for="fov">72°</output>
+              <input type="range" min="58" max="94" step="1" data-setting="fov">
+            </label>
+            <label class="switch-row"><span><b>Neon glow</b><small>Extra light bloom</small></span><input type="checkbox" data-setting="glow"><i></i></label>
+            <label class="switch-row"><span><b>Reduced motion</b><small>Disables speed streaks</small></span><input type="checkbox" data-setting="reducedMotion"><i></i></label>
+          </div>
+
+          <div class="setting-group">
+            <h3>AUDIO</h3>
+            <label class="setting-row"><span><b>Effects</b><small>Boost, impact, and UI sounds</small></span><output data-for="sfxVolume">60%</output>
+              <input type="range" min="0" max="1" step="0.05" data-setting="sfxVolume">
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="text-btn" id="resetSettings">RESET DEFAULTS</button>
+          <button class="primary small-btn" id="settingsDone">SAVE + CLOSE</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="modal hidden" id="howModal" role="dialog" aria-modal="true" aria-labelledby="howTitle">
+      <div class="modal-panel how-panel">
+        <div class="modal-heading">
+          <div><p class="eyebrow">OPERATOR BRIEFING</p><h2 id="howTitle">HOW TO PLAY</h2></div>
+          <button class="close-btn" id="howClose" aria-label="Close instructions">×</button>
+        </div>
+        <div class="briefing-grid">
+          <article><span class="step-num">01</span><h3>STEER</h3><p>Use <kbd>A</kbd> / <kbd>D</kbd> or the arrow keys. On touchscreens, drag left and right.</p></article>
+          <article><span class="step-num">02</span><h3>SURVIVE</h3><p>Stay on the green grid. The run ends the instant you fall into the void.</p></article>
+          <article><span class="step-num red">03</span><h3>AVOID RED</h3><p>Red geometry is lethal. There is no jump button—read the opening and steer through it.</p></article>
+          <article><span class="step-num">04</span><h3>ADAPT</h3><p>The course is procedurally assembled and accelerates as your distance climbs.</p></article>
+        </div>
+        <div class="legend"><span><i class="green-swatch"></i> SAFE SURFACE</span><span><i class="red-swatch"></i> LETHAL OBJECT</span><span><kbd>ESC</kbd> PAUSE</span></div>
+        <div class="modal-footer right"><button class="primary small-btn" id="howDone">READY</button></div>
+      </div>
+    </section>
+
+    <div class="toast" id="toast" role="status"></div>
+    <footer class="legal-note">AN ORIGINAL FAN-MADE WEB HOMAGE // NO ORIGINAL GAME ASSETS USED</footer>
+  </main>
+  <script src="game.js?v=6"></script>
+</body>
+</html>
