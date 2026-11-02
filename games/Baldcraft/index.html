@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#171717">
+  <title>Baldcraft</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#171717;color:#eee;font-family:Arial,sans-serif}
+    #game{position:fixed;inset:0;width:100%;height:100%;display:block;background:#171717;outline:none}
+    #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#171717;z-index:2;padding:24px;box-sizing:border-box;text-align:center}
+    h1{margin:0;font-size:36px;letter-spacing:3px}progress{width:min(420px,85vw);height:18px;accent-color:#8aae57}
+    #status{font-size:14px;max-width:640px;overflow-wrap:anywhere;color:#ddd}button{background:#555;color:#fff;border:2px solid #aaa;padding:10px 20px;font-size:15px;cursor:pointer}
+    #error{display:none;white-space:pre-wrap;max-width:800px;color:#ffb6b6;font-size:13px}#fullscreen{position:fixed;right:10px;bottom:10px;opacity:.8;z-index:1;font-size:12px;padding:6px 10px}
+  </style>
+</head>
+<body>
+  <canvas id="game" tabindex="0"></canvas>
+  <section id="loading"><h1>BALDCRAFT</h1><progress id="progress" max="1" value="0"></progress><div id="status">Loading game files…</div><pre id="error"></pre><button id="retry" hidden>Retry</button></section>
+  <button id="fullscreen" title="Fullscreen">Fullscreen</button>
+  <script>
+  "use strict";
+  const manifest={"format":1,"repository":"JasenC4PlaysOfficial/Html-Games","ref":"main","sourceIndexSha256":"ca73730842e6e7ce7adbeffb8be5c103cdae1a469283d3a018afed1acbf3709e","config":{"streamingAssetsUrl":"StreamingAssets","companyName":"DefaultCompany","productName":"Baldcraft","productVersion":"1.4.3","autoSyncPersistentDataPath":false},"payloads":{"dataUrl":{"name":"Baldcraft-WebGL.data.unityweb","bytes":296972444,"mime":"application/octet-stream","sha256":"eb300fc5eaf7f916cf259736ed994da9049912d3295b3f586ea74dd6d2c75ec9","parts":[{"path":"Build/Baldcraft-WebGL.data.unityweb.part001","bytes":18874368,"sha256":"6e2d294cd4faa74d7ed0b39f3609c19f329cd0df7d8cb3a644bdc49dd6a1e2e7"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part002","bytes":18874368,"sha256":"a76ee5de6b2f39c51c20c0f03ea240748112a19f155949c4270a8ef2788fdbcd"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part003","bytes":18874368,"sha256":"8b8e520bc9ae5901a51d0eb2753903fbcbeac5ae98a364467a4a09f5484376c4"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part004","bytes":18874368,"sha256":"b9a916e29b08db6343fdd7ac79663cbe34835a549225e21d8885d5ef8a085e1b"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part005","bytes":18874368,"sha256":"d0f70a2dcc42d43f7291253f8fb7da528464f03737c46629655a9daa6a8d9db6"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part006","bytes":18874368,"sha256":"758409f6e537c7ae35bf192c0125a77180092614f6833367cbe8c148eed9a848"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part007","bytes":18874368,"sha256":"90089074b896db27d470e738fd89c3459e2b6f95768413ee6cf9a674c96b9aa5"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part008","bytes":18874368,"sha256":"b16d331d9240598c336d3a53ae168f6ae948177bce334986819e6ec9f663adfe"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part009","bytes":18874368,"sha256":"f89e610977355cee179c3989fb10727ef178198ec71b9c36c2bb4aef46ff51cb"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part010","bytes":18874368,"sha256":"96f1aa13ae6580535781cab8df5b88877e1f8b52a872e90cfdf36a404dcdf2d7"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part011","bytes":18874368,"sha256":"c12c9563e521d1bc47dfe4832eab207506a91d466d816e784781515d4ca21633"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part012","bytes":18874368,"sha256":"1db94af53dfe2abd084483330f899fe26f2507be0e243b9f3e0b3b8da9921bbe"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part013","bytes":18874368,"sha256":"c7329524289a4e3a0f8b46726042be133108ff1ec509a147d4b8dcaae5b6d148"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part014","bytes":18874368,"sha256":"cfe42d79eb88fae37b19d39dba5e4fa3a290376968a6d6b4013f39cb1469bb9a"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part015","bytes":18874368,"sha256":"65d22f19d5b4f74a6b892af582a7c5ed3fbc1091e733bb8b5a36784b9034dae0"},{"path":"Build/Baldcraft-WebGL.data.unityweb.part016","bytes":13856924,"sha256":"83fe8555ee2d904aac7bac57ea8460f453b3feaccab7bbd14afc9b1f53998754"}]},"frameworkUrl":{"name":"Baldcraft-WebGL.framework.js.unityweb","bytes":72934,"mime":"text/javascript","sha256":"86eb99bbb8e636869b39425b4e61ab1edf6ef38628e88f0558d592c6648a6a96","parts":[{"path":"Build/Baldcraft-WebGL.framework.js.unityweb","bytes":72934,"sha256":"86eb99bbb8e636869b39425b4e61ab1edf6ef38628e88f0558d592c6648a6a96"}]},"codeUrl":{"name":"Baldcraft-WebGL.wasm.unityweb","bytes":7309502,"mime":"application/wasm","sha256":"866e9b8f5336a0f2ccee16b1dcc1e6d3ad076724bb5871bfc2f0abdb674850d7","parts":[{"path":"Build/Baldcraft-WebGL.wasm.unityweb","bytes":7309502,"sha256":"866e9b8f5336a0f2ccee16b1dcc1e6d3ad076724bb5871bfc2f0abdb674850d7"}]},"loaderUrl":{"name":"Baldcraft-WebGL.loader.js","bytes":106848,"mime":"text/javascript","sha256":"f4bb05deb6d9556d2f8aee1f635e972be86a857157ec4607255f502cab1a8311","parts":[{"path":"Build/Baldcraft-WebGL.loader.js","bytes":106848,"sha256":"f4bb05deb6d9556d2f8aee1f635e972be86a857157ec4607255f502cab1a8311"}]}},"rawBase":"https://raw.githubusercontent.com/JasenC4PlaysOfficial/Html-Games/main/games/Baldcraft/"};
+  const canvas=document.getElementById("game"),progress=document.getElementById("progress"),status=document.getElementById("status"),errorBox=document.getElementById("error"),loading=document.getElementById("loading");
+  const localBase=new URL(".",document.baseURI).href;
+  const rawBase=manifest.rawBase;
+  const preferRaw=location.protocol==="about:"||/cdn\.jsdelivr\.net/i.test(document.baseURI)||/raw\.githubusercontent\.com/i.test(document.baseURI);
+  const bases=[...new Set(preferRaw?[rawBase,localBase]:[localBase,rawBase])];
+  const blobs=[];let received=0,unity=null;
+  const total=Object.values(manifest.payloads).reduce((n,file)=>n+file.bytes,0);
+  const controller=new AbortController();
+  async function sha256(bytes){
+    if(!globalThis.crypto?.subtle)return null;
+    return [...new Uint8Array(await crypto.subtle.digest("SHA-256",bytes))].map(n=>n.toString(16).padStart(2,"0")).join("");
+  }
+  async function getPart(part){
+    const failures=[];
+    for(const base of bases){
+      const url=new URL(part.path,base).href;
+      try{
+        const response=await fetch(url,{cache:"no-store",mode:"cors",credentials:"omit",signal:controller.signal});
+        if(!response.ok)throw new Error("HTTP "+response.status);
+        const bytes=await response.arrayBuffer();
+        if(bytes.byteLength!==part.bytes)throw new Error("Incomplete response");
+        const hash=await sha256(bytes);if(hash&&hash!==part.sha256)throw new Error("File integrity check failed");
+        received+=bytes.byteLength;progress.value=.7*received/total;
+        status.textContent="Loading files: "+Math.round(received/1048576)+" / "+Math.ceil(total/1048576)+" MiB";
+        return bytes;
+      }catch(error){if(controller.signal.aborted)throw error;failures.push(url+": "+error.message);}
+    }
+    throw new Error("Could not load "+part.path+"\n"+failures.join("\n"));
+  }
+  async function loadPayload(file){
+    const buffers=[];
+    // A small bounded number of requests avoids multiplying the WebAssembly
+    // player's peak memory usage by the entire download size.
+    for(let i=0;i<file.parts.length;i+=3){
+      const group=await Promise.all(file.parts.slice(i,i+3).map(getPart));buffers.push(...group);
+    }
+    const url=URL.createObjectURL(new Blob(buffers,{type:file.mime}));blobs.push(url);
+    // Unity fallback-compression loaders may use the original filename suffix.
+    return url+"#"+encodeURIComponent(file.name);
+  }
+  function releasePayload(url){
+    if(!url)return;
+    const objectUrl=url.split("#",1)[0],index=blobs.indexOf(objectUrl);
+    if(index>=0){URL.revokeObjectURL(objectUrl);blobs.splice(index,1);}
+  }
+  function showBanner(message,type){
+    if(type==="error")fail(new Error(message));else console.warn(message);
+  }
+  function fail(error){
+    controller.abort();loading.style.display="flex";status.textContent="Baldcraft could not finish loading.";
+    errorBox.style.display="block";errorBox.textContent=error?.message||String(error);document.getElementById("retry").hidden=false;
+  }
+  document.getElementById("retry").onclick=()=>location.reload();
+  document.getElementById("fullscreen").onclick=()=>{if(unity)unity.SetFullscreen(1);else canvas.requestFullscreen?.();};
+  canvas.addEventListener("pointerdown",()=>canvas.focus());
+  window.addEventListener("pagehide",()=>{controller.abort();for(const url of blobs)URL.revokeObjectURL(url);});
+  (async()=>{
+    const config={...manifest.config,showBanner,cacheControl:()=>"no-store",autoSyncPersistentDataPath:false};
+    if(config.streamingAssetsUrl)config.streamingAssetsUrl=new URL(config.streamingAssetsUrl,preferRaw?rawBase:localBase).href;
+    for(const name of ["dataUrl","codeUrl","frameworkUrl","symbolsUrl"]){
+      if(manifest.payloads[name])config[name]=await loadPayload(manifest.payloads[name]);
+    }
+    status.textContent="Starting Baldcraft…";
+    const script=document.createElement("script");script.src=await loadPayload(manifest.payloads.loaderUrl);
+    await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=()=>reject(new Error("Unity loader could not be executed"));document.body.appendChild(script);});
+    unity=await createUnityInstance(canvas,config,value=>{progress.value=.7+.3*value;status.textContent="Starting Baldcraft: "+Math.round(value*100)+"%";});
+    // Unity 2022.3 resolves from postRun: Wasm instantiation and unpacking the
+    // data archive have finished, so their compressed backing Blobs can go.
+    // Keep framework/loader and lazily requested debug symbols until pagehide.
+    releasePayload(config.dataUrl);releasePayload(config.codeUrl);
+    loading.style.display="none";canvas.focus();
+  })().catch(fail);
+  </script>
+</body>
+</html>
