@@ -1,7 +1,7 @@
 {
   "format": 1,
   "repository": "JasenC4PlaysOfficial/Html-Games",
-  "ref": "main",
+  "ref": "9041debe97eb59869155dd85caa0a08d720d0e03",
   "sourceIndexSha256": "ca73730842e6e7ce7adbeffb8be5c103cdae1a469283d3a018afed1acbf3709e",
   "config": {
     "streamingAssetsUrl": "StreamingAssets",
@@ -139,5 +139,5 @@
       ]
     }
   },
-  "rawBase": "https://raw.githubusercontent.com/JasenC4PlaysOfficial/Html-Games/main/games/Baldcraft/"
+  "rawBase": "https://raw.githubusercontent.com/JasenC4PlaysOfficial/Html-Games/9041debe97eb59869155dd85caa0a08d720d0e03/games/Baldcraft/"
 }
