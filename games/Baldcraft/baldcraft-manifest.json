@@ -1,7 +1,7 @@
 {
   "format": 1,
   "repository": "JasenC4PlaysOfficial/Html-Games",
-  "ref": "9041debe97eb59869155dd85caa0a08d720d0e03",
+  "ref": "main",
   "sourceIndexSha256": "ca73730842e6e7ce7adbeffb8be5c103cdae1a469283d3a018afed1acbf3709e",
   "config": {
     "streamingAssetsUrl": "StreamingAssets",
@@ -13,115 +13,115 @@
   "payloads": {
     "dataUrl": {
       "name": "Baldcraft-WebGL.data.unityweb",
-      "bytes": 297576028,
+      "bytes": 298501493,
       "mime": "application/octet-stream",
-      "sha256": "5ea1d57853c998ed0b8d2f3134e4505567fcad08a2b17129ad6e7953adacb719",
+      "sha256": "48e44e13882d080f16bb8bc6529326b2196a245a3c830b8532fae0fcf4398b85",
       "parts": [
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part001",
           "bytes": 18874368,
-          "sha256": "50987b48cae6536da58b60e6df00e7ef5b2a789e7d137d0b9ee5beff40f455b9"
+          "sha256": "5620aa3c95e8650231fb345ddc950980ebeb8a1844eeaed10841a06eef3eb773"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part002",
           "bytes": 18874368,
-          "sha256": "ccb5436afca892a607b803e1eb34267c8a8ee72719140e75181e6c092b7e6189"
+          "sha256": "4ec28d54b7edcc163f58fe9dcd7459a4e155d892de1b9865914aed695a8da7ea"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part003",
           "bytes": 18874368,
-          "sha256": "a00551dc792c95a61c7f88429e9d9528d166bbdd719916de673f375dc81592a5"
+          "sha256": "a6c860df2c646097d05e90a78af148a07b05514cd2c0921abf5a712bbdf8b328"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part004",
           "bytes": 18874368,
-          "sha256": "25f6d329d2a93d803dd61f0a6b58e25fb11ed0b05ec368f54db9bb629151f17a"
+          "sha256": "91ad263bb3e883127c249ad171fc644ab04f245f5858507180034968d3ac5fa3"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part005",
           "bytes": 18874368,
-          "sha256": "f0f4f2fcf6437f9ac998186ec070caea933a1fdd02ec0805642efae4856abaf8"
+          "sha256": "f86ff646fa23c7c6e730aadc965c99c723145ede9f37c133cb797adec0ca1f08"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part006",
           "bytes": 18874368,
-          "sha256": "8c3c4c8aba804410849c0970d4cd7f256cccb92f0f0276013010af164306b1ad"
+          "sha256": "ff51056b2f3ef131ef91b7efe42cd54fb1953fed8cd2afb65d17d6686e91e0cc"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part007",
           "bytes": 18874368,
-          "sha256": "392fe059b9d5edfca4ae4a3fd1f4a71a7e1ecd696d9edde2f74fe924e6af6ff7"
+          "sha256": "e192f39723c224940d24b6b9bd59c75183bef5a5a89e687e3c46397d25c11b1f"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part008",
           "bytes": 18874368,
-          "sha256": "381b35b81710c61b339c240b5bb380835246c5bb1cef941034e0fd657ee6f29d"
+          "sha256": "06278e97ef8e8577ecc6933eff1b72bff07a141a0b3ba3cfc997fd2a9866ac2b"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part009",
           "bytes": 18874368,
-          "sha256": "bbc3470ed798ddadd87c301706a6c1f38c3cc79a1f9b5c291cc9a1661ae7af5f"
+          "sha256": "921fac0bf7aa8f0180b1e0745ba146fce6d54c103ad4db56e056db76c28922b7"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part010",
           "bytes": 18874368,
-          "sha256": "01d7a0a1d62dbb099e12c638f667b1f22278f56612beab5e3bec4c025d6119d1"
+          "sha256": "a28ff06f2ffa358a63148b7dab853d7520b9d53901957d159bf20eb71fe995ec"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part011",
           "bytes": 18874368,
-          "sha256": "8b0b5d31d4257317374fab9806a99ac6ab3beaec8052e2b1b0365b302eaefb69"
+          "sha256": "c7d2a16fe6733e9cccd73261a437319f945bec28809336a94db373b603b775de"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part012",
           "bytes": 18874368,
-          "sha256": "c909becd24c264350cf34190dac86475a854b3775448fdb68928dd113c2c46ee"
+          "sha256": "8165980164481dc154d9d06b823da74a9a2384ff940a695f44b466e7847665bd"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part013",
           "bytes": 18874368,
-          "sha256": "6457d5e1004ef10210751cc8a366c955a657f67caa17ec679080a21385cafc4b"
+          "sha256": "cedbb3819ae23d19fb6b33d0a08a82310f0426947f342dc9e7ac1bcb47a2745a"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part014",
           "bytes": 18874368,
-          "sha256": "9a049218f893fad442aeb4998087f26a43906cdc8ba718f1bc162ecb0dfcab03"
+          "sha256": "b53d255a87ec7ee735e72c26dfc4dcd9a954b178511c36d838721fbf983dd14a"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part015",
           "bytes": 18874368,
-          "sha256": "eb30c33e8b6609f0705c4c8afd222cade7aa6453b7f583a45f40e2f6e8302c30"
+          "sha256": "b94f5a2b8fb1a9646d467f1dfc515335d4a8f9d65c889b83312accf2fee95db3"
         },
         {
           "path": "Build/Baldcraft-WebGL.data.unityweb.part016",
-          "bytes": 14460508,
-          "sha256": "823084e3bdfb8b8ae78d78577832d405a0c7ff5ab83a0b68e573cfa02960158b"
+          "bytes": 15385973,
+          "sha256": "3aa8a41b449b136d33fc8c4896d709987ba43da83fa8bba7954acfed0bd6501f"
         }
       ]
     },
     "frameworkUrl": {
       "name": "Baldcraft-WebGL.framework.js.unityweb",
-      "bytes": 72320,
+      "bytes": 72356,
       "mime": "text/javascript",
-      "sha256": "0b45b59c4d8e0ecde2b8b0514125e1273514978e68c09f512081aa847b4cf6c4",
+      "sha256": "3548814c00bf257357efd7f330987383b9225ca3a2cfe6f7d95de923d2183385",
       "parts": [
         {
           "path": "Build/Baldcraft-WebGL.framework.js.unityweb",
-          "bytes": 72320,
-          "sha256": "0b45b59c4d8e0ecde2b8b0514125e1273514978e68c09f512081aa847b4cf6c4"
+          "bytes": 72356,
+          "sha256": "3548814c00bf257357efd7f330987383b9225ca3a2cfe6f7d95de923d2183385"
         }
       ]
     },
     "codeUrl": {
       "name": "Baldcraft-WebGL.wasm.unityweb",
-      "bytes": 7671577,
+      "bytes": 7678237,
       "mime": "application/wasm",
-      "sha256": "f52d4d18ab727d8dfde10af5e8d7a0d5708466b1d153007ec58935f31a3b9bf1",
+      "sha256": "655e303c3a69699edbecd9a8d3e1ff56267cd038344eb66c767ab101a220a1fe",
       "parts": [
         {
           "path": "Build/Baldcraft-WebGL.wasm.unityweb",
-          "bytes": 7671577,
-          "sha256": "f52d4d18ab727d8dfde10af5e8d7a0d5708466b1d153007ec58935f31a3b9bf1"
+          "bytes": 7678237,
+          "sha256": "655e303c3a69699edbecd9a8d3e1ff56267cd038344eb66c767ab101a220a1fe"
         }
       ]
     },
@@ -139,5 +139,5 @@
       ]
     }
   },
-  "rawBase": "https://raw.githubusercontent.com/JasenC4PlaysOfficial/Html-Games/9041debe97eb59869155dd85caa0a08d720d0e03/games/Baldcraft/"
+  "rawBase": "https://raw.githubusercontent.com/JasenC4PlaysOfficial/Html-Games/main/games/Baldcraft/"
 }
