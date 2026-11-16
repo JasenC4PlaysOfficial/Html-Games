@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>Super Baldi Maker</title>
+  <style>
+    *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#fff;color:#111;font-family:"Comic Sans MS","Comic Sans",cursive}
+    #unity-canvas{display:block;width:100%;height:100%;background:#fff;outline:none}
+    #sbm-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fff;z-index:10;padding:20px}
+    #sbm-card{width:min(560px,100%);text-align:center;padding:32px 26px;border:2px solid #111;background:#fff}
+    h1{font-size:clamp(26px,5vw,38px);line-height:1.25;margin:0 0 24px;font-weight:normal}
+    p{font-size:18px;line-height:1.5;margin:12px 0}#sbm-progress{width:100%;height:22px;border:2px solid #111;background:#fff;margin:22px 0 12px}
+    #sbm-progress-bar{width:0%;height:100%;background:#69be44;transition:width .12s linear}
+    button{font:inherit;font-size:21px;padding:10px 25px;border:2px solid #111;background:#fff;color:#111;cursor:pointer}button:hover,button:focus-visible{background:#e7f6df;outline:2px solid #222;outline-offset:3px}
+    #sbm-start{background:#a6e98a;margin-top:8px}#sbm-retry{margin-top:14px}#sbm-error-detail{font:13px/1.4 monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:140px;overflow:auto;text-align:left}
+    #sbm-fullscreen{position:fixed;right:10px;bottom:10px;z-index:4;font-size:22px;padding:0;width:36px;height:34px;opacity:.6}#sbm-fullscreen:hover,#sbm-fullscreen:focus-visible{opacity:1}
+    #sbm-warning{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);z-index:5;max-width:min(700px,95vw);padding:8px 14px;background:#fff7cc;border:1px solid #222;font-size:14px;text-align:center}
+    [hidden]{display:none!important}@media(max-height:420px){#sbm-card{padding:16px}h1{font-size:24px;margin-bottom:10px}p{font-size:16px}}
+  </style>
+</head>
+<body>
+  <canvas id="unity-canvas" width="960" height="600" tabindex="0" aria-label="Super Baldi Maker"></canvas>
+  <section id="sbm-overlay" aria-live="polite">
+    <div id="sbm-card">
+      <h1>Super Baldi Maker</h1>
+      <p id="sbm-status">Loading your school maker...</p>
+      <div id="sbm-progress" role="progressbar" aria-label="Loading game" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="sbm-progress-bar"></div></div>
+      <p id="sbm-percent">0%</p>
+      <button id="sbm-start" type="button" hidden>Click to start</button>
+      <button id="sbm-retry" type="button" hidden>Retry</button>
+      <details id="sbm-error" hidden><summary>Error details</summary><pre id="sbm-error-detail"></pre></details>
+    </div>
+  </section>
+  <button id="sbm-fullscreen" type="button" title="Fullscreen" aria-label="Fullscreen" hidden>⛶</button>
+  <div id="sbm-warning" role="status" hidden></div>
+  <script>
+    /* SBM_PACK_CONFIG_START */
+window.SBM_PACKAGE = {"version":1,"packaged":true,"manifest":"sbm-payloads.json","rawBase":""};
+/* SBM_PACK_CONFIG_END */
+    window.SBM_UNITY_BUILD = {
+      loaderUrl: "Build/WebGLFinal.loader.js",
+      config: {
+        dataUrl: "Build/WebGLFinal.data.unityweb",
+        frameworkUrl: "Build/WebGLFinal.framework.js.unityweb",
+        codeUrl: "Build/WebGLFinal.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "JasenC4Plays",
+        productName: "Super Baldi Maker",
+        productVersion: "1.0",
+        autoSyncPersistentDataPath: true,
+        devicePixelRatio: 1
+      }
+    };
+  </script>
+  <script>
+/* Super Baldi Maker: static-host loader. No Unity gameplay automation. */
+(function () {
+  "use strict";
+  const packageConfig = window.SBM_PACKAGE || {};
+  const build = window.SBM_UNITY_BUILD;
+  const canvas = document.getElementById("unity-canvas");
+  const status = document.getElementById("sbm-status");
+  const progress = document.getElementById("sbm-progress");
+  const bar = document.getElementById("sbm-progress-bar");
+  const percent = document.getElementById("sbm-percent");
+  const start = document.getElementById("sbm-start");
+  const retry = document.getElementById("sbm-retry");
+  const warning = document.getElementById("sbm-warning");
+  const blobs = new Set();
+  const releaseAtReady = new Set();
+  const originalFetch = window.fetch.bind(window);
+  window.SBMWebGL = {state:"loading", progress:0, base:"", error:null};
+
+  // The portal's srcdoc polyfill disables IDBFS. A same-origin parent may still provide the native factory.
+  if (!window.indexedDB && window.parent !== window) {
+    try {
+      if (window.parent.indexedDB) Object.defineProperty(window, "indexedDB", {value:window.parent.indexedDB, configurable:true});
+    } catch (_) { /* Browser privacy/sandbox policy may deny durable storage. */ }
+  }
+  function directory(url) { return String(url).replace(/[?#].*$/, "").replace(/[^/]*$/, ""); }
+  function join(base, path) {
+    if (/^https?:\/\//i.test(path)) return path;
+    return base + path.split("/").map(encodeURIComponent).join("/");
+  }
+  // Use DOM URL resolution: the existing portal replaces the window.URL constructor.
+  const anchor = document.createElement("a"); anchor.href = document.baseURI;
+  const localBase = directory(anchor.href);
+  const rawBase = packageConfig.rawBase ? packageConfig.rawBase.replace(/\/?$/, "/") : "";
+  const embedded = /^about:(srcdoc|blank)/i.test(window.location.href) || /cdn\.jsdelivr\.net\/gh\//i.test(document.baseURI);
+  const bases = Array.from(new Set((embedded && rawBase ? [rawBase, localBase] : [localBase, rawBase]).filter(Boolean)));
+  let preferredBase = bases[0], manifest = null, downloaded = 0, expectedDownload = 0;
+  const descriptors = new Map();
+  function setProgress(value, message) {
+    value = Math.max(0, Math.min(1, value));
+    window.SBMWebGL.progress = value;
+    bar.style.width = (value * 100).toFixed(1) + "%";
+    percent.textContent = Math.floor(value * 100) + "%";
+    progress.setAttribute("aria-valuenow", String(Math.floor(value * 100)));
+    if (message) status.textContent = message;
+  }
+  function fail(error) {
+    window.SBMWebGL.state = "error"; window.SBMWebGL.error = String(error && error.message || error);
+    document.getElementById("sbm-overlay").hidden = false;
+    status.textContent = "The game couldn't load. Check your connection and try again.";
+    retry.hidden = false; start.hidden = true;
+    document.getElementById("sbm-error").hidden = false;
+    document.getElementById("sbm-error-detail").textContent = window.SBMWebGL.error;
+  }
+  function showBanner(message, type) {
+    if (type === "error") { fail(new Error(String(message).replace(/<[^>]*>/g, ""))); return; }
+    warning.textContent = String(message).replace(/<[^>]*>/g, ""); warning.hidden = false;
+    setTimeout(function () { warning.hidden = true; }, 9000);
+  }
+  function candidates() { return Array.from(new Set([preferredBase].concat(bases))); }
+  async function fetchFile(path, expected) {
+    const failures = [];
+    for (const base of candidates()) {
+      const url = join(base, path);
+      try {
+        const response = await originalFetch(url, {credentials:"omit"});
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const data = new Uint8Array(await response.arrayBuffer());
+        if (expected && data.byteLength !== expected.bytes) throw new Error("Unexpected file size");
+        if (expected && expected.sha256) {
+          if (!window.crypto || !window.crypto.subtle) throw new Error("A secure HTTPS connection is required to verify game files");
+          const hash = new Uint8Array(await window.crypto.subtle.digest("SHA-256", data));
+          const actual = Array.from(hash, value => value.toString(16).padStart(2,"0")).join("");
+          if (actual !== expected.sha256) throw new Error("File checksum mismatch");
+        }
+        return {data:data, base:base};
+      } catch (error) { failures.push(url + " — " + error.message); }
+    }
+    throw new Error("Couldn't download " + path + "\n" + failures.join("\n"));
+  }
+  async function loadManifest() {
+    if (!packageConfig.packaged) return;
+    const result = await fetchFile(packageConfig.manifest || "sbm-payloads.json");
+    preferredBase = result.base; window.SBMWebGL.base = preferredBase;
+    manifest = JSON.parse(new TextDecoder().decode(result.data));
+    if (manifest.version !== 1 || !Array.isArray(manifest.payloads)) throw new Error("Unsupported game package manifest");
+    for (const file of manifest.payloads) descriptors.set(file.path, file);
+  }
+  function account(bytes) {
+    downloaded += bytes;
+    if (expectedDownload) setProgress(.65 * Math.min(1, downloaded / expectedDownload), "Downloading game... " + (downloaded / 1048576).toFixed(1) + " MB");
+  }
+  async function payload(path, mime, releaseWhenReady) {
+    const file = descriptors.get(path);
+    const pieces = [];
+    if (file && file.parts) {
+      let length = 0;
+      for (const part of file.parts) {
+        const result = await fetchFile(part.path, part); pieces.push(result.data); length += result.data.length; account(result.data.length);
+      }
+      if (length !== file.bytes) throw new Error("Incomplete game payload: " + path);
+      // Full-file digest is verified in addition to every part, before Unity sees the reconstructed payload.
+      const combined = new Uint8Array(length); let position = 0;
+      for (const piece of pieces) { combined.set(piece, position); position += piece.length; }
+      pieces.length = 0;
+      const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", combined));
+      const actual = Array.from(hash, value => value.toString(16).padStart(2,"0")).join("");
+      if (actual !== file.sha256) throw new Error("Reassembled game checksum mismatch: " + path);
+      pieces.push(combined);
+    } else {
+      const result = await fetchFile(path, file); pieces.push(result.data); account(result.data.length);
+      if (!manifest) preferredBase = result.base;
+    }
+    const url = window.URL.createObjectURL(new Blob(pieces, {type:mime})); blobs.add(url);
+    if (releaseWhenReady) releaseAtReady.add(url);
+    // Preserve Unity's original suffix checks while keeping the plain object URL for revocation.
+    return url + "#" + encodeURIComponent(path);
+  }
+  function loadScript(url) {
+    return new Promise(function (resolve,reject) {
+      const script = document.createElement("script"); script.src = url;
+      script.onload = resolve; script.onerror = function () { reject(new Error("The game loader script couldn't start")); };
+      document.body.appendChild(script);
+    });
+  }
+  function unlockAudio() {
+    try { if (window.SBMAudio && typeof window.SBMAudio.unlock === "function") window.SBMAudio.unlock(); } catch (_) {}
+    const instance = window.unityInstance;
+    const modules = [instance && instance.Module, window.Module];
+    for (const module of modules) {
+      if (!module) continue;
+      const contexts = [module.WEBAudio && module.WEBAudio.audioContext, module.audioContext, module.AudioContext];
+      for (const context of contexts) {
+        try { if (context && typeof context.resume === "function") { const promise = context.resume(); if (promise && promise.catch) promise.catch(function () {}); } } catch (_) {}
+      }
+    }
+  }
+  start.addEventListener("click", function (event) {
+    if (!event.isTrusted) return;
+    unlockAudio(); document.getElementById("sbm-overlay").hidden = true;
+    window.SBMWebGL.state = "started"; canvas.focus();
+    if (!window.indexedDB) showBanner("Saving is restricted in this browser. Download your schools to keep a backup.","warning");
+  });
+  retry.addEventListener("click", function () { window.location.reload(); });
+  document.getElementById("sbm-fullscreen").addEventListener("click", function (event) {
+    if (!event.isTrusted || !window.unityInstance) return;
+    unlockAudio(); window.unityInstance.SetFullscreen(1); canvas.focus();
+  });
+  window.addEventListener("pagehide", function () { for (const url of blobs) window.URL.revokeObjectURL(url); });
+  async function boot() {
+    if (!build || !build.config) throw new Error("The Unity build configuration is missing");
+    await loadManifest();
+    const config = Object.assign({}, build.config, {
+      autoSyncPersistentDataPath:true,showBanner:showBanner,
+      // Reconstructed blob URLs change every visit. Cache the immutable HTTP
+      // chunks in the browser, rather than retaining another data archive per blob.
+      cacheControl:function () { return "no-store"; }
+    });
+    const keys = ["dataUrl","frameworkUrl","codeUrl","memoryUrl","symbolsUrl","workerUrl"].filter(key => config[key]);
+    expectedDownload = [build.loaderUrl].concat(keys.map(key => config[key])).reduce((sum,path) => sum + (descriptors.get(path)?.bytes || 0),0);
+    const loader = await payload(build.loaderUrl,"application/javascript");
+    for (const key of keys) config[key] = await payload(config[key], key === "codeUrl" ? "application/wasm" : key === "frameworkUrl" || key === "workerUrl" ? "application/javascript" : "application/octet-stream", key === "dataUrl" || key === "codeUrl" || key === "memoryUrl");
+    // Keep StreamingAssets on its real absolute folder URL; do not turn the folder into a blob URL.
+    config.streamingAssetsUrl = join(preferredBase, build.config.streamingAssetsUrl || "StreamingAssets");
+    window.SBMWebGL.base = preferredBase;
+    await loadScript(loader);
+    if (typeof window.createUnityInstance !== "function") throw new Error("Unity's loader did not initialize");
+    const instance = await window.createUnityInstance(canvas,config,function (value) { setProgress(.65 + .35 * value,"Starting Super Baldi Maker..."); });
+    window.unityInstance = instance;
+    setProgress(1,"Ready! Click below to start with sound."); window.SBMWebGL.state = "ready";
+    start.hidden = false; document.getElementById("sbm-fullscreen").hidden = false;
+    for (const url of releaseAtReady) { window.URL.revokeObjectURL(url); blobs.delete(url); }
+    releaseAtReady.clear();
+    start.focus();
+  }
+  boot().catch(fail);
+})();
+
+</script>
+</body>
+</html>

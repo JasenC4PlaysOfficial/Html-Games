@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "partBytes": 18874368,
+  "totalBytes": 105202312,
+  "payloads": [
+    {
+      "path": "Build/WebGLFinal.data.unityweb",
+      "bytes": 92787521,
+      "sha256": "177fddd804410bad8021ef39c5a89c83a04b8cf133dbc8f8b5bad6999223d09e",
+      "parts": [
+        {
+          "path": "Build/WebGLFinal.data.unityweb.part000",
+          "bytes": 18874368,
+          "sha256": "3c381b91ba74d4775be70a2135140009c7c24fff06d7091cbbe043d426ee0f7a"
+        },
+        {
+          "path": "Build/WebGLFinal.data.unityweb.part001",
+          "bytes": 18874368,
+          "sha256": "105481605a0265d1783f5914e810cf5d14d6ce976bb9fc9fa65592ce6ed5ad37"
+        },
+        {
+          "path": "Build/WebGLFinal.data.unityweb.part002",
+          "bytes": 18874368,
+          "sha256": "13ea9a4ec21e69912a2ae006165174f0522bcf40380561b79c205ba017941943"
+        },
+        {
+          "path": "Build/WebGLFinal.data.unityweb.part003",
+          "bytes": 18874368,
+          "sha256": "940140725b267f58e8d18f962c52cd18ee3396ee6aaac72b47857a5aa2840085"
+        },
+        {
+          "path": "Build/WebGLFinal.data.unityweb.part004",
+          "bytes": 17290049,
+          "sha256": "d47fa4cf7e2c5024989aaa9505e493e74dcd034195dcebe6fc943a070749972e"
+        }
+      ]
+    },
+    {
+      "path": "Build/WebGLFinal.framework.js.unityweb",
+      "bytes": 86957,
+      "sha256": "6fb3a2bbd8a0ff0d527d354d00cb58042be55a6767663bfbb6b76f7b45144701"
+    },
+    {
+      "path": "Build/WebGLFinal.loader.js",
+      "bytes": 44292,
+      "sha256": "d7a3ee7acf704a81c53418d29e8d58d9b34f9674e01c1bdb44bcbdf6406d7bfa"
+    },
+    {
+      "path": "Build/WebGLFinal.wasm.unityweb",
+      "bytes": 12282132,
+      "sha256": "3a9c0b7cf55e758ec398366d5494c4ad8cc70ffcfbab782db27bb246898df71b"
+    },
+    {
+      "path": "StreamingAssets/UnityServicesProjectConfiguration.json",
+      "bytes": 1410,
+      "sha256": "d4d63dea99545bd0b2333cc75a835785492e289c3c99c04c7aa736fc2c4ffb6d"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "files": [
+    ".gitattributes",
+    "Build/WebGLFinal.data.unityweb.part000",
+    "Build/WebGLFinal.data.unityweb.part001",
+    "Build/WebGLFinal.data.unityweb.part002",
+    "Build/WebGLFinal.data.unityweb.part003",
+    "Build/WebGLFinal.data.unityweb.part004",
+    "Build/WebGLFinal.framework.js.unityweb",
+    "Build/WebGLFinal.loader.js",
+    "Build/WebGLFinal.wasm.unityweb",
+    "StreamingAssets/UnityServicesProjectConfiguration.json",
+    "index.html",
+    "sbm-loader.js",
+    "sbm-package-files.json",
+    "sbm-payloads.json"
+  ]
+}
